@@ -1,0 +1,101 @@
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from datetime import datetime
+from enum import Enum
+
+class ExpenseStatusEnum(str, Enum):
+    request = "request"
+    review = "review"
+    confirmed = "confirmed"
+    declined = "declined"
+    revision = "revision"
+    archived = "archived"
+
+class CurrencyEnum(str, Enum):
+    UZS = "UZS"
+    USD = "USD"
+    RUB = "RUB"
+
+class ExpenseItemSchema(BaseModel):
+    name: str
+    quantity: float
+    amount: float
+    currency: CurrencyEnum
+
+# Project Schemas
+class ProjectBase(BaseModel):
+    name: str
+    code: str
+
+class ProjectCreate(ProjectBase):
+    pass
+
+class ProjectSchema(ProjectBase):
+    id: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Team Member Schemas
+class TeamMemberBase(BaseModel):
+    last_name: str
+    first_name: str
+    project_id: str
+    login: str
+    status: str = "active"
+
+class TeamMemberCreate(TeamMemberBase):
+    password: str
+
+class TeamMemberSchema(TeamMemberBase):
+    id: str
+    created_at: datetime
+    telegram_chat_id: Optional[int] = None
+    
+    class Config:
+        from_attributes = True
+
+# Expense Request Schemas
+class ExpenseRequestBase(BaseModel):
+    purpose: str
+    items: List[ExpenseItemSchema]
+    total_amount: float
+    currency: CurrencyEnum
+    project_id: str
+
+class ExpenseRequestCreate(ExpenseRequestBase):
+    date: Optional[datetime] = None
+
+class ExpenseStatusUpdate(BaseModel):
+    status: ExpenseStatusEnum
+    comment: Optional[str] = None
+
+class InternalCommentUpdate(BaseModel):
+    internal_comment: str
+
+class ExpenseRequestSchema(ExpenseRequestBase):
+    id: str
+    request_id: str
+    date: datetime
+    status: ExpenseStatusEnum
+    created_by: str
+    created_by_id: str
+    project_name: str
+    project_code: str
+    internal_comment: Optional[str] = None
+    status_comment: Optional[str] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Auth Schemas
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    role: str = "admin"
+    projectId: Optional[str] = None
+
+class TokenData(BaseModel):
+    login: Optional[str] = None

@@ -1,0 +1,138 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 20% 98%;
+    --foreground: 220 25% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 12%;
+
+    --primary: 160 45% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 94%;
+    --secondary-foreground: 220 25% 12%;
+
+    --muted: 220 15% 96%;
+    --muted-foreground: 220 10% 50%;
+
+    --accent: 38 92% 55%;
+    --accent-foreground: 220 25% 12%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 90%;
+    --input: 220 15% 90%;
+    --ring: 160 45% 40%;
+
+    --radius: 0.625rem;
+
+    --sidebar-background: 220 25% 12%;
+    --sidebar-foreground: 220 15% 85%;
+    --sidebar-primary: 160 45% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 20% 18%;
+    --sidebar-accent-foreground: 220 15% 90%;
+    --sidebar-border: 220 20% 20%;
+    --sidebar-ring: 160 45% 50%;
+    --sidebar-muted: 220 15% 40%;
+
+    --success: 145 60% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 220 25% 12%;
+    --info: 210 80% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --kanban-request: 38 85% 90%;
+    --kanban-request-border: 38 75% 70%;
+    --kanban-review: 210 70% 90%;
+    --kanban-review-border: 210 65% 70%;
+    --kanban-confirmed: 145 55% 88%;
+    --kanban-confirmed-border: 145 55% 65%;
+    --kanban-declined: 0 65% 90%;
+    --kanban-declined-border: 0 65% 70%;
+    --kanban-revision: 25 80% 88%;
+    --kanban-revision-border: 25 75% 68%;
+
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  .dark {
+    --background: 220 25% 8%;
+    --foreground: 220 15% 92%;
+    --card: 220 25% 12%;
+    --card-foreground: 220 15% 92%;
+    --popover: 220 25% 12%;
+    --popover-foreground: 220 15% 92%;
+    --primary: 160 45% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 20% 18%;
+    --secondary-foreground: 220 15% 92%;
+    --muted: 220 20% 16%;
+    --muted-foreground: 220 15% 55%;
+    --accent: 38 92% 55%;
+    --accent-foreground: 220 25% 12%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 160 45% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-sm border border-border/50 shadow-sm;
+  }
+  
+  .kanban-request {
+    background: hsl(var(--kanban-request));
+    border-color: hsl(var(--kanban-request-border));
+  }
+  
+  .kanban-review {
+    background: hsl(var(--kanban-review));
+    border-color: hsl(var(--kanban-review-border));
+  }
+  
+  .kanban-confirmed {
+    background: hsl(var(--kanban-confirmed));
+    border-color: hsl(var(--kanban-confirmed-border));
+  }
+
+  .kanban-declined {
+    background: hsl(var(--kanban-declined));
+    border-color: hsl(var(--kanban-declined-border));
+  }
+
+  .kanban-revision {
+    background: hsl(var(--kanban-revision));
+    border-color: hsl(var(--kanban-revision-border));
+  }
+}
