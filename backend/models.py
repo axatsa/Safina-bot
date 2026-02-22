@@ -76,3 +76,9 @@ class ProjectCounter(Base):
     
     project_code = Column(String, primary_key=True)
     counter = Column(Integer, default=0)
+
+class Setting(Base):
+    __tablename__ = "settings"
+    
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=False)

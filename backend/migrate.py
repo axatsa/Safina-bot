@@ -3,7 +3,11 @@ from sqlalchemy import text
 
 db = next(database.get_db())
 
-# Add new columns manually
+try:
+    db.execute(text("CREATE TABLE IF NOT EXISTS settings (key VARCHAR PRIMARY KEY, value VARCHAR NOT NULL);"))
+except Exception as e:
+    print(e)
+    db.rollback()
 
 try:
     db.execute(text("ALTER TABLE team_members ADD COLUMN position VARCHAR;"))

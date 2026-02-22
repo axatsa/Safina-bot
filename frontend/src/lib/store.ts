@@ -83,6 +83,7 @@ export const store = {
         createdAt: new Date(p.created_at)
       })),
       login: m.login,
+      position: m.position,
       status: m.status,
       telegramChatId: m.telegram_chat_id,
       createdAt: m.created_at

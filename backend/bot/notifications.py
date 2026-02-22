@@ -62,13 +62,20 @@ async def send_admin_notification(expense, admin_chat_id: int):
         await bot.session.close()
 
 def get_admin_chat_id():
-    path = "admin_config.json"
-    if os.path.exists(path):
-        with open(path, "r") as f:
-            return json.load(f).get("admin_chat_id")
+    import database, models
+    with next(database.get_db()) as db:
+        setting = db.query(models.Setting).filter(models.Setting.key == "admin_chat_id").first()
+        if setting:
+            return int(setting.value)
     return None
 
 def set_admin_chat_id(chat_id: int):
-    path = "admin_config.json"
-    with open(path, "w") as f:
-        json.dump({"admin_chat_id": chat_id}, f)
+    import database, models
+    with next(database.get_db()) as db:
+        setting = db.query(models.Setting).filter(models.Setting.key == "admin_chat_id").first()
+        if setting:
+            setting.value = str(chat_id)
+        else:
+            setting = models.Setting(key="admin_chat_id", value=str(chat_id))
+            db.add(setting)
+        db.commit()
