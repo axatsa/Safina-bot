@@ -19,6 +19,7 @@ const Archive = () => {
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ["expenses"],
     queryFn: () => store.getExpenses(),
+    refetchInterval: 60000, // Refresh every minute
   });
 
   const { data: projects = [] } = useQuery({

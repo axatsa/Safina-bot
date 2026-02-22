@@ -28,6 +28,7 @@ const Applications = () => {
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ["expenses"],
     queryFn: () => store.getExpenses(),
+    refetchInterval: 10000, // Refresh every 10 seconds
   });
 
   // Fetching projects
