@@ -311,7 +311,7 @@ def export_expense_docx(expense_id: str, db: Session = Depends(get_db), current_
         "total_amount": float(expense.total_amount),
         "currency": expense.currency,
         "request_id": expense.request_id,
-        "date": expense.date.strftime("%d.%m.%Y")
+        "date": expense.date # Pass actual datetime object
     }
     
     template_path = os.path.join(os.path.dirname(__file__), "template.docx")
