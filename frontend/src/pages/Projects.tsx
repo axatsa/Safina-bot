@@ -4,7 +4,7 @@ import { Project } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Layout, Loader2 } from "lucide-react";
+import { Plus, Layout, Loader2, Trash2, Users } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -26,6 +26,26 @@ const Projects = () => {
       setNewCode("");
       toast.success("Проект добавлен");
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => store.deleteProject(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      toast.success("Проект удален");
+    },
+    onError: () => toast.error("Ошибка при удалении")
+  });
+
+  const handleDeleteProject = (id: string) => {
+    if (confirm("Вы уверены, что хотите удалить этот проект? Это может затронуть связанные заявки.")) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  const { data: team = [] } = useQuery({
+    queryKey: ["team"],
+    queryFn: () => store.getTeam(),
   });
 
   const handleAddProject = (e: React.FormEvent) => {
@@ -99,12 +119,29 @@ const Projects = () => {
                     <h3 className="font-display font-bold text-foreground text-lg group-hover:text-primary transition-colors">
                       {project.name}
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Создан: {new Date(project.createdAt).toLocaleDateString()}
-                    </p>
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {team.filter(m => m.projectIds?.includes(project.id)).map(m => (
+                        <div key={m.id} className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold border border-background shadow-sm" title={`${m.lastName} ${m.firstName}`}>
+                          {m.lastName[0]}{m.firstName[0]}
+                        </div>
+                      ))}
+                      {team.filter(m => m.projectIds?.includes(project.id)).length === 0 && (
+                        <p className="text-[10px] text-muted-foreground italic">Нет участников</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                    <Layout className="w-5 h-5 text-muted-foreground" />
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+                      <Layout className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-red-600 transition-colors"
+                      onClick={() => handleDeleteProject(project.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               </div>

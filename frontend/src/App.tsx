@@ -10,6 +10,7 @@ import Projects from "./pages/Projects";
 import Team from "./pages/Team";
 import ArchivePage from "./pages/Archive";
 import ExpenseDetail from "./pages/ExpenseDetail";
+import SubmitExpense from "./pages/SubmitExpense";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="team" element={<Team />} />
             <Route path="expense/:id" element={<ExpenseDetail />} />
           </Route>
+          <Route path="/submit" element={<SubmitExpense />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

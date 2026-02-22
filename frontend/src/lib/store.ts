@@ -106,10 +106,35 @@ export const store = {
         createdAt: new Date(p.created_at)
       })),
       login: data.login,
+      position: data.position,
       status: data.status,
       telegramChatId: data.telegram_chat_id,
       createdAt: data.created_at
     };
+  },
+
+  async deleteTeamMember(id: string) {
+    await fetch(`${API_BASE_URL}/team/${id}`, {
+      method: "DELETE",
+      headers: getHeaders(),
+    });
+  },
+
+  async deleteProject(id: string) {
+    await fetch(`${API_BASE_URL}/projects/${id}`, {
+      method: "DELETE",
+      headers: getHeaders(),
+    });
+  },
+
+  async submitExpenseFromWeb(data: any) {
+    const res = await fetch(`${API_BASE_URL}/expenses/web-submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Submission failed");
+    return await res.json();
   },
 
   // Expenses

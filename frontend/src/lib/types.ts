@@ -9,6 +9,7 @@ export interface TeamMember {
   id: string;
   lastName: string;
   firstName: string;
+  position?: string;
   projectIds?: string[];
   projects?: Project[];
   login: string;
@@ -37,6 +38,7 @@ export interface ExpenseRequest {
   currency: string;
   status: ExpenseStatus;
   createdBy: string;
+  createdByPosition?: string;
   projectId: string;
   projectName: string;
   projectCode: string;

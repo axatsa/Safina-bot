@@ -36,6 +36,16 @@ def create_project(db: Session, project: schemas.ProjectCreate):
     db.commit()
     return db_project
 
+def delete_project(db: Session, project_id: str):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if project:
+        # Delete counter
+        db.query(models.ProjectCounter).filter(models.ProjectCounter.project_code == project.code).delete()
+        # Delete project (CASCADE will handle associations and expenses)
+        db.delete(project)
+        db.commit()
+    return True
+
 # Team
 def get_team(db: Session):
     return db.query(models.TeamMember).all()
@@ -47,6 +57,7 @@ def create_team_member(db: Session, member: schemas.TeamMemberCreate):
         first_name=member.first_name,
         login=member.login,
         password_hash=hashed_password,
+        position=member.position,
         status=member.status
     )
     
@@ -60,6 +71,13 @@ def create_team_member(db: Session, member: schemas.TeamMemberCreate):
     db.commit()
     db.refresh(db_member)
     return db_member
+
+def delete_team_member(db: Session, member_id: str):
+    member = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
+    if member:
+        db.delete(member)
+        db.commit()
+    return True
 
 # Expenses
 def get_expenses(db: Session, project_id: str = None, status: str = None):
@@ -90,6 +108,7 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
         currency=expense.currency,
         created_by_id=user_id,
         created_by=f"{user.last_name} {user.first_name}",
+        created_by_position=user.position,
         project_id=expense.project_id,
         project_name=project.name,
         project_code=project.code

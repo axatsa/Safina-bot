@@ -41,6 +41,7 @@ class TeamMemberBase(BaseModel):
     last_name: str
     first_name: str
     login: str
+    position: Optional[str] = None
     status: str = "active"
 
 class TeamMemberCreate(TeamMemberBase):
@@ -81,6 +82,7 @@ class ExpenseRequestSchema(ExpenseRequestBase):
     status: ExpenseStatusEnum
     created_by: str
     created_by_id: str
+    created_by_position: Optional[str] = None
     project_name: str
     project_code: str
     internal_comment: Optional[str] = None

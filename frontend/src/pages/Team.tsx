@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Users, ShieldCheck, ShieldAlert, Loader2 } from "lucide-react";
+import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -23,6 +23,7 @@ const Team = () => {
     projectIds: [] as string[],
     login: "",
     password: "",
+    position: "",
   });
 
   const { data: team = [], isLoading: isTeamLoading } = useQuery({
@@ -39,11 +40,26 @@ const Team = () => {
     mutationFn: (newMember: any) => store.createTeamMember(newMember),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team"] });
-      setFormData({ lastName: "", firstName: "", projectIds: [], login: "", password: "" });
+      setFormData({ lastName: "", firstName: "", projectIds: [], login: "", password: "", position: "" });
       toast.success("Участник добавлен");
     },
     onError: () => toast.error("Ошибка при добавлении")
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => store.deleteTeamMember(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team"] });
+      toast.success("Участник удален");
+    },
+    onError: () => toast.error("Ошибка при удалении")
+  });
+
+  const handleDeleteMember = (id: string) => {
+    if (confirm("Вы уверены, что хотите удалить этого участника?")) {
+      deleteMutation.mutate(id);
+    }
+  };
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +120,16 @@ const Team = () => {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="position">Должность (для сметы)</Label>
+              <Input
+                id="position"
+                value={formData.position}
+                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                placeholder="например: Операционный директор"
+                required
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Проекты</Label>
               <div className="space-y-2 max-h-[150px] overflow-y-auto p-2 border rounded-md">
                 {projects.map((p: Project) => (
@@ -155,6 +181,9 @@ const Team = () => {
                     Участник
                   </th>
                   <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                    Должность
+                  </th>
+                  <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
                     Проекты
                   </th>
                   <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
@@ -162,6 +191,9 @@ const Team = () => {
                   </th>
                   <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
                     Статус
+                  </th>
+                  <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider text-right">
+                    Действия
                   </th>
                 </tr>
               </thead>
@@ -180,6 +212,9 @@ const Team = () => {
                             </p>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                        {member.position || "—"}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1.5">
@@ -208,6 +243,16 @@ const Team = () => {
                             Заблокирован
                           </div>
                         )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-red-600 transition-colors"
+                          onClick={() => handleDeleteMember(member.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </td>
                     </tr>
                   );

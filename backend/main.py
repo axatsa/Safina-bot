@@ -50,17 +50,71 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
 def read_projects(db: Session = Depends(get_db)):
     return crud.get_projects(db)
 
-@app.post("/api/projects", response_model=schemas.ProjectSchema)
-def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
-    return crud.create_project(db, project)
+@app.post("/projects", response_model=schemas.ProjectSchema)
+def create_project(project: schemas.ProjectCreate, db: Session = Depends(database.get_db)):
+    return crud.create_project(db=db, project=project)
+
+@app.delete("/projects/{project_id}")
+def delete_project(project_id: str, db: Session = Depends(database.get_db)):
+    proj = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    # Also delete associations
+    db.delete(proj)
+    db.commit()
+    return {"status": "success"}
 
 @app.get("/api/team", response_model=List[schemas.TeamMemberSchema])
 def read_team(db: Session = Depends(get_db)):
     return crud.get_team(db)
 
-@app.post("/api/team", response_model=schemas.TeamMemberSchema)
-def create_member(member: schemas.TeamMemberCreate, db: Session = Depends(get_db)):
-    return crud.create_team_member(db, member)
+@app.post("/expenses", response_model=schemas.ExpenseRequestSchema)
+def create_expense(expense: schemas.ExpenseRequestCreate, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    return crud.create_expense_request(db=db, expense=expense, user_id=current_user.id)
+
+@app.post("/expenses/web-submit", response_model=schemas.ExpenseRequestSchema)
+def web_submit_expense(data: dict, db: Session = Depends(database.get_db)):
+    chat_id = data.get("chat_id")
+    if not chat_id:
+        raise HTTPException(status_code=400, detail="chat_id is required")
+    
+    # Simple integer check if it comes as string
+    try:
+        chat_id_int = int(chat_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid chat_id format")
+
+    user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == chat_id_int).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found for this telegram account")
+    
+    # Map raw data to ExpenseRequestCreate
+    items = []
+    for item in data.get("items", []):
+        items.append(schemas.ExpenseItem(
+            name=item.get("name"),
+            quantity=item.get("quantity"),
+            amount=item.get("amount"),
+            currency=item.get("currency")
+        ))
+    
+    expense_create = schemas.ExpenseRequestCreate(
+        project_id=data.get("project_id"),
+        purpose=data.get("purpose"),
+        items=items,
+        currency=items[0].currency if items else "UZS"
+    )
+    
+    return crud.create_expense_request(db=db, expense=expense_create, user_id=user.id)
+
+@app.delete("/team/{member_id}")
+def delete_team_member(member_id: str, db: Session = Depends(database.get_db)):
+    user = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Member not found")
+    db.delete(user)
+    db.commit()
+    return {"status": "success"}
 
 @app.get("/api/expenses", response_model=List[schemas.ExpenseRequestSchema])
 def read_expenses(project: str = None, status: str = None, db: Session = Depends(get_db)):

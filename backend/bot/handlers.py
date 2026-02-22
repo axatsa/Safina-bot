@@ -26,6 +26,13 @@ def get_currency_kb():
     builder.button(text="USD")
     return builder.as_markup(resize_keyboard=True)
 
+def get_main_kb():
+    builder = ReplyKeyboardBuilder()
+    builder.button(text="Создать заявку (в боте)")
+    builder.button(text="Веб-форма (быстрее)")
+    builder.adjust(1)
+    return builder.as_markup(resize_keyboard=True)
+
 def get_projects_kb(projects):
     builder = ReplyKeyboardBuilder()
     for p in projects:
@@ -40,22 +47,45 @@ async def cmd_start(message: types.Message, state: FSMContext):
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
         if user:
             await state.update_data(user_id=user.id)
-            if len(user.projects) > 1:
-                await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
-                await state.set_state(ExpenseWizard.project_selection)
-            elif len(user.projects) == 1:
-                await state.update_data(project_id=user.projects[0].id)
-                await message.answer(
-                    f"С возвращением, {user.first_name}! Давайте создадим заявку.\nВведите дату (ГГГГ-ММ-ДД), или нажмите кнопку «Сейчас»:",
-                    reply_markup=get_date_kb()
-                )
-                await state.set_state(ExpenseWizard.date)
-            else:
-                await message.answer("К вашему аккаунту не привязано ни одного проекта. Обратитесь к администратору.")
+            await message.answer(
+                f"С возвращением, {user.first_name}! Как хотите создать заявку?",
+                reply_markup=get_main_kb()
+            )
             return
 
-    await message.answer("Добро пожаловать в Safina Bot! Пожалуйста, введите ваш логин:", reply_markup=types.ReplyKeyboardRemove())
+    await message.answer("Добро пожаловать в Thompson Finance Bot! Пожалуйста, введите ваш логин:", reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(ExpenseWizard.waiting_for_auth)
+
+@router.message(F.text == "Веб-форма (быстрее)")
+@router.message(Command("form"))
+async def show_form_link(message: types.Message):
+    # Base URL should be configurable, but for now we'll use a placeholder or detect it
+    url = f"https://thompson-finance.uz/submit?chat_id={message.from_user.id}"
+    await message.answer(
+        f"🔗 Откройте форму для быстрого заполнения:\n{url}\n\n"
+        "(Если у вас не открывается, убедитесь что вы авторизованы в боте)"
+    )
+
+@router.message(F.text == "Создать заявку (в боте)")
+async def start_wizard_selection(message: types.Message, state: FSMContext):
+    with next(database.get_db()) as db:
+        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+        if not user:
+            await message.answer("Пожалуйста, сначала авторизуйтесь с помощью /start")
+            return
+        
+        if len(user.projects) > 1:
+            await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
+            await state.set_state(ExpenseWizard.project_selection)
+        elif len(user.projects) == 1:
+            await state.update_data(project_id=user.projects[0].id)
+            await message.answer(
+                "Введите дату (ГГГГ-ММ-ДД), или нажмите кнопку «Сейчас»:",
+                reply_markup=get_date_kb()
+            )
+            await state.set_state(ExpenseWizard.date)
+        else:
+            await message.answer("К вашему аккаунту не привязано ни одного проекта.")
 
 @router.message(ExpenseWizard.waiting_for_auth)
 async def process_login(message: types.Message, state: FSMContext):

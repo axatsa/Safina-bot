@@ -22,7 +22,7 @@ const AppSidebar = () => {
     <aside className="w-60 min-h-screen bg-sidebar flex flex-col border-r border-sidebar-border shrink-0">
       <div className="p-5 border-b border-sidebar-border">
         <h2 className="font-display text-lg font-bold text-sidebar-primary-foreground tracking-tight">
-          Safina
+          Thompson Finance
         </h2>
         <p className="text-xs text-sidebar-muted mt-0.5">Управление расходами</p>
       </div>

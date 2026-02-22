@@ -13,8 +13,8 @@ from sqlalchemy import Table
 member_projects = Table(
     "member_projects",
     Base.metadata,
-    Column("member_id", String, ForeignKey("team_members.id"), primary_key=True),
-    Column("project_id", String, ForeignKey("projects.id"), primary_key=True),
+    Column("member_id", String, ForeignKey("team_members.id", ondelete="CASCADE"), primary_key=True),
+    Column("project_id", String, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
 )
 
 class Project(Base):
@@ -26,7 +26,7 @@ class Project(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     members = relationship("TeamMember", secondary=member_projects, back_populates="projects")
-    expenses = relationship("ExpenseRequest", back_populates="project")
+    expenses = relationship("ExpenseRequest", back_populates="project", cascade="all, delete-orphan")
 
 class TeamMember(Base):
     __tablename__ = "team_members"
@@ -36,6 +36,7 @@ class TeamMember(Base):
     first_name = Column(String, nullable=False)
     login = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
+    position = Column(String, nullable=True) # Official title/position
     telegram_chat_id = Column(BigInteger, unique=True, nullable=True)
     status = Column(String, default="active") # active, blocked
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -55,10 +56,11 @@ class ExpenseRequest(Base):
     currency = Column(String, nullable=False) # UZS, USD, RUB
     status = Column(String, default="request") # request, review, confirmed, declined, revision, archived
     
-    created_by_id = Column(String, ForeignKey("team_members.id"))
+    created_by_id = Column(String, ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True)
     created_by = Column(String, nullable=False) # Denormalized Full Name
+    created_by_position = Column(String, nullable=True) # Denormalized Position
     
-    project_id = Column(String, ForeignKey("projects.id"))
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
     project_name = Column(String, nullable=False) # Denormalized Project Name
     project_code = Column(String, nullable=False) # Denormalized Project Code
     

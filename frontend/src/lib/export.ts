@@ -46,33 +46,57 @@ export function generateExpenseCSV(
 export function generateExpensePDF(expense: ExpenseRequest) {
   const doc = new jsPDF();
 
-  doc.setFontSize(16);
-  doc.text("Смета расходов", 14, 20);
+  // Custom font registration would go here
+  // doc.addFileToVFS('Roboto-Regular.ttf', ROBOTO_REGULAR_BASE64);
+  // doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+  // doc.setFont('Roboto');
 
+  // Title
+  doc.setFontSize(22);
+  doc.text("СМЕТА", 105, 25, { align: "center" });
+
+  // Header Info
   doc.setFontSize(10);
-  const info = [
-    `Request ID: ${expense.requestId}`,
-    `Дата: ${format(expense.date, "yyyy-MM-dd HH:mm")}`,
-    `Проект: ${expense.projectName} (${expense.projectCode})`,
-    `Ответственный: ${expense.createdBy}`,
-    `Статус: ${STATUS_LABELS[expense.status]}`,
-  ];
-  info.forEach((line, i) => doc.text(line, 14, 32 + i * 6));
+  doc.text(`Проект: ${expense.projectName}`, 14, 40);
+  doc.text(`Дата: ${format(expense.date, "dd.MM.yyyy")}`, 14, 46);
+  doc.text(`Назначение: ${expense.purpose}`, 14, 52);
 
+  // Table
   autoTable(doc, {
-    startY: 65,
-    head: [["Наименование", "Кол-во", "Сумма", "Валюта"]],
-    body: expense.items.map((item) => [
+    startY: 60,
+    head: [["№", "Наименование", "Кол-во", "Сумма", "Итого"]],
+    body: expense.items.map((item, index) => [
+      index + 1,
       item.name,
       String(item.quantity),
       item.amount.toLocaleString(),
-      item.currency,
+      (item.quantity * item.amount).toLocaleString(),
     ]),
-    foot: [["Итого", "", expense.totalAmount.toLocaleString(), expense.currency]],
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: [45, 80, 65] },
-    footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold" },
+    foot: [["", "ИТОГО", "", "", `${expense.totalAmount.toLocaleString()} ${expense.currency}`]],
+    styles: { fontSize: 10, cellPadding: 3 },
+    headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255] },
+    footStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: "bold" },
+    columnStyles: {
+      0: { cellWidth: 10 },
+      1: { cellWidth: "auto" },
+      2: { cellWidth: 20, halign: "center" },
+      3: { cellWidth: 30, halign: "right" },
+      4: { cellWidth: 40, halign: "right" },
+    },
   });
+
+  // Footer / Signatures
+  const finalY = (doc as any).lastAutoTable.finalY + 30;
+
+  doc.setFontSize(10);
+  doc.text("Заявитель:", 14, finalY);
+  doc.setFont("", "bold");
+  doc.text(`${expense.createdBy}`, 14, finalY + 6);
+  doc.setFont("", "normal");
+  doc.text(`${expense.createdByPosition || "Сотрудник"}`, 14, finalY + 12);
+
+  doc.text("________________ / signature /", 140, finalY + 6);
+  doc.text(`Дата: ${format(new Date(), "dd.MM.yyyy")}`, 140, finalY + 12);
 
   doc.save(`smeta_${expense.requestId}.pdf`);
 }
