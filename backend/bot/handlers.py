@@ -100,6 +100,10 @@ async def process_login(message: types.Message, state: FSMContext):
         with next(database.get_db()) as db:
             user = db.query(models.TeamMember).filter(models.TeamMember.login == data["login"]).first()
             if user and auth.verify_password(message.text, user.password_hash):
+                if user.status != "active":
+                    await message.answer("❌ Ваш аккаунт заблокирован. Обратитесь к администратору.")
+                    await state.clear()
+                    return
                 # IMPORTANT: Clear this chat_id if it's already linked to someone else
                 # to prevent UniqueConstraint error
                 db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).update({models.TeamMember.telegram_chat_id: None})

@@ -98,7 +98,8 @@ export const store = {
         first_name: member.firstName,
         project_ids: member.projectIds,
         login: member.login,
-        password: member.password
+        password: member.password,
+        position: member.position
       }),
     });
     const data = await res.json();
@@ -205,13 +206,21 @@ export const store = {
   },
 
   exportCSV: async (params: { project?: string; from?: string; to?: string; allStatuses?: boolean }): Promise<void> => {
-    const url = new URL(`${API_BASE_URL}/expenses/export`);
+    const url = new URL(`${API_BASE_URL}/expenses/export`, window.location.origin);
     if (params.project && params.project !== "all") url.searchParams.append("project", params.project);
     if (params.from) url.searchParams.append("from_date", params.from);
     if (params.to) url.searchParams.append("to_date", params.to);
     if (params.allStatuses) url.searchParams.append("allStatuses", "true");
 
-    window.open(url.toString(), "_blank");
+    const res = await fetch(url.toString(), { headers: getHeaders() });
+    const blob = await res.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', 'expenses_export.csv');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   },
 
   async addProjectMember(projectId: string, memberId: string) {
@@ -230,7 +239,15 @@ export const store = {
     if (!res.ok) throw new Error("Failed to remove member");
   },
 
-  exportDocx: (expenseId: string) => {
-    window.open(`${API_BASE_URL}/expenses/${expenseId}/export-docx`, "_blank");
+  exportDocx: async (expenseId: string) => {
+    const res = await fetch(`${API_BASE_URL}/expenses/${expenseId}/export-docx`, { headers: getHeaders() });
+    const blob = await res.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', `smeta_${expenseId}.docx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   }
 };

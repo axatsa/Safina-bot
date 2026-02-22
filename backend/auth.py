@@ -56,6 +56,13 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
         admin_login = os.getenv("ADMIN_LOGIN", "safina")
         if login == admin_login:
             # Return a "virtual" user object for admin
-            return models.TeamMember(id="admin", login=admin_login, first_name="Admin", last_name="Safina", projects=[])
+            return models.TeamMember(id="admin", login=admin_login, first_name="Admin", last_name="Safina", projects=[], status="active")
         raise credentials_exception
+    
+    if user.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is blocked",
+        )
+        
     return user

@@ -111,9 +111,15 @@ def get_expenses(db: Session, project_id: str = None, status: str = None, user_i
     return query.all()
 
 def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, user_id: str):
-    user = db.query(models.TeamMember).filter(models.TeamMember.id == user_id).first()
-    if not user:
-        raise ValueError("User not found")
+    if user_id == "admin":
+        user_name = "Safina Admin"
+        user_position = "Administrator"
+    else:
+        user = db.query(models.TeamMember).filter(models.TeamMember.id == user_id).first()
+        if not user:
+            raise ValueError("User not found")
+        user_name = f"{user.last_name} {user.first_name}"
+        user_position = user.position
         
     project = db.query(models.Project).filter(models.Project.id == expense.project_id).first()
     if not project:
@@ -138,9 +144,9 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
         items=[item.dict() for item in expense.items],
         total_amount=total_amount,
         currency=currency,
-        created_by_id=user_id,
-        created_by=f"{user.last_name} {user.first_name}",
-        created_by_position=user.position,
+        created_by_id=user_id if user_id != "admin" else None,
+        created_by=user_name,
+        created_by_position=user_position,
         project_id=expense.project_id,
         project_name=project.name,
         project_code=project.code

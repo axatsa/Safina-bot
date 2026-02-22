@@ -203,7 +203,7 @@ def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, backgrou
         raise HTTPException(status_code=404, detail="Expense not found")
     
     # Trigger Telegram notification
-    if expense.created_by_user.telegram_chat_id:
+    if expense.created_by_user and expense.created_by_user.telegram_chat_id:
         background_tasks.add_task(
             send_status_notification,
             expense.created_by_user.telegram_chat_id,
@@ -226,7 +226,7 @@ def update_internal_comment(expense_id: str, update: schemas.InternalCommentUpda
     return {"status": "success"}
 
 @app.get("/api/expenses/export")
-def export_expenses(project: str = None, from_date: str = None, to_date: str = None, allStatuses: bool = False, db: Session = Depends(get_db)):
+def export_expenses(project: str = None, from_date: str = None, to_date: str = None, allStatuses: bool = False, db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     # ... existing CSV export ...
     query = db.query(models.ExpenseRequest)
     if project:
@@ -297,7 +297,7 @@ def export_expenses(project: str = None, from_date: str = None, to_date: str = N
     )
 
 @app.get("/api/expenses/{expense_id}/export-docx")
-def export_expense_docx(expense_id: str, db: Session = Depends(get_db)):
+def export_expense_docx(expense_id: str, db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")

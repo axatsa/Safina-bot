@@ -89,7 +89,7 @@ class ExpenseRequestSchema(ExpenseRequestCreate):
     date: datetime
     status: ExpenseStatusEnum
     created_by: str
-    created_by_id: str
+    created_by_id: Optional[str] = None
     created_by_position: Optional[str] = None
     project_name: str
     project_code: str
