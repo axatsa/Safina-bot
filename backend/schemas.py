@@ -99,3 +99,7 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     login: Optional[str] = None
+
+class LoginRequest(BaseModel):
+    login: str
+    password: str

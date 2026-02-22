@@ -25,7 +25,7 @@ app.add_middleware(
 )
 
 @app.post("/api/auth/login", response_model=schemas.Token)
-def login(request: schemas.TokenData, db: Session = Depends(get_db)):
+def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
     # Use environment variables for admin login for safety
     admin_login = os.getenv("ADMIN_LOGIN", "safina")
     admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
