@@ -59,7 +59,9 @@ def read_projects(db: Session = Depends(get_db), current_user: models.TeamMember
     return current_user.projects
 
 @app.post("/api/projects", response_model=schemas.ProjectSchema)
-def create_project(project: schemas.ProjectCreate, db: Session = Depends(database.get_db)):
+def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
+        raise HTTPException(status_code=403, detail="Only admins can create projects")
     return crud.create_project(db=db, project=project)
 
 @app.delete("/api/projects/{project_id}")
@@ -93,18 +95,24 @@ def read_team(db: Session = Depends(get_db), current_user: models.TeamMember = D
     return crud.get_team(db)
 
 @app.post("/api/team", response_model=schemas.TeamMemberSchema)
-def create_team_member(member: schemas.TeamMemberCreate, db: Session = Depends(database.get_db)):
+def create_team_member(member: schemas.TeamMemberCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.TeamMember).filter(models.TeamMember.login == member.login).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Login already registered")
     return crud.create_team_member(db=db, member=member)
 
 @app.post("/api/expenses", response_model=schemas.ExpenseRequestSchema)
-def create_expense(expense: schemas.ExpenseRequestCreate, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    return crud.create_expense_request(db=db, expense=expense, user_id=current_user.id)
+def create_expense(expense: schemas.ExpenseRequestCreate, db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    user_id = getattr(current_user, "id", None)
+    if not user_id:
+        # If admin doesn't have ID, maybe they shouldn't create expenses or we find/temp ID
+        # For now, let's assume admins who create expenses are NOT virtual (rare case)
+        # or we throw error
+        raise HTTPException(status_code=400, detail="Admin cannot create expenses directly")
+    return crud.create_expense_request(db=db, expense=expense, user_id=user_id)
 
 @app.post("/api/expenses/web-submit", response_model=schemas.ExpenseRequestSchema)
-def web_submit_expense(data: dict, db: Session = Depends(database.get_db)):
+def web_submit_expense(data: dict, db: Session = Depends(get_db)):
     chat_id = data.get("chat_id")
     if not chat_id:
         raise HTTPException(status_code=400, detail="chat_id is required")
@@ -122,7 +130,7 @@ def web_submit_expense(data: dict, db: Session = Depends(database.get_db)):
     # Map raw data to ExpenseRequestCreate
     items = []
     for item in data.get("items", []):
-        items.append(schemas.ExpenseItem(
+        items.append(schemas.ExpenseItemSchema(
             name=item.get("name"),
             quantity=item.get("quantity"),
             amount=item.get("amount"),
@@ -139,7 +147,7 @@ def web_submit_expense(data: dict, db: Session = Depends(database.get_db)):
     return crud.create_expense_request(db=db, expense=expense_create, user_id=user.id)
 
 @app.delete("/api/team/{member_id}")
-def delete_team_member(member_id: str, db: Session = Depends(database.get_db)):
+def delete_team_member(member_id: str, db: Session = Depends(get_db)):
     user = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Member not found")
@@ -152,9 +160,7 @@ def read_expenses(project: str = None, status: str = None, db: Session = Depends
     user_id = None if current_user.login == "safina" else current_user.id
     return crud.get_expenses(db, project_id=project, status=status, user_id=user_id)
 
-@app.post("/api/expenses", response_model=schemas.ExpenseRequestSchema)
-def create_expense(expense: schemas.ExpenseRequestCreate, db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    return crud.create_expense_request(db=db, expense=expense, user_id=current_user.id)
+# Removed duplicate create_expense endpoint
 
 @app.patch("/api/expenses/{expense_id}/status", response_model=schemas.ExpenseRequestSchema)
 def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):

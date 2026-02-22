@@ -52,5 +52,10 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
     
     user = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
     if user is None:
+        # Check if it's the admin user
+        admin_login = os.getenv("ADMIN_LOGIN", "safina")
+        if login == admin_login:
+            # Return a "virtual" user object for admin
+            return models.TeamMember(login=admin_login, first_name="Admin", last_name="Safina")
         raise credentials_exception
     return user
