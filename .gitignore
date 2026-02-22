@@ -24,3 +24,12 @@ dist-ssr
 *.sw?
 .env
 backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database
+safina.db
+backend/safina.db
