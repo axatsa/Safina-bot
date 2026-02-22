@@ -3,12 +3,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from bot.states import ExpenseWizard
-import sys
-import os
-import datetime
-
-# To import from parent directory
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Imports are already correct, but I'll remove the sys.path hack for cleaner code
 import crud, database, models, auth, schemas
 
 router = Router()
@@ -73,22 +68,26 @@ async def process_item_name(message: types.Message, state: FSMContext):
 @router.message(ExpenseWizard.item_qty)
 async def process_item_qty(message: types.Message, state: FSMContext):
     try:
-        qty = float(message.text)
+        # Support both dot and comma
+        qty_str = message.text.replace(",", ".")
+        qty = float(qty_str)
         await state.update_data(current_item_qty=qty)
         await message.answer("Сумма:")
         await state.set_state(ExpenseWizard.item_amount)
-    except:
-        await message.answer("Введите число:")
+    except ValueError:
+        await message.answer("Пожалуйста, введите число (например: 10 или 10.5):")
 
 @router.message(ExpenseWizard.item_amount)
 async def process_item_amount(message: types.Message, state: FSMContext):
     try:
-        amount = float(message.text)
+        # Support both dot and comma
+        amount_str = message.text.replace(",", ".")
+        amount = float(amount_str)
         await state.update_data(current_item_amount=amount)
         await message.answer("Валюта (UZS, USD, RUB):")
         await state.set_state(ExpenseWizard.item_currency)
-    except:
-        await message.answer("Введите число:")
+    except ValueError:
+        await message.answer("Пожалуйста, введите число (например: 1000 или 1500.50):")
 
 @router.message(ExpenseWizard.item_currency)
 async def process_item_currency(message: types.Message, state: FSMContext):
@@ -99,6 +98,12 @@ async def process_item_currency(message: types.Message, state: FSMContext):
     
     data = await state.get_data()
     items = data.get("items", [])
+    
+    # Currency Enforce: check if currency matches existing items
+    if items and items[0]["currency"] != currency:
+        await message.answer(f"❌ В одной заявке должна быть одна валюта. Ваша текущая валюта: {items[0]['currency']}.\nДля другой валюты создайте новую заявку.")
+        return
+
     items.append({
         "name": data["current_item_name"],
         "quantity": data["current_item_qty"],
@@ -122,7 +127,7 @@ async def process_finish(message: types.Message, state: FSMContext):
         try:
             # Calculate total amount
             total_amount = sum(item["amount"] for item in data["items"])
-            # Default currency from the first item
+            # Currency is guaranteed to be consistent due to enforced check
             currency = data["items"][0]["currency"] if data["items"] else "UZS"
 
             expense_create = schemas.ExpenseRequestCreate(

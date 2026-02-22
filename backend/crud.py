@@ -41,6 +41,11 @@ def get_team(db: Session):
     return db.query(models.TeamMember).all()
 
 def create_team_member(db: Session, member: schemas.TeamMemberCreate):
+    # Validate project exists
+    project = db.query(models.Project).filter(models.Project.id == member.project_id).first()
+    if not project:
+        raise ValueError("Project not found")
+        
     hashed_password = auth.get_password_hash(member.password)
     db_member = models.TeamMember(
         last_name=member.last_name,
@@ -66,7 +71,12 @@ def get_expenses(db: Session, project_id: str = None, status: str = None):
 
 def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, user_id: str):
     user = db.query(models.TeamMember).filter(models.TeamMember.id == user_id).first()
+    if not user:
+        raise ValueError("User not found")
+        
     project = db.query(models.Project).filter(models.Project.id == expense.project_id).first()
+    if not project:
+        raise ValueError("Project not found")
     
     request_id = generate_request_id(db, project.code)
     

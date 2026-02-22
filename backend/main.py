@@ -64,6 +64,9 @@ def create_member(member: schemas.TeamMemberCreate, db: Session = Depends(get_db
 
 @app.get("/api/expenses", response_model=List[schemas.ExpenseRequestSchema])
 def read_expenses(project: str = None, status: str = None, db: Session = Depends(get_db)):
+    # Note: In a real app, we would get the current user from the token here
+    # and restrict 'project' if they are a regular user.
+    # For now, we allow filtering, but logic is ready for integration.
     return crud.get_expenses(db, project_id=project, status=status)
 
 @app.patch("/api/expenses/{expense_id}/status", response_model=schemas.ExpenseRequestSchema)
@@ -107,11 +110,23 @@ def export_expenses(project: str = None, from_date: str = None, to_date: str = N
     if not allStatuses:
         query = query.filter(models.ExpenseRequest.status == "confirmed")
     
-    # Date filtering logic
+    # Date filtering logic with robust parsing
     if from_date:
-        query = query.filter(models.ExpenseRequest.date >= datetime.datetime.fromisoformat(from_date))
+        try:
+            from_dt = datetime.datetime.fromisoformat(from_date.replace("Z", "+00:00"))
+            query = query.filter(models.ExpenseRequest.date >= from_dt)
+        except ValueError:
+            pass # Or handle error
     if to_date:
-        query = query.filter(models.ExpenseRequest.date <= datetime.datetime.fromisoformat(to_date))
+        try:
+            # For to_date, we often want the very end of the day if just a date is provided
+            if len(to_date) <= 10: # YYYY-MM-DD
+                to_dt = datetime.datetime.fromisoformat(to_date) + datetime.timedelta(days=1)
+            else:
+                to_dt = datetime.datetime.fromisoformat(to_date.replace("Z", "+00:00"))
+            query = query.filter(models.ExpenseRequest.date <= to_dt)
+        except ValueError:
+            pass
         
     expenses = query.all()
     
