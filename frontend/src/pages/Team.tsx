@@ -36,22 +36,7 @@ const Team = () => {
   });
 
   const mutation = useMutation({
-    mutationFn: (newMember: any) => {
-      return fetch("http://localhost:8000/api/team", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("safina_token")}`
-        },
-        body: JSON.stringify({
-          last_name: newMember.lastName,
-          first_name: newMember.firstName,
-          project_id: newMember.projectId,
-          login: newMember.login,
-          password: newMember.password
-        }),
-      }).then(res => res.json());
-    },
+    mutationFn: (newMember: any) => store.createTeamMember(newMember),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team"] });
       setFormData({ lastName: "", firstName: "", projectId: "", login: "", password: "" });

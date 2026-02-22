@@ -46,9 +46,33 @@ export const store = {
     return res.json();
   },
 
+  createProject: async (project: { name: string; code: string }): Promise<Project> => {
+    const res = await fetch(`${API_BASE_URL}/projects`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(project),
+    });
+    return res.json();
+  },
+
   // Team
   getTeam: async (): Promise<TeamMember[]> => {
     const res = await fetch(`${API_BASE_URL}/team`, { headers: getHeaders() });
+    return res.json();
+  },
+
+  createTeamMember: async (member: any): Promise<TeamMember> => {
+    const res = await fetch(`${API_BASE_URL}/team`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({
+        last_name: member.lastName,
+        first_name: member.firstName,
+        project_id: member.projectId,
+        login: member.login,
+        password: member.password
+      }),
+    });
     return res.json();
   },
 

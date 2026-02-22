@@ -19,16 +19,7 @@ const Projects = () => {
   });
 
   const mutation = useMutation({
-    mutationFn: (newProject: { name: string; code: string }) => {
-      return fetch("http://localhost:8000/api/projects", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("safina_token")}`
-        },
-        body: JSON.stringify(newProject),
-      }).then(res => res.json());
-    },
+    mutationFn: (newProject: { name: string; code: string }) => store.createProject(newProject),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       setNewName("");
