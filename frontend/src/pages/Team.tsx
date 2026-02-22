@@ -166,7 +166,7 @@ const Team = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                            {member.lastName[0]}{member.firstName[0]}
+                            {(member.lastName || "?")[0]}{(member.firstName || "?")[0]}
                           </div>
                           <div>
                             <p className="font-display font-semibold text-sm">

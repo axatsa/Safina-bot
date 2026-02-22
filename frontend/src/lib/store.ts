@@ -43,7 +43,11 @@ export const store = {
   // Projects
   getProjects: async (): Promise<Project[]> => {
     const res = await fetch(`${API_BASE_URL}/projects`, { headers: getHeaders() });
-    return res.json();
+    const data = await res.json();
+    return data.map((p: any) => ({
+      ...p,
+      createdAt: p.created_at
+    }));
   },
 
   createProject: async (project: { name: string; code: string }): Promise<Project> => {
@@ -52,13 +56,27 @@ export const store = {
       headers: getHeaders(),
       body: JSON.stringify(project),
     });
-    return res.json();
+    const data = await res.json();
+    return {
+      ...data,
+      createdAt: data.created_at
+    };
   },
 
   // Team
   getTeam: async (): Promise<TeamMember[]> => {
     const res = await fetch(`${API_BASE_URL}/team`, { headers: getHeaders() });
-    return res.json();
+    const data = await res.json();
+    return data.map((m: any) => ({
+      id: m.id,
+      lastName: m.last_name,
+      firstName: m.first_name,
+      projectId: m.project_id,
+      login: m.login,
+      status: m.status,
+      telegramChatId: m.telegram_chat_id,
+      createdAt: m.created_at
+    }));
   },
 
   createTeamMember: async (member: any): Promise<TeamMember> => {
@@ -73,21 +91,44 @@ export const store = {
         password: member.password
       }),
     });
-    return res.json();
+    const data = await res.json();
+    return {
+      id: data.id,
+      lastName: data.last_name,
+      firstName: data.first_name,
+      projectId: data.project_id,
+      login: data.login,
+      status: data.status,
+      telegramChatId: data.telegram_chat_id,
+      createdAt: data.created_at
+    };
   },
 
   // Expenses
   getExpenses: async (params?: { project?: string; status?: string }): Promise<ExpenseRequest[]> => {
-    const url = new URL(`${API_BASE_URL}/expenses`);
+    const url = new URL(`${API_BASE_URL}/expenses`, window.location.origin);
     if (params?.project) url.searchParams.append("project", params.project);
     if (params?.status) url.searchParams.append("status", params.status);
 
     const res = await fetch(url.toString(), { headers: getHeaders() });
     const data = await res.json();
     return data.map((e: any) => ({
-      ...e,
+      id: e.id,
+      requestId: e.request_id,
+      purpose: e.purpose,
+      items: e.items,
+      totalAmount: e.total_amount,
+      currency: e.currency,
+      projectId: e.project_id,
+      projectName: e.project_name,
+      projectCode: e.project_code,
+      status: e.status,
+      statusComment: e.status_comment,
+      internalComment: e.internal_comment,
+      createdBy: e.created_by,
+      createdById: e.created_by_id,
       date: new Date(e.date),
-      createdAt: new Date(e.createdAt),
+      createdAt: new Date(e.created_at),
     }));
   },
 

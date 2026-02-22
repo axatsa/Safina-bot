@@ -11,8 +11,9 @@ export interface TeamMember {
   firstName: string;
   projectId: string;
   login: string;
-  password: string;
+  password?: string;
   status: "active" | "blocked";
+  telegramChatId?: number;
   createdAt: Date;
 }
 
