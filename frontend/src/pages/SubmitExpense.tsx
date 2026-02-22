@@ -27,8 +27,21 @@ const SubmitExpense = () => {
     ]);
 
     const { data: projects = [] } = useQuery({
-        queryKey: ["projects"],
-        queryFn: () => store.getProjects(),
+        queryKey: ["projects", chatId],
+        queryFn: async () => {
+            let list = [];
+            if (chatId) {
+                list = await store.getProjectsByChatId(chatId);
+            } else {
+                list = await store.getProjects();
+            }
+
+            // Auto-select if only one project
+            if (list.length === 1 && !projectId) {
+                setProjectId(list[0].id);
+            }
+            return list;
+        },
     });
 
     const mutation = useMutation({
@@ -102,21 +115,30 @@ const SubmitExpense = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="glass-card p-6 md:p-8 rounded-2xl border space-y-6">
-                    <div className="space-y-2">
-                        <Label>Проект</Label>
-                        <Select value={projectId} onValueChange={setProjectId}>
-                            <SelectTrigger className="rounded-xl">
-                                <SelectValue placeholder="Выберите проект" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {projects.map((p: Project) => (
-                                    <SelectItem key={p.id} value={p.id}>
-                                        {p.name} ({p.code})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    {projects.length > 1 && (
+                        <div className="space-y-2 animate-fade-in">
+                            <Label>Проект</Label>
+                            <Select value={projectId} onValueChange={setProjectId}>
+                                <SelectTrigger className="rounded-xl">
+                                    <SelectValue placeholder="Выберите проект" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {projects.map((p: Project) => (
+                                        <SelectItem key={p.id} value={p.id}>
+                                            {p.name} ({p.code})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    {projects.length === 1 && projectId && (
+                        <div className="bg-muted/50 p-4 rounded-xl border border-dashed text-sm flex justify-between items-center">
+                            <span className="text-muted-foreground">Проект:</span>
+                            <span className="font-bold">{projects[0].name} ({projects[0].code})</span>
+                        </div>
+                    )}
 
                     <div className="space-y-2">
                         <Label htmlFor="purpose">Цель расхода</Label>

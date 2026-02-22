@@ -133,6 +133,12 @@ export const store = {
     });
   },
 
+  async getProjectsByChatId(chatId: string) {
+    const res = await fetch(`${API_BASE_URL}/projects/by-chat-id/${chatId}`);
+    if (!res.ok) throw new Error("Failed to load projects");
+    return await res.json();
+  },
+
   async submitExpenseFromWeb(data: any) {
     const res = await fetch(`${API_BASE_URL}/expenses/web-submit`, {
       method: "POST",

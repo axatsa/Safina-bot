@@ -58,6 +58,13 @@ def read_projects(db: Session = Depends(get_db), current_user: models.TeamMember
     
     return current_user.projects
 
+@app.get("/api/projects/by-chat-id/{chat_id}", response_model=List[schemas.ProjectSchema])
+def read_projects_by_chat_id(chat_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == chat_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user.projects
+
 @app.post("/api/projects", response_model=schemas.ProjectSchema)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
