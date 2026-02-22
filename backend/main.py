@@ -13,6 +13,9 @@ from database import engine, get_db
 from bot.notifications import send_status_notification, send_admin_notification, get_admin_chat_id
 from docx_generator import generate_docx
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # Create tables
 models.Base.metadata.create_all(bind=engine)
 
@@ -52,8 +55,8 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
 
 @app.get("/api/projects", response_model=List[schemas.ProjectSchema])
 def read_projects(db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    # Simplistic admin check: only 'safina' login has full access
-    if current_user.login == "safina":
+    # Admin check: use env var for consistency
+    if current_user.login == os.getenv("ADMIN_LOGIN", "safina"):
         return crud.get_projects(db)
     
     return current_user.projects
@@ -97,7 +100,7 @@ def remove_project_member(project_id: str, member_id: str, db: Session = Depends
 
 @app.get("/api/team", response_model=List[schemas.TeamMemberSchema])
 def read_team(db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    if current_user.login != "safina":
+    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
         raise HTTPException(status_code=403, detail="Only admins can view the team list")
     return crud.get_team(db)
 
@@ -178,7 +181,7 @@ def delete_team_member(member_id: str, db: Session = Depends(get_db)):
 
 @app.get("/api/expenses", response_model=List[schemas.ExpenseRequestSchema])
 def read_expenses(project: str = None, status: str = None, db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    user_id = None if current_user.login == "safina" else current_user.id
+    user_id = None if current_user.login == os.getenv("ADMIN_LOGIN", "safina") else current_user.id
     return crud.get_expenses(db, project_id=project, status=status, user_id=user_id)
 
 # Removed duplicate create_expense endpoint
