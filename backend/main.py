@@ -72,6 +72,12 @@ def read_projects_by_chat_id(chat_id: int, db: Session = Depends(get_db)):
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
         raise HTTPException(status_code=403, detail="Only admins can create projects")
+    
+    # Check if project code already exists
+    existing_project = db.query(models.Project).filter(models.Project.code == project.code).first()
+    if existing_project:
+        raise HTTPException(status_code=400, detail=f"Проект с кодом '{project.code}' уже существует")
+        
     return crud.create_project(db=db, project=project)
 
 @app.delete("/api/projects/{project_id}")
