@@ -83,7 +83,7 @@ class ExpenseStatusUpdate(BaseModel):
 class InternalCommentUpdate(BaseModel):
     internal_comment: str
 
-class ExpenseRequestSchema(ExpenseRequestBase):
+class ExpenseRequestSchema(ExpenseRequestCreate):
     id: str
     request_id: str
     date: datetime

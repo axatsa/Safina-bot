@@ -52,11 +52,7 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
 
 @app.get("/api/projects", response_model=List[schemas.ProjectSchema])
 def read_projects(db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    if localStorage_role := current_user.login == "safina": # Super admin check
-         return crud.get_projects(db)
-    
-    # Check if user is admin (this logic should be refined based on actual roles in DB, 
-    # but for now we'll assume 'safina' is the only admin or use a simple check)
+    # Simplistic admin check: only 'safina' login has full access
     if current_user.login == "safina":
         return crud.get_projects(db)
     
