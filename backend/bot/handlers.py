@@ -6,6 +6,7 @@ from bot.states import ExpenseWizard
 # Imports are already correct, but I'll remove the sys.path hack for cleaner code
 import crud, database, models, auth, schemas
 import datetime
+import os
 
 router = Router()
 
@@ -59,8 +60,8 @@ async def cmd_start(message: types.Message, state: FSMContext):
 @router.message(F.text == "Веб-форма (быстрее)")
 @router.message(Command("form"))
 async def show_form_link(message: types.Message):
-    # Base URL should be configurable, but for now we'll use a placeholder or detect it
-    url = f"https://thompson-finance.uz/submit?chat_id={message.from_user.id}"
+    base_url = os.getenv("WEB_FORM_BASE_URL", "http://thompson.uz:8081")
+    url = f"{base_url}/submit?chat_id={message.from_user.id}"
     await message.answer(
         f"🔗 Откройте форму для быстрого заполнения:\n{url}\n\n"
         "(Если у вас не открывается, убедитесь что вы авторизованы в боте)"
