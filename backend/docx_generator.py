@@ -15,10 +15,16 @@ def generate_docx(template_path, data):
     """
     doc = DocxTemplate(template_path)
     
-    # Enrich data for template
-    # We can add more helpers here if needed
+    # Helpers for template
+    def format_price(value):
+        try:
+            return "{:,.2f}".format(float(value)).replace(",", " ")
+        except:
+            return value
+
     context = {
         **data,
+        "format_price": format_price,
         "current_year": datetime.datetime.now().year,
         "current_date": datetime.datetime.now().strftime("%d.%m.%Y")
     }

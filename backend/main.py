@@ -10,7 +10,7 @@ import os
 
 import models, schemas, crud, auth, database
 from database import engine, get_db
-from bot.notifications import send_status_notification
+from bot.notifications import send_status_notification, send_admin_notification, get_admin_chat_id
 from docx_generator import generate_docx
 
 # Create tables
@@ -109,10 +109,17 @@ def create_expense(expense: schemas.ExpenseRequestCreate, db: Session = Depends(
         # For now, let's assume admins who create expenses are NOT virtual (rare case)
         # or we throw error
         raise HTTPException(status_code=400, detail="Admin cannot create expenses directly")
-    return crud.create_expense_request(db=db, expense=expense, user_id=user_id)
+    expense_req = crud.create_expense_request(db=db, expense=expense, user_id=user_id)
+    
+    # Notify Admin
+    admin_chat_id = get_admin_chat_id()
+    if admin_chat_id:
+        background_tasks.add_task(send_admin_notification, expense_req, admin_chat_id)
+        
+    return expense_req
 
 @app.post("/api/expenses/web-submit", response_model=schemas.ExpenseRequestSchema)
-def web_submit_expense(data: dict, db: Session = Depends(get_db)):
+async def web_submit_expense(data: dict, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     chat_id = data.get("chat_id")
     if not chat_id:
         raise HTTPException(status_code=400, detail="chat_id is required")
@@ -144,7 +151,14 @@ def web_submit_expense(data: dict, db: Session = Depends(get_db)):
         currency=items[0].currency if items else "UZS"
     )
     
-    return crud.create_expense_request(db=db, expense=expense_create, user_id=user.id)
+    expense_req = crud.create_expense_request(db=db, expense=expense_create, user_id=user.id)
+    
+    # Notify Admin
+    admin_chat_id = get_admin_chat_id()
+    if admin_chat_id:
+        background_tasks.add_task(send_admin_notification, expense_req, admin_chat_id)
+    
+    return expense_req
 
 @app.delete("/api/team/{member_id}")
 def delete_team_member(member_id: str, db: Session = Depends(get_db)):

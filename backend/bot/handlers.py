@@ -7,6 +7,8 @@ from bot.states import ExpenseWizard
 import crud, database, models, auth, schemas
 import datetime
 import os
+from bot.notifications import set_admin_chat_id, get_admin_chat_id
+from docx_generator import generate_docx
 
 router = Router()
 
@@ -256,6 +258,63 @@ async def process_finish(message: types.Message, state: FSMContext):
             await message.answer(f"❌ Ошибка при сохранении: {str(e)}")
         
     await state.clear()
+
+@router.message(Command("admin"))
+async def cmd_admin(message: types.Message, state: FSMContext):
+    await message.answer("Вход в панель администратора. Введите логин:")
+    await state.set_state(ExpenseWizard.waiting_for_admin_login)
+
+@router.message(ExpenseWizard.waiting_for_admin_login)
+async def process_admin_login(message: types.Message, state: FSMContext):
+    await state.update_data(admin_login=message.text)
+    await message.answer("Введите пароль:")
+    await state.set_state(ExpenseWizard.waiting_for_admin_password)
+
+@router.message(ExpenseWizard.waiting_for_admin_password)
+async def process_admin_password(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    admin_login = os.getenv("ADMIN_LOGIN", "safina")
+    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+    
+    if data["admin_login"] == admin_login and message.text == admin_password:
+        set_admin_chat_id(message.from_user.id)
+        await message.answer("✅ Вход выполнен! Теперь вы будете получать уведомления о новых заявках в этом чате.")
+    else:
+        await message.answer("❌ Неверный логин или пароль.")
+    await state.clear()
+
+@router.callback_query(F.data.startswith("download_smeta_"))
+async def handle_download_smeta(callback: types.CallbackQuery):
+    expense_id = callback.data.replace("download_smeta_", "")
+    
+    with next(database.get_db()) as db:
+        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+        if not expense:
+            await callback.answer("Заявка не найдена")
+            return
+            
+        await callback.answer("Генерирую смету...")
+        
+        # Prepare data for template
+        data = {
+            "sender_name": expense.created_by,
+            "sender_position": expense.created_by_position or "",
+            "purpose": expense.purpose,
+            "items": expense.items,
+            "total_amount": float(expense.total_amount),
+            "currency": expense.currency,
+            "request_id": expense.request_id,
+            "date": expense.date.strftime("%d.%m.%Y")
+        }
+        
+        template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "template.docx")
+
+        try:
+            file_stream = generate_docx(template_path, data)
+            document = types.BufferedInputFile(file_stream.read(), filename=f"smeta_{expense.request_id}.docx")
+            await callback.message.answer_document(document)
+        except Exception as e:
+            await callback.message.answer(f"❌ Ошибка генерации: {str(e)}")
 
 def register_handlers(dp):
     dp.include_router(router)

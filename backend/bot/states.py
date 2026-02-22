@@ -15,3 +15,6 @@ class ExpenseWizard(StatesGroup):
     item_currency = State()
     
     confirm = State()
+    # Admin Flow
+    waiting_for_admin_login = State()
+    waiting_for_admin_password = State()
