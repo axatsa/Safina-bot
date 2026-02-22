@@ -56,7 +56,7 @@ async def cmd_start(message: types.Message, state: FSMContext):
             )
             return
 
-    await message.answer("Добро пожаловать в Thompson Finance Bot! Пожалуйста, введите ваш логин:", reply_markup=types.ReplyKeyboardRemove())
+    await message.answer("Добро пожаловать в TIS Finance Bot! Пожалуйста, введите ваш логин:", reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(ExpenseWizard.waiting_for_auth)
 
 @router.message(F.text == "Веб-форма (быстрее)")

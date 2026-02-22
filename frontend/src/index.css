@@ -15,7 +15,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 25% 12%;
 
-    --primary: 160 45% 40%;
+    --primary: 355 70% 45%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 15% 94%;
@@ -32,13 +32,13 @@
 
     --border: 220 15% 90%;
     --input: 220 15% 90%;
-    --ring: 160 45% 40%;
+    --ring: 355 70% 45%;
 
     --radius: 0.625rem;
 
     --sidebar-background: 220 25% 12%;
     --sidebar-foreground: 220 15% 85%;
-    --sidebar-primary: 160 45% 50%;
+    --sidebar-primary: 355 70% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 20% 18%;
     --sidebar-accent-foreground: 220 15% 90%;
