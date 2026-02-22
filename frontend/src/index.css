@@ -53,16 +53,16 @@
     --info: 210 80% 55%;
     --info-foreground: 0 0% 100%;
 
-    --kanban-request: 38 85% 90%;
-    --kanban-request-border: 38 75% 70%;
-    --kanban-review: 210 70% 90%;
-    --kanban-review-border: 210 65% 70%;
-    --kanban-confirmed: 145 55% 88%;
-    --kanban-confirmed-border: 145 55% 65%;
-    --kanban-declined: 0 65% 90%;
-    --kanban-declined-border: 0 65% 70%;
-    --kanban-revision: 25 80% 88%;
-    --kanban-revision-border: 25 75% 68%;
+    --kanban-request: 38 95% 82%;
+    --kanban-request-border: 38 85% 65%;
+    --kanban-review: 210 90% 82%;
+    --kanban-review-border: 210 80% 65%;
+    --kanban-confirmed: 145 75% 82%;
+    --kanban-confirmed-border: 145 70% 60%;
+    --kanban-declined: 0 85% 82%;
+    --kanban-declined-border: 0 80% 65%;
+    --kanban-revision: 25 90% 82%;
+    --kanban-revision-border: 25 80% 60%;
 
     --font-display: 'Space Grotesk', sans-serif;
     --font-body: 'Inter', sans-serif;
