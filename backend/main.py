@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks, Response
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,9 +15,6 @@ import models, schemas, crud, auth, database
 from database import engine, get_db
 from bot.notifications import send_status_notification, send_admin_notification, get_admin_chat_id
 from docx_generator import generate_docx
-
-from dotenv import load_dotenv
-load_dotenv()
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
