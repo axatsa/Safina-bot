@@ -98,6 +98,16 @@ async def process_login(message: types.Message, state: FSMContext):
         await message.answer("Теперь введите пароль:")
     else:
         with next(database.get_db()) as db:
+            # Check if it's admin login
+            admin_login = os.getenv("ADMIN_LOGIN", "safina")
+            admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+            
+            if data["login"] == admin_login and message.text == admin_password:
+                set_admin_chat_id(message.from_user.id)
+                await message.answer("✅ Вход выполнен (Администратор)!\nТеперь вы будете получать уведомления о новых заявках в этом чате.")
+                await state.clear()
+                return
+
             user = db.query(models.TeamMember).filter(models.TeamMember.login == data["login"]).first()
             if user and auth.verify_password(message.text, user.password_hash):
                 if user.status != "active":
