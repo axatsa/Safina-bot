@@ -118,7 +118,7 @@ def create_team_member(member: schemas.TeamMemberCreate, db: Session = Depends(g
     return crud.create_team_member(db=db, member=member)
 
 @app.post("/api/expenses", response_model=schemas.ExpenseRequestSchema)
-def create_expense(expense: schemas.ExpenseRequestCreate, db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+def create_expense(expense: schemas.ExpenseRequestCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     user_id = getattr(current_user, "id", None)
     if not user_id:
         # If admin doesn't have ID, maybe they shouldn't create expenses or we find/temp ID

@@ -100,6 +100,10 @@ async def process_login(message: types.Message, state: FSMContext):
         with next(database.get_db()) as db:
             user = db.query(models.TeamMember).filter(models.TeamMember.login == data["login"]).first()
             if user and auth.verify_password(message.text, user.password_hash):
+                # IMPORTANT: Clear this chat_id if it's already linked to someone else
+                # to prevent UniqueConstraint error
+                db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).update({models.TeamMember.telegram_chat_id: None})
+                
                 # Save chat ID for persistence
                 user.telegram_chat_id = message.from_user.id
                 db.commit()
@@ -250,6 +254,8 @@ async def process_finish(message: types.Message, state: FSMContext):
             # Link telegram_chat_id if not linked yet
             user = db.query(models.TeamMember).filter(models.TeamMember.id == data["user_id"]).first()
             if user and not user.telegram_chat_id:
+                # Clear from others first
+                db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).update({models.TeamMember.telegram_chat_id: None})
                 user.telegram_chat_id = message.from_user.id
                 db.commit()
 
