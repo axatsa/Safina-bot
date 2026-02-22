@@ -14,7 +14,6 @@ class ExpenseStatusEnum(str, Enum):
 class CurrencyEnum(str, Enum):
     UZS = "UZS"
     USD = "USD"
-    RUB = "RUB"
 
 class ExpenseItemSchema(BaseModel):
     name: str
@@ -41,17 +40,18 @@ class ProjectSchema(ProjectBase):
 class TeamMemberBase(BaseModel):
     last_name: str
     first_name: str
-    project_id: str
     login: str
     status: str = "active"
 
 class TeamMemberCreate(TeamMemberBase):
     password: str
+    project_ids: List[str]
 
 class TeamMemberSchema(TeamMemberBase):
     id: str
     created_at: datetime
     telegram_chat_id: Optional[int] = None
+    projects: List[ProjectSchema] = []
     
     class Config:
         from_attributes = True

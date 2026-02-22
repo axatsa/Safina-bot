@@ -71,7 +71,11 @@ export const store = {
       id: m.id,
       lastName: m.last_name,
       firstName: m.first_name,
-      projectId: m.project_id,
+      projectIds: (m.projects || []).map((p: any) => p.id),
+      projects: (m.projects || []).map((p: any) => ({
+        ...p,
+        createdAt: new Date(p.created_at)
+      })),
       login: m.login,
       status: m.status,
       telegramChatId: m.telegram_chat_id,
@@ -86,7 +90,7 @@ export const store = {
       body: JSON.stringify({
         last_name: member.lastName,
         first_name: member.firstName,
-        project_id: member.projectId,
+        project_ids: member.projectIds,
         login: member.login,
         password: member.password
       }),
@@ -96,7 +100,11 @@ export const store = {
       id: data.id,
       lastName: data.last_name,
       firstName: data.first_name,
-      projectId: data.project_id,
+      projectIds: (data.projects || []).map((p: any) => p.id),
+      projects: (data.projects || []).map((p: any) => ({
+        ...p,
+        createdAt: new Date(p.created_at)
+      })),
       login: data.login,
       status: data.status,
       telegramChatId: data.telegram_chat_id,

@@ -7,6 +7,16 @@ import uuid
 def generate_uuid():
     return str(uuid.uuid4())
 
+from sqlalchemy import Table
+
+# Association table for TeamMember <-> Project
+member_projects = Table(
+    "member_projects",
+    Base.metadata,
+    Column("member_id", String, ForeignKey("team_members.id"), primary_key=True),
+    Column("project_id", String, ForeignKey("projects.id"), primary_key=True),
+)
+
 class Project(Base):
     __tablename__ = "projects"
     
@@ -15,7 +25,7 @@ class Project(Base):
     code = Column(String, unique=True, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
-    members = relationship("TeamMember", back_populates="project")
+    members = relationship("TeamMember", secondary=member_projects, back_populates="projects")
     expenses = relationship("ExpenseRequest", back_populates="project")
 
 class TeamMember(Base):
@@ -24,14 +34,13 @@ class TeamMember(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     last_name = Column(String, nullable=False)
     first_name = Column(String, nullable=False)
-    project_id = Column(String, ForeignKey("projects.id"))
     login = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    telegram_chat_id = Column(BigInteger, nullable=True)
+    telegram_chat_id = Column(BigInteger, unique=True, nullable=True)
     status = Column(String, default="active") # active, blocked
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
-    project = relationship("Project", back_populates="members")
+    projects = relationship("Project", secondary=member_projects, back_populates="members")
     expenses = relationship("ExpenseRequest", back_populates="created_by_user")
 
 class ExpenseRequest(Base):

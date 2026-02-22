@@ -26,9 +26,35 @@ def get_currency_kb():
     builder.button(text="USD")
     return builder.as_markup(resize_keyboard=True)
 
+def get_projects_kb(projects):
+    builder = ReplyKeyboardBuilder()
+    for p in projects:
+        builder.button(text=f"{p.name} ({p.code})")
+    builder.adjust(1)
+    return builder.as_markup(resize_keyboard=True)
+
 @router.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
-    await message.answer("Добро пожаловать в Safina Bot! Пожалуйста, введите ваш логин:")
+    # Check if user already linked
+    with next(database.get_db()) as db:
+        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+        if user:
+            await state.update_data(user_id=user.id)
+            if len(user.projects) > 1:
+                await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
+                await state.set_state(ExpenseWizard.project_selection)
+            elif len(user.projects) == 1:
+                await state.update_data(project_id=user.projects[0].id)
+                await message.answer(
+                    f"С возвращением, {user.first_name}! Давайте создадим заявку.\nВведите дату (ГГГГ-ММ-ДД), или нажмите кнопку «Сейчас»:",
+                    reply_markup=get_date_kb()
+                )
+                await state.set_state(ExpenseWizard.date)
+            else:
+                await message.answer("К вашему аккаунту не привязано ни одного проекта. Обратитесь к администратору.")
+            return
+
+    await message.answer("Добро пожаловать в Safina Bot! Пожалуйста, введите ваш логин:", reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(ExpenseWizard.waiting_for_auth)
 
 @router.message(ExpenseWizard.waiting_for_auth)
@@ -38,20 +64,52 @@ async def process_login(message: types.Message, state: FSMContext):
         await state.update_data(login=message.text)
         await message.answer("Теперь введите пароль:")
     else:
-        # Check credentials
         with next(database.get_db()) as db:
             user = db.query(models.TeamMember).filter(models.TeamMember.login == data["login"]).first()
             if user and auth.verify_password(message.text, user.password_hash):
-                await state.update_data(user_id=user.id, project_id=user.project_id)
-                await message.answer(
-                    f"Авторизация успешна, {user.first_name}! Давайте создадим заявку.\nВведите дату (ГГГГ-ММ-ДД), или нажмите кнопку «Сейчас»:",
-                    reply_markup=get_date_kb()
-                )
-                await state.set_state(ExpenseWizard.date)
+                # Save chat ID for persistence
+                user.telegram_chat_id = message.from_user.id
+                db.commit()
+                
+                await state.update_data(user_id=user.id)
+                if len(user.projects) > 1:
+                    await message.answer("Авторизация успешна! Выберите проект:", reply_markup=get_projects_kb(user.projects))
+                    await state.set_state(ExpenseWizard.project_selection)
+                elif len(user.projects) == 1:
+                    await state.update_data(project_id=user.projects[0].id)
+                    await message.answer(
+                        f"Авторизация успешна, {user.first_name}! Давайте создадим заявку.\nВведите дату (ГГГГ-ММ-ДД), или нажмите кнопку «Сейчас»:",
+                        reply_markup=get_date_kb()
+                    )
+                    await state.set_state(ExpenseWizard.date)
+                else:
+                    await message.answer("Авторизация успешна, но к вам не привязано ни одного проекта.")
+                    await state.clear()
             else:
                 await message.answer("Ошибка авторизации. Попробуйте логин еще раз:")
                 await state.clear()
                 await state.set_state(ExpenseWizard.waiting_for_auth)
+
+@router.message(ExpenseWizard.project_selection)
+async def process_project_selection(message: types.Message, state: FSMContext):
+    with next(database.get_db()) as db:
+        # Match project by name (Code)
+        projects = db.query(models.Project).all()
+        selected_project = None
+        for p in projects:
+            if f"{p.name} ({p.code})" == message.text:
+                selected_project = p
+                break
+        
+        if selected_project:
+            await state.update_data(project_id=selected_project.id)
+            await message.answer(
+                f"Проект выбран: {selected_project.name}. Введите дату (ГГГГ-ММ-ДД) или нажмите «Сейчас»:",
+                reply_markup=get_date_kb()
+            )
+            await state.set_state(ExpenseWizard.date)
+        else:
+            await message.answer("Пожалуйста, выберите проект из списка.")
 
 @router.message(ExpenseWizard.date)
 async def process_date(message: types.Message, state: FSMContext):

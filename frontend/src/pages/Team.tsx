@@ -20,7 +20,7 @@ const Team = () => {
   const [formData, setFormData] = useState({
     lastName: "",
     firstName: "",
-    projectId: "",
+    projectIds: [] as string[],
     login: "",
     password: "",
   });
@@ -39,7 +39,7 @@ const Team = () => {
     mutationFn: (newMember: any) => store.createTeamMember(newMember),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team"] });
-      setFormData({ lastName: "", firstName: "", projectId: "", login: "", password: "" });
+      setFormData({ lastName: "", firstName: "", projectIds: [], login: "", password: "" });
       toast.success("Участник добавлен");
     },
     onError: () => toast.error("Ошибка при добавлении")
@@ -47,11 +47,20 @@ const Team = () => {
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.projectId) {
+    if (formData.projectIds.length > 0) {
       mutation.mutate(formData);
     } else {
-      toast.error("Выберите проект");
+      toast.error("Выберите хотя бы один проект");
     }
+  };
+
+  const toggleProject = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      projectIds: prev.projectIds.includes(id)
+        ? prev.projectIds.filter(p => p !== id)
+        : [...prev.projectIds, id]
+    }));
   };
 
   if (isTeamLoading) {
@@ -95,22 +104,20 @@ const Team = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label>Проект</Label>
-              <Select
-                value={formData.projectId}
-                onValueChange={(val) => setFormData({ ...formData, projectId: val })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите проект" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((p: Project) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Проекты</Label>
+              <div className="space-y-2 max-h-[150px] overflow-y-auto p-2 border rounded-md">
+                {projects.map((p: Project) => (
+                  <label key={p.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      checked={formData.projectIds.includes(p.id)}
+                      onChange={() => toggleProject(p.id)}
+                    />
+                    <span className="text-sm">{p.name}</span>
+                  </label>
+                ))}
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="login">Логин</Label>
@@ -148,7 +155,7 @@ const Team = () => {
                     Участник
                   </th>
                   <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Проект
+                    Проекты
                   </th>
                   <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
                     Логин
@@ -160,7 +167,6 @@ const Team = () => {
               </thead>
               <tbody className="divide-y divide-border">
                 {team.map((member: TeamMember) => {
-                  const project = projects.find((p) => p.id === member.projectId);
                   return (
                     <tr key={member.id} className="hover:bg-muted/10 transition-colors group">
                       <td className="px-6 py-4">
@@ -176,10 +182,14 @@ const Team = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-medium inline-flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                          {project?.name || "—"}
-                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(member.projects || []).map(p => (
+                            <span key={p.id} className="text-[10px] font-medium inline-flex items-center gap-1 bg-primary/5 text-primary px-2 py-0.5 rounded-full border border-primary/10">
+                              {p.name}
+                            </span>
+                          ))}
+                          {(!member.projects || member.projects.length === 0) && <span className="text-xs text-muted-foreground">—</span>}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <code className="text-xs bg-muted px-2 py-1 rounded">

@@ -9,7 +9,8 @@ export interface TeamMember {
   id: string;
   lastName: string;
   firstName: string;
-  projectId: string;
+  projectIds?: string[];
+  projects?: Project[];
   login: string;
   password?: string;
   status: "active" | "blocked";
@@ -21,7 +22,7 @@ export interface ExpenseItem {
   name: string;
   quantity: number;
   amount: number;
-  currency: "UZS" | "USD" | "RUB";
+  currency: "UZS" | "USD";
 }
 
 export type ExpenseStatus = "request" | "review" | "confirmed" | "declined" | "revision" | "archived";

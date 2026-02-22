@@ -2,6 +2,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 class ExpenseWizard(StatesGroup):
     waiting_for_auth = State()
+    project_selection = State()
     
     # Creation flow
     date = State()
