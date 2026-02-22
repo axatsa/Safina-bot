@@ -15,6 +15,17 @@ def get_confirm_kb():
     builder.button(text="Готово")
     return builder.as_markup(resize_keyboard=True)
 
+def get_date_kb():
+    builder = ReplyKeyboardBuilder()
+    builder.button(text="Сейчас")
+    return builder.as_markup(resize_keyboard=True)
+
+def get_currency_kb():
+    builder = ReplyKeyboardBuilder()
+    builder.button(text="UZS")
+    builder.button(text="USD")
+    return builder.as_markup(resize_keyboard=True)
+
 @router.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
     await message.answer("Добро пожаловать в Safina Bot! Пожалуйста, введите ваш логин:")
@@ -32,7 +43,10 @@ async def process_login(message: types.Message, state: FSMContext):
             user = db.query(models.TeamMember).filter(models.TeamMember.login == data["login"]).first()
             if user and auth.verify_password(message.text, user.password_hash):
                 await state.update_data(user_id=user.id, project_id=user.project_id)
-                await message.answer(f"Авторизация успешна, {user.first_name}! Давайте создадим заявку.\nВведите дату (ГГГГ-ММ-ДД) или напишите 'сейчас':")
+                await message.answer(
+                    f"Авторизация успешна, {user.first_name}! Давайте создадим заявку.\nВведите дату (ГГГГ-ММ-ДД), или нажмите кнопку «Сейчас»:",
+                    reply_markup=get_date_kb()
+                )
                 await state.set_state(ExpenseWizard.date)
             else:
                 await message.answer("Ошибка авторизации. Попробуйте логин еще раз:")
@@ -48,10 +62,10 @@ async def process_date(message: types.Message, state: FSMContext):
         try:
             d = datetime.datetime.strptime(date_val, "%Y-%m-%d").isoformat()
         except:
-            await message.answer("Неверный формат. Используйте ГГГГ-ММ-ДД или 'сейчас':")
+            await message.answer("Неверный формат. Используйте ГГГГ-ММ-ДД или нажмите «Сейчас»:", reply_markup=get_date_kb())
             return
     await state.update_data(date=d)
-    await message.answer("Введите назначение расхода:")
+    await message.answer("Введите назначение расхода:", reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(ExpenseWizard.purpose)
 
 @router.message(ExpenseWizard.purpose)
@@ -85,7 +99,7 @@ async def process_item_amount(message: types.Message, state: FSMContext):
         amount_str = message.text.replace(",", ".")
         amount = float(amount_str)
         await state.update_data(current_item_amount=amount)
-        await message.answer("Валюта (UZS, USD, RUB):")
+        await message.answer("Выберите валюту:", reply_markup=get_currency_kb())
         await state.set_state(ExpenseWizard.item_currency)
     except ValueError:
         await message.answer("Пожалуйста, введите число (например: 1000 или 1500.50):")
@@ -93,8 +107,8 @@ async def process_item_amount(message: types.Message, state: FSMContext):
 @router.message(ExpenseWizard.item_currency)
 async def process_item_currency(message: types.Message, state: FSMContext):
     currency = message.text.upper()
-    if currency not in ["UZS", "USD", "RUB"]:
-        await message.answer("Выберите из: UZS, USD, RUB")
+    if currency not in ["UZS", "USD"]:
+        await message.answer("Пожалуйста, выберите валюту (UZS или USD) с помощью кнопок:", reply_markup=get_currency_kb())
         return
     
     data = await state.get_data()
