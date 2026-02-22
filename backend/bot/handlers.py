@@ -9,7 +9,7 @@ import datetime
 
 # To import from parent directory
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import crud, database, models, auth
+import crud, database, models, auth, schemas
 
 router = Router()
 
@@ -32,16 +32,16 @@ async def process_login(message: types.Message, state: FSMContext):
         await message.answer("Теперь введите пароль:")
     else:
         # Check credentials
-        db = next(database.get_db())
-        user = db.query(models.TeamMember).filter(models.TeamMember.login == data["login"]).first()
-        if user and auth.verify_password(message.text, user.password_hash):
-            await state.update_data(user_id=user.id, project_id=user.project_id)
-            await message.answer(f"Авторизация успешна, {user.first_name}! Давайте создадим заявку.\nВведите дату (ГГГГ-ММ-ДД) или напишите 'сейчас':")
-            await state.set_state(ExpenseWizard.date)
-        else:
-            await message.answer("Ошибка авторизации. Попробуйте логин еще раз:")
-            await state.clear()
-            await state.set_state(ExpenseWizard.waiting_for_auth)
+        with next(database.get_db()) as db:
+            user = db.query(models.TeamMember).filter(models.TeamMember.login == data["login"]).first()
+            if user and auth.verify_password(message.text, user.password_hash):
+                await state.update_data(user_id=user.id, project_id=user.project_id)
+                await message.answer(f"Авторизация успешна, {user.first_name}! Давайте создадим заявку.\nВведите дату (ГГГГ-ММ-ДД) или напишите 'сейчас':")
+                await state.set_state(ExpenseWizard.date)
+            else:
+                await message.answer("Ошибка авторизации. Попробуйте логин еще раз:")
+                await state.clear()
+                await state.set_state(ExpenseWizard.waiting_for_auth)
 
 @router.message(ExpenseWizard.date)
 async def process_date(message: types.Message, state: FSMContext):
@@ -118,34 +118,33 @@ async def process_add_more(message: types.Message, state: FSMContext):
 @router.message(ExpenseWizard.confirm, F.text == "Готово")
 async def process_finish(message: types.Message, state: FSMContext):
     data = await state.get_data()
-    db = next(database.get_db())
-    
-    # Calculate total amount
-    total_amount = sum(item["amount"] for item in data["items"])
-    # Default currency from the first item if multiple currencies are mixed (though UI restricts to one for now)
-    currency = data["items"][0]["currency"] if data["items"] else "UZS"
-    
-    try:
-        expense_create = schemas.ExpenseRequestCreate(
-            purpose=data["purpose"],
-            items=[schemas.ExpenseItemSchema(**item) for item in data["items"]],
-            total_amount=total_amount,
-            currency=currency,
-            project_id=data["project_id"],
-            date=datetime.datetime.fromisoformat(data["date"])
-        )
-        
-        db_expense = crud.create_expense_request(db, expense_create, user_id=data["user_id"])
-        
-        # Link telegram_chat_id if not linked yet
-        user = db.query(models.TeamMember).filter(models.TeamMember.id == data["user_id"]).first()
-        if user and not user.telegram_chat_id:
-            user.telegram_chat_id = message.from_user.id
-            db.commit()
+    with next(database.get_db()) as db:
+        try:
+            # Calculate total amount
+            total_amount = sum(item["amount"] for item in data["items"])
+            # Default currency from the first item
+            currency = data["items"][0]["currency"] if data["items"] else "UZS"
 
-        await message.answer(f"✅ Заявка {db_expense.request_id} успешно создана!\nСумма: {total_amount} {currency}", reply_markup=types.ReplyKeyboardRemove())
-    except Exception as e:
-        await message.answer(f"❌ Ошибка при сохранении: {str(e)}")
+            expense_create = schemas.ExpenseRequestCreate(
+                purpose=data["purpose"],
+                items=[schemas.ExpenseItemSchema(**item) for item in data["items"]],
+                total_amount=total_amount,
+                currency=currency,
+                project_id=data["project_id"],
+                date=datetime.datetime.fromisoformat(data["date"])
+            )
+            
+            db_expense = crud.create_expense_request(db, expense_create, user_id=data["user_id"])
+            
+            # Link telegram_chat_id if not linked yet
+            user = db.query(models.TeamMember).filter(models.TeamMember.id == data["user_id"]).first()
+            if user and not user.telegram_chat_id:
+                user.telegram_chat_id = message.from_user.id
+                db.commit()
+
+            await message.answer(f"✅ Заявка {db_expense.request_id} успешно создана!\nСумма: {total_amount} {currency}", reply_markup=types.ReplyKeyboardRemove())
+        except Exception as e:
+            await message.answer(f"❌ Ошибка при сохранении: {str(e)}")
         
     await state.clear()
 

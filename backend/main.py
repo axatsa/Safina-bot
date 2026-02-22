@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from typing import List
 import io
 import csv
+import datetime
+import os
 
 import models, schemas, crud, auth, database
 from database import engine, get_db
@@ -24,9 +26,11 @@ app.add_middleware(
 
 @app.post("/api/auth/login", response_model=schemas.Token)
 def login(request: schemas.TokenData, db: Session = Depends(get_db)):
-    # Simple hardcoded admin for now as per README
-    # In production, we'd check team_members table
-    if request.login == "safina" and request.password == "admin123":
+    # Use environment variables for admin login for safety
+    admin_login = os.getenv("ADMIN_LOGIN", "safina")
+    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+    
+    if request.login == admin_login and request.password == admin_password:
         access_token = auth.create_access_token(data={"sub": request.login})
         return {"access_token": access_token, "token_type": "bearer", "role": "admin"}
     
@@ -113,23 +117,32 @@ def export_expenses(project: str = None, from_date: str = None, to_date: str = N
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["ID", "Date", "Project", "Purpose", "Amount", "Currency", "Status", "Responsible"])
+    # New headers as per requirements
+    writer.writerow(["Request ID", "Date", "Project Code", "Project Name", "Responsible", "Status", "Item Name", "Qty", "Amount", "Currency", "Total Amount"])
     
     for e in expenses:
-        writer.writerow([
-            e.request_id,
-            e.date.strftime("%Y-%m-%d %H:%M"),
-            e.project_name,
-            e.purpose,
-            e.total_amount,
-            e.currency,
-            e.status,
-            e.created_by
-        ])
+        # Each expense can have multiple items, we export each as a separate row
+        items = e.items if isinstance(e.items, list) else []
+        for item in items:
+            writer.writerow([
+                e.request_id,
+                e.date.strftime("%Y-%m-%d %H:%M"),
+                e.project_code,
+                e.project_name,
+                e.created_by,
+                e.status,
+                item.get("name", ""),
+                item.get("quantity", 0),
+                item.get("amount", 0),
+                item.get("currency", e.currency),
+                e.total_amount
+            ])
     
     content = output.getvalue()
+    # UTF-8 with BOM for Excel compatibility
+    bom = "\ufeff"
     return Response(
-        content=content,
+        content=bom + content,
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename=expenses_export.csv"}
     )
