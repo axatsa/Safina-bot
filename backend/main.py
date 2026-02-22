@@ -68,6 +68,13 @@ def delete_project(project_id: str, db: Session = Depends(database.get_db)):
 def read_team(db: Session = Depends(get_db)):
     return crud.get_team(db)
 
+@app.post("/api/team", response_model=schemas.TeamMemberSchema)
+def create_team_member(member: schemas.TeamMemberCreate, db: Session = Depends(database.get_db)):
+    db_user = db.query(models.TeamMember).filter(models.TeamMember.login == member.login).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Login already registered")
+    return crud.create_team_member(db=db, member=member)
+
 @app.post("/api/expenses", response_model=schemas.ExpenseRequestSchema)
 def create_expense(expense: schemas.ExpenseRequestCreate, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     return crud.create_expense_request(db=db, expense=expense, user_id=current_user.id)
