@@ -3,6 +3,12 @@ export interface Project {
   name: string;
   code: string;
   createdAt: Date;
+  members: Array<{
+    id: string;
+    lastName: string;
+    firstName: string;
+    position?: string;
+  }>;
 }
 
 export interface TeamMember {

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks, Response
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
@@ -10,6 +11,7 @@ import os
 import models, schemas, crud, auth, database
 from database import engine, get_db
 from bot.notifications import send_status_notification
+from docx_generator import generate_docx
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
@@ -38,7 +40,9 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
     user = db.query(models.TeamMember).filter(models.TeamMember.login == request.login).first()
     if user and auth.verify_password(request.password, user.password_hash):
         access_token = auth.create_access_token(data={"sub": user.login})
-        return {"access_token": access_token, "token_type": "bearer", "role": "user", "projectId": user.project_id}
+        # Use first project ID as default for frontend
+        project_id = user.projects[0].id if user.projects else None
+        return {"access_token": access_token, "token_type": "bearer", "role": "user", "projectId": project_id}
         
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -47,8 +51,16 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
     )
 
 @app.get("/api/projects", response_model=List[schemas.ProjectSchema])
-def read_projects(db: Session = Depends(get_db)):
-    return crud.get_projects(db)
+def read_projects(db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if localStorage_role := current_user.login == "safina": # Super admin check
+         return crud.get_projects(db)
+    
+    # Check if user is admin (this logic should be refined based on actual roles in DB, 
+    # but for now we'll assume 'safina' is the only admin or use a simple check)
+    if current_user.login == "safina":
+        return crud.get_projects(db)
+    
+    return current_user.projects
 
 @app.post("/api/projects", response_model=schemas.ProjectSchema)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(database.get_db)):
@@ -64,8 +76,24 @@ def delete_project(project_id: str, db: Session = Depends(database.get_db)):
     db.commit()
     return {"status": "success"}
 
+@app.post("/api/projects/{project_id}/members/{member_id}")
+def add_project_member(project_id: str, member_id: str, db: Session = Depends(get_db)):
+    member = crud.add_project_member(db, project_id, member_id)
+    if not member:
+        raise HTTPException(status_code=404, detail="Project or Member not found")
+    return {"status": "success"}
+
+@app.delete("/api/projects/{project_id}/members/{member_id}")
+def remove_project_member(project_id: str, member_id: str, db: Session = Depends(get_db)):
+    member = crud.remove_project_member(db, project_id, member_id)
+    if not member:
+        raise HTTPException(status_code=404, detail="Project or Member not found")
+    return {"status": "success"}
+
 @app.get("/api/team", response_model=List[schemas.TeamMemberSchema])
-def read_team(db: Session = Depends(get_db)):
+def read_team(db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if current_user.login != "safina":
+        raise HTTPException(status_code=403, detail="Only admins can view the team list")
     return crud.get_team(db)
 
 @app.post("/api/team", response_model=schemas.TeamMemberSchema)
@@ -124,11 +152,13 @@ def delete_team_member(member_id: str, db: Session = Depends(database.get_db)):
     return {"status": "success"}
 
 @app.get("/api/expenses", response_model=List[schemas.ExpenseRequestSchema])
-def read_expenses(project: str = None, status: str = None, db: Session = Depends(get_db)):
-    # Note: In a real app, we would get the current user from the token here
-    # and restrict 'project' if they are a regular user.
-    # For now, we allow filtering, but logic is ready for integration.
-    return crud.get_expenses(db, project_id=project, status=status)
+def read_expenses(project: str = None, status: str = None, db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    user_id = None if current_user.login == "safina" else current_user.id
+    return crud.get_expenses(db, project_id=project, status=status, user_id=user_id)
+
+@app.post("/api/expenses", response_model=schemas.ExpenseRequestSchema)
+def create_expense(expense: schemas.ExpenseRequestCreate, db: Session = Depends(get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    return crud.create_expense_request(db=db, expense=expense, user_id=current_user.id)
 
 @app.patch("/api/expenses/{expense_id}/status", response_model=schemas.ExpenseRequestSchema)
 def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -146,7 +176,7 @@ def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, backgrou
             send_status_notification,
             expense.created_by_user.telegram_chat_id,
             expense.request_id,
-            update.status,
+            expense.status,
             expense.total_amount,
             expense.currency,
             update.comment
@@ -165,6 +195,7 @@ def update_internal_comment(expense_id: str, update: schemas.InternalCommentUpda
 
 @app.get("/api/expenses/export")
 def export_expenses(project: str = None, from_date: str = None, to_date: str = None, allStatuses: bool = False, db: Session = Depends(get_db)):
+    # ... existing CSV export ...
     query = db.query(models.ExpenseRequest)
     if project:
         query = query.filter(models.ExpenseRequest.project_id == project)
@@ -196,6 +227,16 @@ def export_expenses(project: str = None, from_date: str = None, to_date: str = N
     # New headers as per requirements
     writer.writerow(["Request ID", "Date", "Project Code", "Project Name", "Responsible", "Status", "Item Name", "Qty", "Amount", "Currency", "Total Amount"])
     
+    # Status mapping for CSV
+    status_map = {
+        "request": "Запрос",
+        "review": "На рассмотрении",
+        "confirmed": "Подтверждено",
+        "declined": "Отклонено",
+        "revision": "Возврат на доработку",
+        "archived": "Архивировано"
+    }
+
     for e in expenses:
         # Each expense can have multiple items, we export each as a separate row
         items = e.items if isinstance(e.items, list) else []
@@ -206,7 +247,7 @@ def export_expenses(project: str = None, from_date: str = None, to_date: str = N
                 e.project_code,
                 e.project_name,
                 e.created_by,
-                e.status,
+                status_map.get(e.status, e.status),
                 item.get("name", ""),
                 item.get("quantity", 0),
                 item.get("amount", 0),
@@ -222,6 +263,38 @@ def export_expenses(project: str = None, from_date: str = None, to_date: str = N
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename=expenses_export.csv"}
     )
+
+@app.get("/api/expenses/{expense_id}/export-docx")
+def export_expense_docx(expense_id: str, db: Session = Depends(get_db)):
+    expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+        
+    # Prepare data for template
+    data = {
+        "sender_name": expense.created_by,
+        "sender_position": expense.created_by_position or "",
+        "purpose": expense.purpose,
+        "items": expense.items,
+        "total_amount": float(expense.total_amount),
+        "currency": expense.currency,
+        "request_id": expense.request_id,
+        "date": expense.date.strftime("%d.%m.%Y")
+    }
+    
+    template_path = os.path.join(os.path.dirname(__file__), "template.docx")
+    if not os.path.exists(template_path):
+        raise HTTPException(status_code=500, detail="Template file not found")
+        
+    try:
+        file_stream = generate_docx(template_path, data)
+        return StreamingResponse(
+            file_stream,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f"attachment; filename=smeta_{expense.request_id}.docx"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

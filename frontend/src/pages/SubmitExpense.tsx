@@ -11,7 +11,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Send, Loader2 } from "lucide-react";
+import { Plus, Trash2, Send, Loader2, ArrowLeft } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -32,20 +32,22 @@ const SubmitExpense = () => {
     });
 
     const mutation = useMutation({
-        mutationFn: (expense: any) => {
-            // We'll need a special endpoint or just use the existing one if we can identify the user
-            // For now, let's assume we can use the existing createExpenseRequest if we have a token
-            // Or we'll create a new backend endpoint for bot-web submission
-            return store.submitExpenseFromWeb({
+        mutationFn: () => {
+            const data = {
                 project_id: projectId,
                 purpose,
                 items,
-                chat_id: chatId
-            });
+            };
+
+            if (chatId) {
+                return store.submitExpenseFromWeb({ ...data, chat_id: chatId });
+            } else {
+                return store.createExpenseRequest(data);
+            }
         },
         onSuccess: () => {
             toast.success("Заявка отправлена!");
-            setTimeout(() => navigate("/"), 2000);
+            setTimeout(() => navigate(chatId ? "/" : "/dashboard"), 2000);
         },
         onError: () => toast.error("Ошибка при отправке")
     });
@@ -84,6 +86,16 @@ const SubmitExpense = () => {
     return (
         <div className="min-h-screen bg-background p-4 md:p-8 animate-fade-in">
             <div className="max-w-2xl mx-auto space-y-8">
+                {!chatId && (
+                    <Button
+                        variant="ghost"
+                        className="absolute top-4 left-4 gap-2 text-muted-foreground hover:text-foreground"
+                        onClick={() => navigate("/dashboard")}
+                    >
+                        <ArrowLeft className="w-4 h-4" /> Назад
+                    </Button>
+                )}
+
                 <div className="text-center space-y-2">
                     <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Новая заявка</h1>
                     <p className="text-muted-foreground">Заполните форму для отправки запроса на расход</p>

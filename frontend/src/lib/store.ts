@@ -46,7 +46,13 @@ export const store = {
     const data = await res.json();
     return data.map((p: any) => ({
       ...p,
-      createdAt: p.created_at
+      createdAt: p.created_at,
+      members: (p.members || []).map((m: any) => ({
+        id: m.id,
+        lastName: m.last_name,
+        firstName: m.first_name,
+        position: m.position
+      }))
     }));
   },
 
@@ -137,6 +143,16 @@ export const store = {
     return await res.json();
   },
 
+  async createExpenseRequest(data: any) {
+    const res = await fetch(`${API_BASE_URL}/expenses`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Submission failed");
+    return await res.json();
+  },
+
   // Expenses
   getExpenses: async (params?: { project?: string; status?: string }): Promise<ExpenseRequest[]> => {
     const url = new URL(`${API_BASE_URL}/expenses`, window.location.origin);
@@ -190,5 +206,25 @@ export const store = {
     if (params.allStatuses) url.searchParams.append("allStatuses", "true");
 
     window.open(url.toString(), "_blank");
+  },
+
+  async addProjectMember(projectId: string, memberId: string) {
+    const res = await fetch(`${API_BASE_URL}/projects/${projectId}/members/${memberId}`, {
+      method: "POST",
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to add member");
+  },
+
+  async removeProjectMember(projectId: string, memberId: string) {
+    const res = await fetch(`${API_BASE_URL}/projects/${projectId}/members/${memberId}`, {
+      method: "DELETE",
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to remove member");
+  },
+
+  exportDocx: (expenseId: string) => {
+    window.open(`${API_BASE_URL}/expenses/${expenseId}/export-docx`, "_blank");
   }
 };

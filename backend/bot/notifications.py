@@ -4,20 +4,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-async def send_status_notification(chat_id: int, request_id: str, new_status: str, amount: float, currency: str, comment: str = None):
+async def send_status_notification(chat_id: int, request_id: str, raw_status: str, amount: float, currency: str, comment: str = None):
     bot = Bot(token=os.getenv("BOT_TOKEN"))
     
-    status_emoji = {
-        "review": "⏳",
-        "confirmed": "✅",
-        "declined": "❌",
-        "revision": "🔄",
-        "archived": "📦"
-    }.get(new_status, "📌")
+    status_map = {
+        "request": ("Запрос", "⏳"),
+        "review": ("На рассмотрении", "⏳"),
+        "confirmed": ("Подтверждено", "✅"),
+        "declined": ("Отклонено", "❌"),
+        "revision": ("Возврат на доработку", "🔄"),
+        "archived": ("Архивировано", "📦")
+    }
+    
+    status_text, status_emoji = status_map.get(raw_status, (raw_status, "📌"))
     
     text = (
         f"{status_emoji} Заявка {request_id}\n"
-        f"📌 Статус: {new_status}\n"
+        f"📌 Статус: {status_text}\n"
         f"💰 Сумма: {amount} {currency}\n"
     )
     

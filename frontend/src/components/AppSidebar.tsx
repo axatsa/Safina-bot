@@ -1,4 +1,4 @@
-import { ClipboardList, FolderOpen, Users, LogOut, Archive } from "lucide-react";
+import { ClipboardList, FolderOpen, Users, LogOut, Archive, Send } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
@@ -12,11 +12,20 @@ const navItems = [
 
 const AppSidebar = () => {
   const navigate = useNavigate();
+  const isAdmin = store.isAdmin();
 
   const handleLogout = () => {
     store.logout();
     navigate("/");
   };
+
+  const menuItems = [
+    { title: "Заявки", url: "/dashboard", icon: ClipboardList, show: true },
+    { title: "Новая заявка", url: "/submit", icon: Send, show: true },
+    { title: "Архив", url: "/dashboard/archive", icon: Archive, show: true },
+    { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen, show: isAdmin },
+    { title: "Команда", url: "/dashboard/team", icon: Users, show: isAdmin },
+  ].filter(item => item.show);
 
   return (
     <aside className="w-60 min-h-screen bg-sidebar flex flex-col border-r border-sidebar-border shrink-0">
@@ -28,7 +37,7 @@ const AppSidebar = () => {
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
-        {navItems.map((item) => (
+        {menuItems.map((item) => (
           <NavLink
             key={item.url}
             to={item.url}

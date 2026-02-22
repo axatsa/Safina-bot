@@ -29,9 +29,19 @@ class ProjectBase(BaseModel):
 class ProjectCreate(ProjectBase):
     pass
 
+class MemberSummary(BaseModel):
+    id: str
+    last_name: str
+    first_name: str
+    position: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 class ProjectSchema(ProjectBase):
     id: str
     created_at: datetime
+    members: List[MemberSummary] = []
     
     class Config:
         from_attributes = True
@@ -58,14 +68,12 @@ class TeamMemberSchema(TeamMemberBase):
         from_attributes = True
 
 # Expense Request Schemas
-class ExpenseRequestBase(BaseModel):
+class ExpenseRequestCreate(BaseModel):
     purpose: str
     items: List[ExpenseItemSchema]
-    total_amount: float
-    currency: CurrencyEnum
     project_id: str
-
-class ExpenseRequestCreate(ExpenseRequestBase):
+    total_amount: Optional[float] = None
+    currency: Optional[CurrencyEnum] = None
     date: Optional[datetime] = None
 
 class ExpenseStatusUpdate(BaseModel):

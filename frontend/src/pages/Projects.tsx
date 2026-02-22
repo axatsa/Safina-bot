@@ -4,7 +4,9 @@ import { Project } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FolderKanban, Loader2, Trash2, Calendar } from "lucide-react";
+import { Plus, FolderKanban, Loader2, Trash2, Calendar, Users, UserPlus, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -45,6 +47,42 @@ const Projects = () => {
             deleteMutation.mutate(id);
         }
     };
+
+    const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+    const [activeProject, setActiveProject] = useState<Project | null>(null);
+
+    const { data: team = [] } = useQuery({
+        queryKey: ["team"],
+        queryFn: () => store.getTeam()
+    });
+
+    const addMemberMutation = useMutation({
+        mutationFn: ({ projectId, memberId }: { projectId: string; memberId: string }) =>
+            store.addProjectMember(projectId, memberId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            queryClient.invalidateQueries({ queryKey: ["team"] });
+            toast.success("Участник добавлен");
+        }
+    });
+
+    const removeMemberMutation = useMutation({
+        mutationFn: ({ projectId, memberId }: { projectId: string; memberId: string }) =>
+            store.removeProjectMember(projectId, memberId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            queryClient.invalidateQueries({ queryKey: ["team"] });
+            toast.success("Участник исключен");
+        }
+    });
+
+    const projectMembers = activeProject
+        ? projects.find((p: Project) => p.id === activeProject.id)?.members || []
+        : [];
+
+    const availableMembers = team.filter(
+        (m) => !projectMembers.some((pm: any) => pm.id === m.id)
+    );
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -150,12 +188,25 @@ const Projects = () => {
                                                 {project.createdAt ? format(new Date(project.createdAt), "dd.MM.yyyy") : "—"}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
+                                        <td className="px-6 py-4 text-right space-x-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-muted-foreground hover:text-primary transition-colors"
+                                                onClick={() => {
+                                                    setActiveProject(project);
+                                                    setMemberDialogOpen(true);
+                                                }}
+                                                title="Участники проекта"
+                                            >
+                                                <Users className="w-4 h-4" />
+                                            </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
                                                 className="text-muted-foreground hover:text-red-600 transition-colors"
                                                 onClick={() => handleDeleteProject(project.id)}
+                                                title="Удалить проект"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </Button>
@@ -174,6 +225,77 @@ const Projects = () => {
                     </div>
                 </div>
             </div>
+
+            <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Участники проекта: {activeProject?.name}</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-6 pt-4">
+                        <div className="space-y-4">
+                            <Label className="text-sm font-medium">Текущие участники ({projectMembers.length})</Label>
+                            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                                {projectMembers.map((member: any) => (
+                                    <div key={member.id} className="flex items-center justify-between bg-muted/40 p-2 rounded-lg border">
+                                        <div>
+                                            <p className="text-sm font-medium">{member.lastName} {member.firstName}</p>
+                                            <p className="text-xs text-muted-foreground">{member.position || "Сотрудник"}</p>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-red-500"
+                                            onClick={() => removeMemberMutation.mutate({
+                                                projectId: activeProject!.id,
+                                                memberId: member.id
+                                            })}
+                                            disabled={removeMemberMutation.isPending}
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {projectMembers.length === 0 && (
+                                    <p className="text-sm text-muted-foreground italic text-center py-4">
+                                        В проекте пока нет участников
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 pt-2 border-t">
+                            <Label className="text-sm font-medium">Добавить участника</Label>
+                            <div className="flex gap-2">
+                                <Select onValueChange={(value) => {
+                                    if (activeProject) {
+                                        addMemberMutation.mutate({
+                                            projectId: activeProject.id,
+                                            memberId: value
+                                        });
+                                    }
+                                }}>
+                                    <SelectTrigger className="flex-1">
+                                        <SelectValue placeholder="Выберите сотрудника..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableMembers.map((m) => (
+                                            <SelectItem key={m.id} value={m.id}>
+                                                {m.lastName} {m.firstName} ({m.position || "чел"})
+                                            </SelectItem>
+                                        ))}
+                                        {availableMembers.length === 0 && (
+                                            <div className="p-2 text-xs text-center text-muted-foreground">
+                                                Нет доступных сотрудников
+                                            </div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

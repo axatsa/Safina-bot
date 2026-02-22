@@ -121,9 +121,9 @@ const ExpenseDetail = () => {
           </div>
           <p className="text-sm text-muted-foreground mt-1">{expense.purpose}</p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => generateExpensePDF(expense)}>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportDocx(expense.id)}>
           <Download className="w-4 h-4" />
-          Скачать смету
+          Скачать смету (Word)
         </Button>
       </div>
 

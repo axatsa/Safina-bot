@@ -46,6 +46,26 @@ def delete_project(db: Session, project_id: str):
         db.commit()
     return True
 
+def add_project_member(db: Session, project_id: str, member_id: str):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    member = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
+    if project and member:
+        if project not in member.projects:
+            member.projects.append(project)
+            db.commit()
+            db.refresh(member)
+    return member
+
+def remove_project_member(db: Session, project_id: str, member_id: str):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    member = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
+    if project and member:
+        if project in member.projects:
+            member.projects.remove(project)
+            db.commit()
+            db.refresh(member)
+    return member
+
 # Team
 def get_team(db: Session):
     return db.query(models.TeamMember).all()
@@ -80,12 +100,14 @@ def delete_team_member(db: Session, member_id: str):
     return True
 
 # Expenses
-def get_expenses(db: Session, project_id: str = None, status: str = None):
+def get_expenses(db: Session, project_id: str = None, status: str = None, user_id: str = None):
     query = db.query(models.ExpenseRequest)
     if project_id:
         query = query.filter(models.ExpenseRequest.project_id == project_id)
     if status:
         query = query.filter(models.ExpenseRequest.status == status)
+    if user_id:
+        query = query.filter(models.ExpenseRequest.created_by_id == user_id)
     return query.all()
 
 def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, user_id: str):
@@ -99,13 +121,23 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
     
     request_id = generate_request_id(db, project.code)
     
+    total_amount = expense.total_amount
+    if total_amount is None:
+        total_amount = sum(item.amount for item in expense.items)
+    
+    currency = expense.currency
+    if currency is None and expense.items:
+        currency = expense.items[0].currency
+    elif currency is None:
+        currency = "UZS"
+
     db_expense = models.ExpenseRequest(
         request_id=request_id,
         date=expense.date or datetime.datetime.utcnow(),
         purpose=expense.purpose,
         items=[item.dict() for item in expense.items],
-        total_amount=expense.total_amount,
-        currency=expense.currency,
+        total_amount=total_amount,
+        currency=currency,
         created_by_id=user_id,
         created_by=f"{user.last_name} {user.first_name}",
         created_by_position=user.position,

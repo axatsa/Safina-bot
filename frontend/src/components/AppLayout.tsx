@@ -3,7 +3,8 @@ import AppSidebar from "./AppSidebar";
 import { store } from "@/lib/store";
 
 const AppLayout = () => {
-  if (!store.isAdmin()) {
+  const role = localStorage.getItem("safina_role");
+  if (!role || (role !== "admin" && role !== "user")) {
     return <Navigate to="/" replace />;
   }
 
