@@ -2,7 +2,6 @@ import { ClipboardList, FolderOpen, Users, LogOut, Archive, Send } from "lucide-
 import { NavLink } from "@/components/NavLink";
 import { useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
-import logo from "@/assets/logo.png";
 
 const navItems = [
   { title: "Заявки", url: "/dashboard", icon: ClipboardList },
@@ -32,7 +31,7 @@ const AppSidebar = () => {
     <aside className="w-60 min-h-screen bg-sidebar flex flex-col border-r border-sidebar-border shrink-0">
       <div className="p-5 border-b border-sidebar-border">
         <div className="flex items-center gap-3 mb-1">
-          <img src={logo} alt="TIS Finance" className="w-8 h-8 rounded-lg" />
+          <img src="/logo.png" alt="TIS Finance" className="w-8 h-8 rounded-lg" />
           <h2 className="font-display text-lg font-bold text-sidebar-primary-foreground tracking-tight">
             TIS Finance
           </h2>
