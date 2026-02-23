@@ -70,11 +70,6 @@ const Login = () => {
             Войти
           </Button>
         </form>
-
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground italic">
-            Для демонстрации: safina / admin123
-          </p>
         </div>
       </div>
     </div>
