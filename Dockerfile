@@ -1,20 +1,19 @@
 # ---------- Build stage ----------
-FROM oven/bun:1 AS build-stage
+FROM node:20-bullseye-slim AS build-stage
 
 WORKDIR /app
 
 ARG VITE_APP_API_URL
 ENV VITE_APP_API_URL=$VITE_APP_API_URL
 
-# faqat dependency fayllarni ko'chiramiz (cache optimal bo'lishi uchun)
 COPY package.json bun.lockb ./
 
-RUN bun install --frozen-lockfile
+# bun o‘rniga npm ishlatamiz container ichida
+RUN npm install
 
-# qolgan fayllarni ko'chiramiz
 COPY . .
 
-RUN bun run build
+RUN npm run build
 
 
 # ---------- Runtime stage ----------
