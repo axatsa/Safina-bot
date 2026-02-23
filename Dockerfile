@@ -1,21 +1,24 @@
-# Frontend Dockerfile
-FROM node:20-slim AS build
+FROM --platform=$BUILDPLATFORM node:20-bullseye-slim AS build-stage
 
 WORKDIR /app
+RUN corepack enable
 
-# Copy package files and install
-COPY package*.json ./
-RUN npm install
+ARG VITE_APP_API_URL
+ENV VITE_APP_API_URL=$VITE_APP_API_URL
 
-# Copy source and build
+COPY .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --prod false
+
 COPY . .
-RUN npm run build
+RUN pnpm rebuild esbuild
+RUN pnpm build
 
-# Serve with Nginx
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-# Copy custom nginx config if needed, but default is often fine for SPA
+FROM nginx:stable-alpine AS runtime
+COPY --from=build-stage /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+
