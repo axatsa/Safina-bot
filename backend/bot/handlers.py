@@ -62,7 +62,7 @@ async def cmd_start(message: types.Message, state: FSMContext):
 @router.message(F.text == "Веб-форма (быстрее)")
 @router.message(Command("form"))
 async def show_form_link(message: types.Message):
-    base_url = os.getenv("WEB_FORM_BASE_URL", "http://thompson.uz:8081")
+    base_url = os.getenv("WEB_FORM_BASE_URL", "https://finance.thompson.uz")
     url = f"{base_url}/submit?chat_id={message.from_user.id}"
     
     builder = InlineKeyboardBuilder()
