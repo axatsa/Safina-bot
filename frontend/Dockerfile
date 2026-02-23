@@ -6,9 +6,9 @@ RUN corepack enable
 ARG VITE_APP_API_URL
 ENV VITE_APP_API_URL=$VITE_APP_API_URL
 
-COPY .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod false
+  pnpm install --frozen-lockfile --prod false
 
 COPY . .
 RUN pnpm rebuild esbuild
