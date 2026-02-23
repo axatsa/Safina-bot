@@ -139,7 +139,7 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
 
     db_expense = models.ExpenseRequest(
         request_id=request_id,
-        date=expense.date or datetime.datetime.utcnow(),
+        date=expense.date or (datetime.datetime.utcnow() + datetime.timedelta(hours=5)),
         purpose=expense.purpose,
         items=[item.dict() for item in expense.items],
         total_amount=total_amount,

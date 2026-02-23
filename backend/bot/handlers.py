@@ -1,7 +1,7 @@
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.utils.keyboard import ReplyKeyboardBuilder
+from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from bot.states import ExpenseWizard
 # Imports are already correct, but I'll remove the sys.path hack for cleaner code
 import crud, database, models, auth, schemas
@@ -64,9 +64,15 @@ async def cmd_start(message: types.Message, state: FSMContext):
 async def show_form_link(message: types.Message):
     base_url = os.getenv("WEB_FORM_BASE_URL", "http://thompson.uz:8081")
     url = f"{base_url}/submit?chat_id={message.from_user.id}"
+    
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📝 Открыть форму", url=url)
+    
     await message.answer(
-        f"🔗 Откройте форму для быстрого заполнения:\n{url}\n\n"
-        "(Если у вас не открывается, убедитесь что вы авторизованы в боте)"
+        "Нажмите на кнопку ниже, чтобы открыть форму для быстрого заполнения:\n\n"
+        "*(Если у вас не открывается, убедитесь что вы авторизованы в боте)*",
+        reply_markup=builder.as_markup(),
+        parse_mode="Markdown"
     )
 
 @router.message(F.text == "Создать заявку (в боте)")
@@ -166,7 +172,7 @@ async def process_project_selection(message: types.Message, state: FSMContext):
 async def process_date(message: types.Message, state: FSMContext):
     date_val = message.text.lower()
     if date_val == "сейчас":
-        d = datetime.datetime.utcnow().isoformat()
+        d = (datetime.datetime.utcnow() + datetime.timedelta(hours=5)).isoformat()
     else:
         try:
             d = datetime.datetime.strptime(date_val, "%Y-%m-%d").isoformat()

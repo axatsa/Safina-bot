@@ -60,7 +60,10 @@ const SubmitExpense = () => {
         },
         onSuccess: () => {
             toast.success("Заявка отправлена!");
-            setTimeout(() => navigate(chatId ? "/" : "/dashboard"), 2000);
+            setTimeout(() => {
+                setPurpose("");
+                setItems([{ name: "", quantity: 1, amount: 0, currency: items[0]?.currency || "UZS" }]);
+            }, 2000);
         },
         onError: () => toast.error("Ошибка при отправке")
     });
@@ -184,9 +187,12 @@ const SubmitExpense = () => {
                                     <div className="w-24 space-y-1">
                                         <Label className="text-[10px] text-muted-foreground">Сумма</Label>
                                         <Input
-                                            type="number"
-                                            value={item.amount}
-                                            onChange={(e) => updateItem(index, "amount", Number(e.target.value))}
+                                            type="text"
+                                            value={item.amount ? item.amount.toLocaleString("ru-RU") : ""}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/\D/g, "");
+                                                updateItem(index, "amount", val ? Number(val) : 0);
+                                            }}
                                             className="rounded-lg h-9 text-sm"
                                         />
                                     </div>
