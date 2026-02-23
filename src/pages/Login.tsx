@@ -70,7 +70,6 @@ const Login = () => {
             Войти
           </Button>
         </form>
-        </div>
       </div>
     </div>
   );
