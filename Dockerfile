@@ -2,6 +2,7 @@ FROM node:20-bullseye-slim AS build-stage
 
 WORKDIR /app
 RUN corepack enable
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 ARG VITE_APP_API_URL
 ENV VITE_APP_API_URL=$VITE_APP_API_URL
