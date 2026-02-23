@@ -6,7 +6,7 @@ WORKDIR /app
 
 # pnpm va Node settings
 RUN corepack enable
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Build-time environment variable
 ARG VITE_APP_API_URL
