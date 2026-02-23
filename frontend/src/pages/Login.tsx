@@ -33,7 +33,7 @@ const Login = () => {
       <div className="w-full max-w-md space-y-8 glass-card p-8 rounded-2xl border">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary text-primary-foreground font-display font-bold text-xl mb-4 overflow-hidden">
-            <img src="/src/assets/logo.png" alt="TIS" className="w-full h-full object-cover" />
+            <img src="/logo.png" alt="TIS" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-display font-bold tracking-tight">TIS Finance Admin</h1>
           <p className="text-muted-foreground text-sm">Войдите в систему для управления расходами</p>
