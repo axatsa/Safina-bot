@@ -120,7 +120,7 @@ const SubmitExpense = () => {
     };
 
     const handleAmountChange = (index: number, raw: string) => {
-        // Allow only digits and spaces
+        // Allow only digits
         const digitsOnly = raw.replace(/[^\d]/g, "");
         const num = digitsOnly === "" ? 0 : parseInt(digitsOnly, 10);
         const displayAmount = digitsOnly === "" ? "" : num.toLocaleString("ru-RU");

@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 .env
 backend/.env
+<<<<<<< HEAD
 
 # Python
 __pycache__/
@@ -33,3 +34,5 @@ __pycache__/
 # Database
 safina.db
 backend/safina.db
+=======
+>>>>>>> eee1b37b21c9e733e4a4f6ba0a84efaaafed0385
