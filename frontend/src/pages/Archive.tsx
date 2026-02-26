@@ -8,7 +8,7 @@ import { Download, ExternalLink, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { generateExpensePDF } from "@/lib/export";
+import { ru } from "date-fns/locale";
 
 const Archive = () => {
   const navigate = useNavigate();
@@ -108,7 +108,7 @@ const Archive = () => {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-end gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => generateExpensePDF(expense)}>
+                    <Button variant="ghost" size="icon" onClick={() => store.exportDocx(expense.id)}>
                       <Download className="w-4 h-4" />
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => navigate(`/dashboard/expense/${expense.id}`)}>
