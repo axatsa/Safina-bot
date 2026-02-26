@@ -1,0 +1,21 @@
+include:
+  - project: base/ci-cd
+    file: frontend.yml
+    ref: main
+
+variables:
+  PROJECT_DISPLAY_NAME: Thompson Finance Frontend
+  DEPLOY_BASE_PATH: frontend
+
+docker:
+  extends: .docker_build_template
+
+deploy:
+  extends: .deploy_template
+
+success:
+  extends: .notify_success_template
+
+failure:
+  extends: .notify_failure_template
+
