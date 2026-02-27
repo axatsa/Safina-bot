@@ -8,7 +8,10 @@ from app.core import auth, database
 import datetime
 import os
 from .notifications import set_admin_chat_id, get_admin_chat_id
-from app.services.docx_generator import generate_docx
+from app.services.docx.generator import generate_docx
+from app.core.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 TASHKENT_TZ = datetime.timezone(datetime.timedelta(hours=5))
@@ -286,6 +289,7 @@ async def process_finish(message: types.Message, state: FSMContext):
 
             await message.answer(f"✅ Заявка {db_expense.request_id} успешно создана!\nСумма: {total_amount} {currency}", reply_markup=types.ReplyKeyboardRemove())
         except Exception as e:
+            logger.error(f"Error saving expense from bot: {str(e)}", exc_info=True)
             await message.answer(f"❌ Ошибка при сохранении: {str(e)}")
         
     await state.clear()
@@ -360,13 +364,14 @@ async def handle_download_smeta(callback: types.CallbackQuery):
             "date": expense.date.strftime("%d.%m.%Y")
         }
         
-        template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "template.docx")
+        template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docx", "template.docx")
 
         try:
             file_stream = generate_docx(template_path, data)
             document = types.BufferedInputFile(file_stream.read(), filename=f"smeta_{expense.request_id}.docx")
             await callback.message.answer_document(document)
         except Exception as e:
+            logger.error(f"Error generating smeta from bot callback: {str(e)}", exc_info=True)
             await callback.message.answer(f"❌ Ошибка генерации: {str(e)}")
 
 def register_handlers(dp):
