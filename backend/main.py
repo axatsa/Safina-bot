@@ -6,18 +6,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-import logging
-import asyncio
-from contextlib import asynccontextmanager
-
-from app.db import models
-from app.core.database import engine
-from app.api import auth, projects, expenses, team
-from app.services.bot.main import main as bot_main
+from app.core.logging_config import setup_logging, get_logger
+from app.core.logging_middleware import LoggingMiddleware
 
 # Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+setup_logging()
+logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,6 +29,9 @@ async def lifespan(app: FastAPI):
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Safina API", lifespan=lifespan)
+
+# Add structured logging middleware
+app.add_middleware(LoggingMiddleware)
 
 # Allowed origins
 origins = [

@@ -8,9 +8,12 @@ from sqlalchemy.orm import Session
 import os
 from app.db import models
 from app.core import database
+from app.core.logging_config import get_logger
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = get_logger(__name__)
 
 # Secret key for JWT
 SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key-change-me")
@@ -47,8 +50,10 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         login: str = payload.get("sub")
         if login is None:
+            logger.warning("Token payload missing 'sub' claim")
             raise credentials_exception
-    except JWTError:
+    except JWTError as e:
+        logger.warning(f"JWT Validation Error: {str(e)}")
         raise credentials_exception
     
     user = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
@@ -58,9 +63,12 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
         if login == admin_login:
             # Return a "virtual" user object for admin
             return models.TeamMember(id="admin", login=admin_login, first_name="Admin", last_name="Safina", projects=[], status="active")
+        
+        logger.warning(f"Token validated but user not found: {login}")
         raise credentials_exception
     
     if user.status != "active":
+        logger.warning(f"Blocked user attempted access: {login}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is blocked",
