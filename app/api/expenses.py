@@ -8,7 +8,7 @@ import datetime
 import os
 from app.db import models, schemas, crud
 from app.core import auth, database
-from app.services.docx_generator import generate_docx
+from app.services.docx.generator import generate_docx
 from app.services.bot.notifications import send_status_notification, send_admin_notification, get_admin_chat_id
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
@@ -278,7 +278,7 @@ def export_expense_docx(expense_id: str, db: Session = Depends(database.get_db),
         "date": expense.date
     }
     
-    template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "services/template.docx")
+    template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "services/docx/template.docx")
     if not os.path.exists(template_path):
         raise HTTPException(status_code=500, detail="Template file not found")
         
