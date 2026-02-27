@@ -8,6 +8,7 @@ trigger: always_on
 - **Mandatory MCP Usage:** Always use `list_directory` to understand the project structure before making any changes.
 - **Deep Context:** Use `read_text_file` to read relevant files (e.g., `package.json`, `requirements.txt`, `.env.example`) before proposing solutions.
 - **No Hallucinations:** Never assume a library or variable exists. Verify its existence through the filesystem MCP first.
+- **Superpowers Integration:** Mandatory check of relevant skills in `.agents/superpowers/skills` before starting any task. Follow TDD, DRY, and YAGNI principles as defined in the skills.
 
 ## 2. Technical Standards
 - **Python:** Use strict type hinting, follow PEP 8, and include concise docstrings for new functions.
