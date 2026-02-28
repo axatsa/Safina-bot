@@ -1,7 +1,7 @@
 from docxtpl import DocxTemplate
 import os
 
-template_path = "backend/app/services/docx/template.docx"
+template_path = os.path.join(os.path.dirname(__file__), "backend/app/services/docx/template.docx")
 if os.path.exists(template_path):
     doc = DocxTemplate(template_path)
     # docxtpl doesn't have a simple "list all placeholders" but we can try to find them in the xml
