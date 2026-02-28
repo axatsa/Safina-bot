@@ -257,15 +257,19 @@ def export_expense_docx(expense_id: str, db: Session = Depends(database.get_db),
     if isinstance(raw_items, list):
         for idx, item in enumerate(raw_items):
             if isinstance(item, dict):
-                items_data.append({
-                    "no": idx + 1,
-                    "name": item.get("name", ""),
-                    "quantity": item.get("quantity", 0),
-                    "amount": item.get("amount", 0),
-                    "price": item.get("amount", 0),
-                    "unit_price": item.get("amount", 0),
-                    "total": float(item.get("amount", 0)) * float(item.get("quantity", 0))
-                })
+                # We need to be defensive here to avoid 500 errors if some keys are missing
+                try:
+                    qty = float(item.get("quantity", 0))
+                    price = float(item.get("amount", 0))
+                    items_data.append({
+                        "no": idx + 1,
+                        "name": item.get("name", "Без названия"),
+                        "quantity": qty,
+                        "price": price,
+                        "total": qty * price
+                    })
+                except (ValueError, TypeError):
+                    continue
 
     data = {
         "sender_name": expense.created_by,
