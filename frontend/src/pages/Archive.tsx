@@ -13,6 +13,7 @@ import { ru } from "date-fns/locale";
 const Archive = () => {
   const navigate = useNavigate();
   const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedUser, setSelectedUser] = useState("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -27,9 +28,15 @@ const Archive = () => {
     queryFn: () => store.getProjects(),
   });
 
+  const { data: team = [] } = useQuery({
+    queryKey: ["team"],
+    queryFn: () => store.getTeam(),
+  });
+
   const filtered = expenses.filter((e) => {
     if (e.status !== "archived") return false;
     if (selectedProject !== "all" && e.projectId !== selectedProject) return false;
+    if (selectedUser !== "all" && e.createdById !== selectedUser) return false;
     if (dateRange.from && new Date(e.date) < dateRange.from) return false;
     if (dateRange.to) {
       const end = new Date(dateRange.to);
@@ -43,6 +50,7 @@ const Archive = () => {
   const handleExport = (allStatuses: boolean) => {
     store.exportXLSX({
       project: selectedProject,
+      user: selectedUser,
       from: dateRange.from?.toISOString(),
       to: dateRange.to?.toISOString(),
       allStatuses: true
@@ -69,6 +77,9 @@ const Archive = () => {
         projects={projects}
         selectedProject={selectedProject}
         onProjectChange={setSelectedProject}
+        team={team}
+        selectedUser={selectedUser}
+        onUserChange={setSelectedUser}
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
         onExport={handleExport}

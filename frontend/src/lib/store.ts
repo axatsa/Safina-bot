@@ -206,9 +206,10 @@ export const store = {
     });
   },
 
-  exportXLSX: async (params: { project?: string; from?: string; to?: string; allStatuses?: boolean }): Promise<void> => {
+  exportXLSX: async (params: { project?: string; user?: string; from?: string; to?: string; allStatuses?: boolean }): Promise<void> => {
     const url = new URL(`${API_BASE_URL}/expenses/export-xlsx`, window.location.origin);
     if (params.project && params.project !== "all") url.searchParams.append("project", params.project);
+    if (params.user && params.user !== "all") url.searchParams.append("user_id", params.user);
     if (params.from) url.searchParams.append("from_date", params.from);
     if (params.to) url.searchParams.append("to_date", params.to);
     if (params.allStatuses) url.searchParams.append("allStatuses", "true");

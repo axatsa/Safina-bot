@@ -20,6 +20,7 @@ const kanbanColors: Record<string, string> = {
 const Applications = () => {
   const queryClient = useQueryClient();
   const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedUser, setSelectedUser] = useState("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [collapsedColumns, setCollapsedColumns] = useState<Record<string, boolean>>({});
@@ -35,6 +36,12 @@ const Applications = () => {
   const { data: projects = [] } = useQuery({
     queryKey: ["projects"],
     queryFn: () => store.getProjects(),
+  });
+
+  // Fetching team
+  const { data: team = [] } = useQuery({
+    queryKey: ["team"],
+    queryFn: () => store.getTeam(),
   });
 
   // Mutation for status update (Drag & Drop)
@@ -53,6 +60,7 @@ const Applications = () => {
     return expenses.filter((e) => {
       if (e.status === "archived") return false;
       if (selectedProject !== "all" && e.projectId !== selectedProject) return false;
+      if (selectedUser !== "all" && e.createdById !== selectedUser) return false;
       if (dateRange.from && new Date(e.date) < dateRange.from) return false;
       if (dateRange.to) {
         const end = new Date(dateRange.to);
@@ -62,7 +70,7 @@ const Applications = () => {
       if (searchQuery && !e.requestId.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
-  }, [expenses, selectedProject, dateRange, searchQuery]);
+  }, [expenses, selectedProject, selectedUser, dateRange, searchQuery]);
 
   const toggleColumn = (status: string) => {
     setCollapsedColumns((prev) => ({ ...prev, [status]: !prev[status] }));
@@ -87,6 +95,7 @@ const Applications = () => {
   const handleExport = (allStatuses: boolean) => {
     store.exportXLSX({
       project: selectedProject,
+      user: selectedUser,
       from: dateRange.from?.toISOString(),
       to: dateRange.to?.toISOString(),
       allStatuses
@@ -113,6 +122,9 @@ const Applications = () => {
         projects={projects}
         selectedProject={selectedProject}
         onProjectChange={setSelectedProject}
+        team={team}
+        selectedUser={selectedUser}
+        onUserChange={setSelectedUser}
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
         onExport={handleExport}
