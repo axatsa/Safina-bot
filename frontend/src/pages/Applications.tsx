@@ -58,16 +58,35 @@ const Applications = () => {
 
   const filtered = useMemo(() => {
     return expenses.filter((e) => {
+      // Basic Status Filter (Archive is separate)
       if (e.status === "archived") return false;
+
+      // Project Filter
       if (selectedProject !== "all" && e.projectId !== selectedProject) return false;
+
+      // User Filter
       if (selectedUser !== "all" && e.createdById !== selectedUser) return false;
-      if (dateRange.from && new Date(e.date) < dateRange.from) return false;
+
+      // Date Range Filter (Granular)
+      if (dateRange.from) {
+        const start = new Date(dateRange.from);
+        start.setHours(0, 0, 0, 0);
+        if (new Date(e.date) < start) return false;
+      }
       if (dateRange.to) {
         const end = new Date(dateRange.to);
-        end.setHours(23, 59, 59);
+        end.setHours(23, 59, 59, 999);
         if (new Date(e.date) > end) return false;
       }
-      if (searchQuery && !e.requestId.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+
+      // Search Filter (ID or Item Names)
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesId = e.requestId.toLowerCase().includes(query);
+        const matchesItems = e.items?.some(item => item.name.toLowerCase().includes(query));
+        if (!matchesId && !matchesItems) return false;
+      }
+
       return true;
     });
   }, [expenses, selectedProject, selectedUser, dateRange, searchQuery]);
