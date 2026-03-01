@@ -3,7 +3,8 @@ import asyncio
 import os
 import contextlib
 from typing import AsyncGenerator
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from sqlalchemy.exc import SQLAlchemyError
@@ -85,6 +86,36 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Safina API", lifespan=lifespan)
 
+# --- Global Exception Handlers ---
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handle FastAPI HTTPExtensions with a consistent JSON format."""
+    logger.error(f"HTTP Error: {exc.status_code} - {exc.detail} | Path: {request.url.path}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": "error",
+            "message": exc.detail,
+            "path": request.url.path
+        },
+    )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch-all for any unexpected application errors."""
+    logger.critical(f"Uncaught Exception: {str(exc)} | Path: {request.url.path}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "critical_error",
+            "message": "An unexpected error occurred internal to the server.",
+            "detail": str(exc) if os.getenv("DEBUG") == "true" else "Contact administrator"
+        },
+    )
+
+# --------------------------------
+
 # Add structured logging middleware
 app.add_middleware(LoggingMiddleware)
 
@@ -114,6 +145,10 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(expenses.router, prefix="/api")
 app.include_router(team.router, prefix="/api")
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "version": "1.1.0"}
 
 if __name__ == "__main__":
     import uvicorn

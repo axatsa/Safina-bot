@@ -55,8 +55,8 @@ const FilterBar = ({
         <Input
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Поиск по ID..."
-          className="h-9 w-[150px] pl-8 text-sm"
+          placeholder="Поиск (ID или товар)..."
+          className="h-9 w-[180px] pl-8 text-sm"
         />
       </div>
 
@@ -148,7 +148,7 @@ const FilterBar = ({
                   setExportOpen(false);
                 }}
               >
-                Скачать CSV
+                Скачать .xlsx
               </Button>
             </div>
           </PopoverContent>
