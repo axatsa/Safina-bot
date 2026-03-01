@@ -99,8 +99,16 @@ def update_internal_comment(expense_id: str, update: schemas.InternalCommentUpda
     return {"status": "success"}
 
 @router.get("/export")
-def export_expenses(project: str = None, from_date: str = None, to_date: str = None, allStatuses: bool = False, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+def export_expenses(project: str = None, user_id: str = None, from_date: str = None, to_date: str = None, allStatuses: bool = False, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     query = db.query(models.ExpenseRequest)
+    
+    # Restrict non-admins to only view their own expenses
+    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
+    if not is_admin:
+        query = query.filter(models.ExpenseRequest.created_by_id == current_user.id)
+    elif user_id:
+        query = query.filter(models.ExpenseRequest.created_by_id == user_id)
+
     if project:
         query = query.filter(models.ExpenseRequest.project_id == project)
     if not allStatuses:
@@ -163,10 +171,18 @@ def export_expenses(project: str = None, from_date: str = None, to_date: str = N
     )
 
 @router.get("/export-xlsx")
-def export_expenses_xlsx(project: str = None, from_date: str = None, to_date: str = None, allStatuses: bool = False, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: str = None, to_date: str = None, allStatuses: bool = False, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     import pandas as pd
     
     query = db.query(models.ExpenseRequest)
+    
+    # Restrict non-admins to only view their own expenses
+    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
+    if not is_admin:
+        query = query.filter(models.ExpenseRequest.created_by_id == current_user.id)
+    elif user_id:
+        query = query.filter(models.ExpenseRequest.created_by_id == user_id)
+
     if project:
         query = query.filter(models.ExpenseRequest.project_id == project)
     if not allStatuses:

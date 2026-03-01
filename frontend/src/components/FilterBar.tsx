@@ -9,12 +9,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { Project } from "@/lib/types";
+import { Project, TeamMember } from "@/lib/types";
 
 interface FilterBarProps {
   projects: Project[];
   selectedProject: string;
   onProjectChange: (v: string) => void;
+  team?: TeamMember[];
+  selectedUser?: string;
+  onUserChange?: (v: string) => void;
   dateRange: { from?: Date; to?: Date };
   onDateRangeChange: (range: { from?: Date; to?: Date }) => void;
   onExport: (allStatuses: boolean) => void;
@@ -24,6 +27,7 @@ interface FilterBarProps {
 
 const FilterBar = ({
   projects, selectedProject, onProjectChange,
+  team, selectedUser, onUserChange,
   dateRange, onDateRangeChange, onExport,
   searchQuery, onSearchChange,
 }: FilterBarProps) => {
@@ -31,10 +35,11 @@ const FilterBar = ({
   const [exportOpen, setExportOpen] = useState(false);
   const [allStatuses, setAllStatuses] = useState(false);
 
-  const hasFilters = selectedProject !== "all" || dateRange.from || dateRange.to || searchQuery;
+  const hasFilters = selectedProject !== "all" || (selectedUser && selectedUser !== "all") || dateRange.from || dateRange.to || searchQuery;
 
   const clearFilters = () => {
     onProjectChange("all");
+    if (onUserChange) onUserChange("all");
     onDateRangeChange({});
     onSearchChange("");
   };
@@ -66,6 +71,20 @@ const FilterBar = ({
           ))}
         </SelectContent>
       </Select>
+
+      {team && selectedUser !== undefined && onUserChange && (
+        <Select value={selectedUser} onValueChange={onUserChange}>
+          <SelectTrigger className="w-[180px] h-9 text-sm">
+            <SelectValue placeholder="Все сотрудники" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все сотрудники</SelectItem>
+            {team.map((m) => (
+              <SelectItem key={m.id} value={m.id}>{m.lastName} {m.firstName}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       <Popover open={calOpen} onOpenChange={setCalOpen}>
         <PopoverTrigger asChild>
