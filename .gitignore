@@ -25,8 +25,6 @@ dist-ssr
 .env
 backend/.env
 .agents
-<<<<<<< HEAD
-
 # Python
 __pycache__/
 *.py[cod]
@@ -35,7 +33,7 @@ __pycache__/
 # Database
 safina.db
 backend/safina.db
-=======
->>>>>>> eee1b37b21c9e733e4a4f6ba0a84efaaafed0385
-_obsolete           
-node_modules
+
+# Misc
+_obsolete
+node_modules/
