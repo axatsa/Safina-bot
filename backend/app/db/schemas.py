@@ -7,6 +7,9 @@ from enum import Enum
 class ExpenseStatusEnum(str, Enum):
     request = "request"
     review = "review"
+    pending_senior = "pending_senior"
+    approved_senior = "approved_senior"
+    rejected_senior = "rejected_senior"
     confirmed = "confirmed"
     declined = "declined"
     revision = "revision"

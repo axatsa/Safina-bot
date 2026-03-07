@@ -90,6 +90,54 @@ async def send_admin_notification(expense_id: str, admin_chat_id: int):
     finally:
         db.close()
 
+async def send_senior_notification(expense_id: str, senior_chat_id: int):
+    """Sends a notification with approval buttons to the Senior Financier."""
+    from app.core import database
+    from app.db import models
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    from aiogram import Bot
+    
+    # Get a fresh DB session
+    db = next(database.get_db())
+    try:
+        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+        if not expense:
+            print(f"Expense {expense_id} not found for senior notification")
+            return
+
+        bot = Bot(token=os.getenv("BOT_TOKEN"))
+        
+        # Convert expense date to Tashkent time for display
+        if expense.date.tzinfo is None:
+            from datetime import timezone as dt_timezone
+            expense_dt = expense.date.replace(tzinfo=dt_timezone.utc).astimezone(TASHKENT_TZ)
+        else:
+            expense_dt = expense.date.astimezone(TASHKENT_TZ)
+
+        text = (
+            f"🔵 *Safina | На согласование*\n"
+            f"🟢 {expense.project_name} ({expense.project_code})\n"
+            f"🔸 Инициатор: {expense.created_by}\n"
+            f"🔸 Цель: {expense.purpose}\n"
+            f"🆔 {expense.request_id}\n"
+            f"💵 {expense.total_amount:,.2f} {expense.currency}\n"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.button(text="✅ Утвердить", callback_data=f"approve_senior_{expense.id}")
+        builder.button(text="❌ Отклонить", callback_data=f"reject_senior_{expense.id}")
+        builder.button(text="📄 Скачать Excel смету", callback_data=f"download_excel_{expense.id}")
+        builder.adjust(2, 1)
+
+        try:
+            await bot.send_message(senior_chat_id, text, reply_markup=builder.as_markup(), parse_mode="Markdown")
+        except Exception as e:
+            print(f"Failed to send senior notification: {e}")
+        finally:
+            await bot.session.close()
+    finally:
+        db.close()
+
 def get_admin_chat_id():
     from app.core import database
     from app.db import models

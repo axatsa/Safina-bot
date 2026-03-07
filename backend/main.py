@@ -15,7 +15,7 @@ load_dotenv()
 from app.core.logging_config import setup_logging, get_logger
 from app.core.logging_middleware import LoggingMiddleware
 from app.core.database import engine, Base
-from app.api import auth, projects, expenses, team
+from app.api import auth, projects, expenses, team, notifications
 from app.services.bot.main import main as bot_main
 
 # Setup logging
@@ -145,6 +145,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(expenses.router, prefix="/api")
 app.include_router(team.router, prefix="/api")
+app.include_router(notifications.router, prefix="/api")
 
 @app.get("/api/health")
 async def health_check():

@@ -54,7 +54,7 @@ class ExpenseRequest(Base):
     items = Column(JSON, nullable=False) # List of ExpenseItem
     total_amount = Column(Numeric(precision=18, scale=2), nullable=False)
     currency = Column(String, nullable=False) # UZS, USD, RUB
-    status = Column(String, default="request", index=True) # request, review, confirmed, declined, revision, archived
+    status = Column(String, default="request", index=True) # request, review, pending_senior, approved_senior, rejected_senior, confirmed, declined, revision, archived
     
     created_by_id = Column(String, ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True, index=True)
     created_by = Column(String, nullable=False) # Denormalized Full Name
