@@ -9,7 +9,7 @@ import os
 from app.db import models, schemas, crud
 from app.core import auth, database
 from app.services.docx.generator import generate_docx
-from app.services.bot.notifications import send_status_notification, send_admin_notification, get_admin_chat_id
+from app.services.bot.notifications import send_status_notification, send_admin_notification, get_admin_chat_id, send_senior_notification
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -87,6 +87,36 @@ def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, backgrou
             expense.currency,
             update.comment
         )
+    return expense
+
+@router.post("/{expense_id}/forward_senior", response_model=schemas.ExpenseRequestSchema)
+def forward_to_senior_financier(expense_id: str, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    # Only Admin (or Safina) should be able to forward
+    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Only administrators can forward to the Senior Financier")
+        
+    update = schemas.ExpenseStatusUpdate(status="pending_senior", comment="Отправлено на согласование Старшему финансисту")
+    expense = crud.update_expense_status(db, expense_id, update)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+        
+    senior_chat_id = os.getenv("SENIOR_FINANCIER_CHAT_ID")
+    if senior_chat_id:
+        try:
+            chat_id = int(senior_chat_id)
+            background_tasks.add_task(send_senior_notification, expense.id, chat_id)
+        except ValueError:
+            print("Invalid SENIOR_FINANCIER_CHAT_ID format. Must be an integer.")
+            
+    # Also notify Safina/initiator via SSE that status changed
+    from app.services.notifications.sse import publish_notification
+    background_tasks.add_task(
+        publish_notification, 
+        "notifications:admin", 
+        {"title": "Статус обновлен", "message": f"Заявка {expense.request_id} отправлена Старшему финансисту."}
+    )
+    
     return expense
 
 @router.put("/{expense_id}/comment")

@@ -9,6 +9,7 @@ import datetime
 import os
 from .notifications import set_admin_chat_id, get_admin_chat_id
 from app.services.docx.generator import generate_docx
+from app.services.excel.generator import generate_smeta_excel
 from app.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -373,6 +374,85 @@ async def handle_download_smeta(callback: types.CallbackQuery):
         except Exception as e:
             logger.error(f"Error generating smeta from bot callback: {str(e)}", exc_info=True)
             await callback.message.answer(f"❌ Ошибка генерации: {str(e)}")
+
+@router.callback_query(F.data.startswith("approve_senior_"))
+async def handle_approve_senior(callback: types.CallbackQuery):
+    expense_id = callback.data.replace("approve_senior_", "")
+    with next(database.get_db()) as db:
+        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+        if not expense:
+            await callback.answer("Заявка не найдена")
+            return
+            
+        update = schemas.ExpenseStatusUpdate(status="approved_senior", comment="Утверждено Старшим финансистом")
+        crud.update_expense_status(db, expense_id, update)
+        
+        await callback.message.edit_text(callback.message.text + "\n\n✅ **Утверждено Старшим финансистом**", parse_mode="Markdown")
+        await callback.answer("Заявка утверждена!")
+
+@router.callback_query(F.data.startswith("reject_senior_"))
+async def handle_reject_senior(callback: types.CallbackQuery):
+    expense_id = callback.data.replace("reject_senior_", "")
+    with next(database.get_db()) as db:
+        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+        if not expense:
+            await callback.answer("Заявка не найдена")
+            return
+            
+        update = schemas.ExpenseStatusUpdate(status="rejected_senior", comment="Отклонено Старшим финансистом")
+        crud.update_expense_status(db, expense_id, update)
+        
+        await callback.message.edit_text(callback.message.text + "\n\n❌ **Отклонено Старшим финансистом**", parse_mode="Markdown")
+        await callback.answer("Заявка отклонена!")
+
+@router.callback_query(F.data.startswith("download_excel_"))
+async def handle_download_excel(callback: types.CallbackQuery):
+    expense_id = callback.data.replace("download_excel_", "")
+    with next(database.get_db()) as db:
+        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+        if not expense:
+            await callback.answer("Заявка не найдена")
+            return
+            
+        await callback.answer("Генерирую Excel смету...")
+        
+        items_data = []
+        raw_items = expense.items
+        if isinstance(raw_items, str):
+            import json
+            try:
+                raw_items = json.loads(raw_items)
+            except:
+                raw_items = []
+                
+        if isinstance(raw_items, list):
+            for idx, item in enumerate(raw_items):
+                if isinstance(item, dict):
+                    items_data.append({
+                        "name": item.get("name", ""),
+                        "quantity": float(item.get("quantity", 0)),
+                        "price": float(item.get("amount", 0)),
+                        "total": float(item.get("amount", 0)) * float(item.get("quantity", 0))
+                    })
+
+        data = {
+            "request_id": expense.request_id,
+            "date": expense.date.strftime("%d.%m.%Y"),
+            "sender_name": expense.created_by,
+            "sender_position": expense.created_by_position or "Сотрудник",
+            "purpose": expense.purpose,
+            "items": items_data,
+            "total_amount": float(expense.total_amount),
+            "currency": expense.currency
+        }
+        
+        try:
+            file_stream = generate_smeta_excel(data)
+            document = types.BufferedInputFile(file_stream.read(), filename=f"smeta_{expense.request_id}.xlsx")
+            await callback.message.answer_document(document)
+        except Exception as e:
+            logger.error(f"Error generating excel from bot callback: {str(e)}", exc_info=True)
+            await callback.message.answer(f"❌ Ошибка генерации Excel: {str(e)}")
 
 def register_handlers(dp):
     dp.include_router(router)
