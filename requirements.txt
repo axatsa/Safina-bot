@@ -12,4 +12,5 @@ redis
 python-dotenv
 docxtpl
 pandas
+sse-starlette
 openpyxl

@@ -18,3 +18,12 @@ class ExpenseWizard(StatesGroup):
     # Admin Flow
     waiting_for_admin_login = State()
     waiting_for_admin_password = State()
+
+class RefundWizard(StatesGroup):
+    student_id = State()
+    reason = State()
+    amount = State()
+    card_number = State()
+    retention = State()
+    receipt_photo = State()
+    confirm = State()

@@ -15,7 +15,8 @@ load_dotenv()
 from app.core.logging_config import setup_logging, get_logger
 from app.core.logging_middleware import LoggingMiddleware
 from app.core.database import engine, Base
-from app.api import auth, projects, expenses, team, notifications
+from app.api import auth, projects, expenses, team, notifications, analytics
+from app.db import models, schemas, seed
 from app.services.bot.main import main as bot_main
 
 # Setup logging
@@ -66,8 +67,11 @@ async def lifespan(app: FastAPI):
     
     # 1. Initialize DB
     await init_db_with_retry()
+    
+    # 2. Seed initial data (e.g., Senior Financier)
+    seed.seed_users()
 
-    # 2. Start Telegram Bot task in the background
+    # 3. Start Telegram Bot task in the background
     bot_task = None
     if os.getenv("BOT_TOKEN"):
         bot_task = asyncio.create_task(run_bot_with_watchdog())
@@ -146,6 +150,7 @@ app.include_router(projects.router, prefix="/api")
 app.include_router(expenses.router, prefix="/api")
 app.include_router(team.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
 
 @app.get("/api/health")
 async def health_check():

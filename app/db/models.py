@@ -39,6 +39,8 @@ class TeamMember(Base):
     position = Column(String, nullable=True) # Official title/position
     telegram_chat_id = Column(BigInteger, unique=True, nullable=True, index=True)
     status = Column(String, default="active", index=True) # active, blocked
+    branch = Column(String, nullable=True) # Branch Name (e.g. "School", "Kindergarten")
+    team = Column(String, nullable=True) # Team Name (e.g. "Admins")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     projects = relationship("Project", secondary=member_projects, back_populates="members")
@@ -55,14 +57,17 @@ class ExpenseRequest(Base):
     total_amount = Column(Numeric(precision=18, scale=2), nullable=False)
     currency = Column(String, nullable=False) # UZS, USD, RUB
     status = Column(String, default="request", index=True) # request, review, pending_senior, approved_senior, rejected_senior, confirmed, declined, revision, archived
+    request_type = Column(String, default="expense", index=True) # expense, refund
+    receipt_photo_file_id = Column(String, nullable=True) # Telegram file_id or local path
+    refund_data = Column(JSON, nullable=True) # Additonal Refund specific fields
     
     created_by_id = Column(String, ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True, index=True)
     created_by = Column(String, nullable=False) # Denormalized Full Name
     created_by_position = Column(String, nullable=True) # Denormalized Position
     
     project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
-    project_name = Column(String, nullable=False) # Denormalized Project Name
-    project_code = Column(String, nullable=False) # Denormalized Project Code
+    project_name = Column(String, nullable=True) # Denormalized Project Name
+    project_code = Column(String, nullable=True) # Denormalized Project Code
     
     internal_comment = Column(String, nullable=True)
     status_comment = Column(String, nullable=True)

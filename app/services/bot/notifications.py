@@ -158,3 +158,16 @@ def set_admin_chat_id(chat_id: int):
             setting = models.Setting(key="admin_chat_id", value=str(chat_id))
             db.add(setting)
         db.commit()
+
+def get_senior_financier_chat_ids():
+    """Returns a list of chat IDs for users with the 'senior_financier' position."""
+    from app.core import database
+    from app.db import models
+    chat_ids = []
+    with next(database.get_db()) as db:
+        seniors = db.query(models.TeamMember).filter(
+            models.TeamMember.position == "senior_financier",
+            models.TeamMember.telegram_chat_id.isnot(None)
+        ).all()
+        chat_ids = [s.telegram_chat_id for s in seniors]
+    return chat_ids
