@@ -11,7 +11,9 @@ import Team from "./pages/Team";
 import ArchivePage from "./pages/Archive";
 import ExpenseDetail from "./pages/ExpenseDetail";
 import SubmitExpense from "./pages/SubmitExpense";
+import Statistics from "./pages/Statistics";
 import NotFound from "./pages/NotFound";
+import { SSEProvider } from "./lib/contexts/SSEContext";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,24 +26,27 @@ const queryClient = new QueryClient({
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/dashboard" element={<AppLayout />}>
-            <Route index element={<Applications />} />
-            <Route path="archive" element={<ArchivePage />} />
-            <Route path="projects" element={<Projects />} />
-            <Route path="team" element={<Team />} />
-            <Route path="expense/:id" element={<ExpenseDetail />} />
-          </Route>
-          <Route path="/submit" element={<SubmitExpense />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <SSEProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route path="/dashboard" element={<AppLayout />}>
+              <Route index element={<Applications />} />
+              <Route path="archive" element={<ArchivePage />} />
+              <Route path="projects" element={<Projects />} />
+              <Route path="team" element={<Team />} />
+              <Route path="statistics" element={<Statistics />} />
+              <Route path="expense/:id" element={<ExpenseDetail />} />
+            </Route>
+            <Route path="/submit" element={<SubmitExpense />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </SSEProvider>
   </QueryClientProvider>
 );
 

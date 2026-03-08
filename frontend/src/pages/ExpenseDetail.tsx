@@ -9,9 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   ArrowLeft, Download, Clock, CheckCircle, XCircle,
-  RotateCcw, Archive, Send, Loader2
+  RotateCcw, Archive, Send, Loader2, FastForward
 } from "lucide-react";
-import { format } from "date-fns";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +23,9 @@ const statusColorMap: Record<ExpenseStatus, string> = {
   declined: "bg-red-100 text-red-800",
   revision: "bg-orange-100 text-orange-800",
   archived: "bg-gray-100 text-gray-800",
+  pending_senior: "bg-purple-100 text-purple-800",
+  approved_senior: "bg-teal-100 text-teal-800",
+  rejected_senior: "bg-rose-100 text-rose-800",
 };
 
 const ExpenseDetail = () => {
@@ -67,6 +69,15 @@ const ExpenseDetail = () => {
     },
   });
 
+  const forwardSeniorMutation = useMutation({
+    mutationFn: () => store.forwardToSenior(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Заявка отправлена Старшему финансисту");
+    },
+    onError: () => toast.error("Ошибка при отправке Старшему финансисту"),
+  });
+
   if (!expense) {
     return (
       <div className="p-6 text-center text-muted-foreground">
@@ -98,12 +109,12 @@ const ExpenseDetail = () => {
 
   const isArchived = expense.status === "archived";
 
-  const actionButtons: { status: ExpenseStatus; label: string; icon: React.ReactNode; variant: "default" | "outline" | "destructive" }[] = [
+  const actionButtons: { status: ExpenseStatus; label: string; icon: React.ReactNode; variant: "default" | "outline" | "destructive" | "ghost" }[] = [
     { status: "review", label: "В рассмотрение", icon: <Clock className="w-4 h-4" />, variant: "outline" },
-    { status: "confirmed", label: "Подтвердить", icon: <CheckCircle className="w-4 h-4" />, variant: "default" },
-    { status: "declined", label: "Отклонить", icon: <XCircle className="w-4 h-4" />, variant: "destructive" },
-    { status: "revision", label: "На доработку", icon: <RotateCcw className="w-4 h-4" />, variant: "outline" },
-    { status: "archived", label: "Архивировать", icon: <Archive className="w-4 h-4" />, variant: "outline" },
+    { status: "confirmed", label: "Подтвердить", icon: <CheckCircle className="w-4 h-4" />, variant: "default" as const },
+    { status: "declined", label: "Отклонить", icon: <XCircle className="w-4 h-4" />, variant: "destructive" as const },
+    { status: "revision", label: "На доработку", icon: <RotateCcw className="w-4 h-4" />, variant: "outline" as const },
+    { status: "archived", label: "В архив", icon: <Archive className="w-4 h-4" />, variant: "ghost" as const },
   ];
 
   return (
@@ -186,12 +197,25 @@ const ExpenseDetail = () => {
                 size="sm"
                 className="gap-2"
                 onClick={() => handleStatusChange(action.status)}
-                disabled={statusMutation.isPending}
+                disabled={statusMutation.isPending || forwardSeniorMutation.isPending}
               >
                 {statusMutation.isPending && pendingStatus === action.status ? <Loader2 className="w-4 h-4 animate-spin" /> : action.icon}
                 {action.label}
               </Button>
             ))}
+
+          {store.isAdmin() && expense.status === 'review' && (
+            <Button
+              variant="default"
+              size="sm"
+              className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={() => forwardSeniorMutation.mutate()}
+              disabled={forwardSeniorMutation.isPending || statusMutation.isPending}
+            >
+              {forwardSeniorMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FastForward className="w-4 h-4" />}
+              На согласование СФ
+            </Button>
+          )}
         </div>
       )}
 

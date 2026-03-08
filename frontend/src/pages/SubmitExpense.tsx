@@ -15,6 +15,7 @@ import { Plus, Trash2, Send, Loader2, ArrowLeft } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import SubmitRefund from "./SubmitRefund";
 
 /** Format a number as "1 000 000" with spaces */
 const formatAmount = (value: number): string => {
@@ -42,6 +43,7 @@ type ItemWithDisplay = ExpenseItem & { displayAmount: string };
 const SubmitExpense = () => {
     const [searchParams] = useSearchParams();
     const chatId = searchParams.get("chat_id");
+    const reqType = searchParams.get("type");
     const navigate = useNavigate();
     const [projectId, setProjectId] = useState("");
     const [purpose, setPurpose] = useState("");
@@ -136,8 +138,12 @@ const SubmitExpense = () => {
         if (!purpose) return toast.error("Введите цель расхода");
         if (items.some(i => !i.name || i.amount <= 0)) return toast.error("Заполните все поля товаров");
 
-        mutation.mutate({});
+        mutation.mutate();
     };
+
+    if (reqType === "refund") {
+        return <SubmitRefund chatId={chatId} />;
+    }
 
     if (submitted) {
         return (

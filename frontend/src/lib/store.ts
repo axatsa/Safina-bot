@@ -161,6 +161,15 @@ export const store = {
     return await res.json();
   },
 
+  async getAnalytics({ period = "1m", segment = "global" } = {}) {
+    const url = new URL(`${API_BASE_URL}/analytics`, window.location.origin);
+    url.searchParams.append("period", period);
+    url.searchParams.append("segment", segment);
+    const res = await fetch(url.toString(), { headers: getHeaders() });
+    if (!res.ok) throw new Error("Failed to load analytics");
+    return await res.json();
+  },
+
   // Expenses
   getExpenses: async (params?: { project?: string; status?: string }): Promise<ExpenseRequest[]> => {
     const url = new URL(`${API_BASE_URL}/expenses`, window.location.origin);
@@ -204,6 +213,17 @@ export const store = {
       headers: getHeaders(),
       body: JSON.stringify({ internal_comment: internalComment }),
     });
+  },
+
+  forwardToSenior: async (expenseId: string): Promise<ExpenseRequest> => {
+    const res = await fetch(`${API_BASE_URL}/expenses/${expenseId}/forward_senior`, {
+      method: "POST",
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      throw new Error("Failed to forward to Senior Financier");
+    }
+    return res.json();
   },
 
   exportXLSX: async (params: { project?: string; user?: string; from?: string; to?: string; allStatuses?: boolean }): Promise<void> => {

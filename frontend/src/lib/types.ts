@@ -20,6 +20,8 @@ export interface TeamMember {
   projects?: Project[];
   login: string;
   password?: string;
+  branch?: string;
+  team?: string;
   status: "active" | "blocked";
   telegramChatId?: number;
   createdAt: Date;
@@ -32,7 +34,7 @@ export interface ExpenseItem {
   currency: "UZS" | "USD";
 }
 
-export type ExpenseStatus = "request" | "review" | "confirmed" | "declined" | "revision" | "archived";
+export type ExpenseStatus = "request" | "review" | "pending_senior" | "approved_senior" | "rejected_senior" | "confirmed" | "declined" | "revision" | "archived";
 
 export interface ExpenseRequest {
   id: string;
@@ -44,6 +46,7 @@ export interface ExpenseRequest {
   currency: string;
   status: ExpenseStatus;
   createdBy: string;
+  createdById: string;
   createdByPosition?: string;
   projectId: string;
   projectName: string;
@@ -56,10 +59,13 @@ export interface ExpenseRequest {
 export const STATUS_LABELS: Record<ExpenseStatus, string> = {
   request: "Запрос",
   review: "На рассмотрении",
+  pending_senior: "Ожидает СФ",
+  approved_senior: "Одобрено СФ",
+  rejected_senior: "Отклонено СФ",
   confirmed: "Подтверждено",
   declined: "Отклонено",
   revision: "Возврат на доработку",
-  archived: "Архивировано",
+  archived: "В архиве",
 };
 
-export const KANBAN_STATUSES: ExpenseStatus[] = ["request", "review", "confirmed", "declined", "revision"];
+export const KANBAN_STATUSES: ExpenseStatus[] = ["request", "review", "pending_senior", "confirmed", "declined", "revision"];

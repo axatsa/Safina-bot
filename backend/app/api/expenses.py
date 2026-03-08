@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Response
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Response, File, Form, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
@@ -6,6 +6,8 @@ import io
 import csv
 import datetime
 import os
+import uuid
+import shutil
 from app.db import models, schemas, crud
 from app.core import auth, database
 from app.services.docx.generator import generate_docx
@@ -68,6 +70,71 @@ async def web_submit_expense(data: dict, background_tasks: BackgroundTasks, db: 
         background_tasks.add_task(send_admin_notification, expense_req.id, admin_chat_id)
     return expense_req
 
+@router.post("/refund/web-submit", response_model=schemas.ExpenseRequestSchema)
+async def web_submit_refund(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(database.get_db),
+    student_id: str = Form(...),
+    reason: str = Form(...),
+    amount: float = Form(...),
+    card_number: str = Form(...),
+    retention: str = Form(...),
+    receipt_photo: UploadFile = File(...),
+    chat_id: str = Form(None)
+):
+    user_id = None
+    if chat_id:
+        try:
+            chat_id_int = int(chat_id)
+            user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == chat_id_int).first()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found for this telegram account")
+            user_id = user.id
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid chat_id format")
+            
+    # Save the receipt photo locally
+    upload_dir = "uploads/receipts"
+    os.makedirs(upload_dir, exist_ok=True)
+    ext = receipt_photo.filename.split('.')[-1] if '.' in receipt_photo.filename else 'jpg'
+    filename = f"{uuid.uuid4()}.{ext}"
+    file_path = os.path.join(upload_dir, filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(receipt_photo.file, buffer)
+        
+    retention_bool = retention.lower() == "true"
+    refund_data = schemas.RefundDataSchema(
+        student_id=student_id,
+        reason=reason,
+        card_number=card_number,
+        retention=retention_bool
+    )
+    
+    items = [schemas.ExpenseItemSchema(
+        name=f"Возврат (ID: {student_id})",
+        quantity=1,
+        amount=amount,
+        currency="UZS"
+    )]
+    
+    expense_create = schemas.ExpenseRequestCreate(
+        purpose=f"Возврат (Ученик: {student_id})",
+        items=items,
+        total_amount=amount,
+        currency="UZS",
+        project_id=None,
+        request_type="refund",
+        receipt_photo_file_id=file_path,
+        refund_data=refund_data
+    )
+    
+    expense_req = crud.create_expense_request(db=db, expense=expense_create, user_id=user_id)
+    
+    admin_chat_id = get_admin_chat_id()
+    if admin_chat_id:
+        background_tasks.add_task(send_admin_notification, expense_req.id, admin_chat_id)
+    return expense_req
+
 @router.patch("/{expense_id}/status", response_model=schemas.ExpenseRequestSchema)
 def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db)):
     if update.status in ["declined", "revision"] and not update.comment:
@@ -101,13 +168,14 @@ def forward_to_senior_financier(expense_id: str, background_tasks: BackgroundTas
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
         
-    senior_chat_id = os.getenv("SENIOR_FINANCIER_CHAT_ID")
-    if senior_chat_id:
-        try:
-            chat_id = int(senior_chat_id)
+    from app.services.bot.notifications import get_senior_financier_chat_ids
+    senior_chat_ids = get_senior_financier_chat_ids()
+    
+    if senior_chat_ids:
+        for chat_id in senior_chat_ids:
             background_tasks.add_task(send_senior_notification, expense.id, chat_id)
-        except ValueError:
-            print("Invalid SENIOR_FINANCIER_CHAT_ID format. Must be an integer.")
+    else:
+        logger.warning("No linked Senior Financiers found in database.")
             
     # Also notify Safina/initiator via SSE that status changed
     from app.services.notifications.sse import publish_notification
@@ -269,11 +337,42 @@ def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: st
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Expenses')
         
-        # Auto-adjust columns width
         worksheet = writer.sheets['Expenses']
+        from openpyxl.styles import PatternFill, Border, Side, Font, Alignment
+        
+        yellow_fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        bold_font = Font(bold=True)
+        center_align = Alignment(horizontal="center", vertical="center")
+        
+        # Styles for header
+        for col_idx in range(1, len(df.columns) + 1):
+            cell = worksheet.cell(row=1, column=col_idx)
+            cell.fill = yellow_fill
+            cell.font = bold_font
+            cell.border = thin_border
+            cell.alignment = center_align
+            
+        # Borders for content
+        for row_idx in range(2, len(df) + 2):
+            for col_idx in range(1, len(df.columns) + 1):
+                cell = worksheet.cell(row=row_idx, column=col_idx)
+                cell.border = thin_border
+                
+        # Auto-adjust columns width
         for idx, col in enumerate(df.columns):
             max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
-            worksheet.column_dimensions[chr(65 + idx)].width = max_len
+            worksheet.column_dimensions[chr(65 + idx)].width = min(max_len, 50)
+            
+        # Add SUM formula
+        total_row = len(df) + 2
+        worksheet.cell(row=total_row, column=10, value="ИТОГО:").font = bold_font
+        worksheet.cell(row=total_row, column=10).border = thin_border
+        
+        sum_cell = worksheet.cell(row=total_row, column=11)
+        sum_cell.value = f"=SUM(K2:K{total_row-1})"
+        sum_cell.font = bold_font
+        sum_cell.border = thin_border
 
     output.seek(0)
     
@@ -341,3 +440,5 @@ def export_expense_docx(expense_id: str, db: Session = Depends(database.get_db),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+

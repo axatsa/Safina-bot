@@ -87,7 +87,9 @@ def create_team_member(db: Session, member: schemas.TeamMemberCreate):
         login=member.login,
         password_hash=hashed_password,
         position=member.position,
-        status=member.status
+        status=member.status,
+        branch=member.branch,
+        team=member.team
     )
     
     # Add projects
@@ -130,11 +132,20 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
         user_name = f"{user.last_name} {user.first_name}"
         user_position = user.position
         
-    project = db.query(models.Project).filter(models.Project.id == expense.project_id).first()
-    if not project:
-        raise ValueError("Project not found")
+    if expense.project_id:
+        project = db.query(models.Project).filter(models.Project.id == expense.project_id).first()
+        if not project:
+            raise ValueError("Project not found")
+        project_name = project.name
+        project_code = project.code
+        req_prefix = project.code
+    else:
+        project = None
+        project_name = None
+        project_code = None
+        req_prefix = "REF" if expense.request_type == "refund" else "REQ"
     
-    request_id = generate_request_id(db, project.code)
+    request_id = generate_request_id(db, req_prefix)
     
     total_amount = expense.total_amount
     if total_amount is None:
@@ -157,8 +168,11 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
         created_by=user_name,
         created_by_position=user_position,
         project_id=expense.project_id,
-        project_name=project.name,
-        project_code=project.code
+        project_name=project_name,
+        project_code=project_code,
+        request_type=expense.request_type,
+        receipt_photo_file_id=expense.receipt_photo_file_id,
+        refund_data=expense.refund_data.dict() if expense.refund_data else None
     )
     db.add(db_expense)
     db.commit()

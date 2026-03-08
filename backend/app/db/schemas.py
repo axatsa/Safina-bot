@@ -57,10 +57,12 @@ class TeamMemberBase(BaseModel):
     login: str
     position: Optional[str] = None
     status: str = "active"
+    branch: Optional[str] = None
+    team: Optional[str] = None
 
 class TeamMemberCreate(TeamMemberBase):
     password: str
-    project_ids: List[str]
+    project_ids: Optional[List[str]] = []
 
 class TeamMemberSchema(TeamMemberBase):
     id: str
@@ -72,13 +74,22 @@ class TeamMemberSchema(TeamMemberBase):
         from_attributes = True
 
 # Expense Request Schemas
+class RefundDataSchema(BaseModel):
+    student_id: str
+    reason: str
+    card_number: str
+    retention: bool
+
 class ExpenseRequestCreate(BaseModel):
     purpose: str
     items: List[ExpenseItemSchema]
-    project_id: str
+    project_id: Optional[str] = None
     total_amount: Optional[float] = None
     currency: Optional[CurrencyEnum] = None
     date: Optional[datetime] = None
+    request_type: str = "expense"
+    receipt_photo_file_id: Optional[str] = None
+    refund_data: Optional[RefundDataSchema] = None
 
 class ExpenseStatusUpdate(BaseModel):
     status: ExpenseStatusEnum
@@ -95,8 +106,8 @@ class ExpenseRequestSchema(ExpenseRequestCreate):
     created_by: str
     created_by_id: Optional[str] = None
     created_by_position: Optional[str] = None
-    project_name: str
-    project_code: str
+    project_name: Optional[str] = None
+    project_code: Optional[str] = None
     internal_comment: Optional[str] = None
     status_comment: Optional[str] = None
     created_at: datetime

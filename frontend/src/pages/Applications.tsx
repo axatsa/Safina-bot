@@ -4,7 +4,7 @@ import { ExpenseRequest, ExpenseStatus, KANBAN_STATUSES, STATUS_LABELS } from "@
 import ExpenseCard from "@/components/ExpenseCard";
 import CompactExpenseCard from "@/components/CompactExpenseCard";
 import FilterBar from "@/components/FilterBar";
-import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, DollarSign, FileText, Clock, CheckCircle } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ const kanbanColors: Record<string, string> = {
   confirmed: "kanban-confirmed",
   declined: "kanban-declined",
   revision: "kanban-revision",
+  pending_senior: "kanban-review",
 };
 
 const Applications = () => {
@@ -130,6 +131,14 @@ const Applications = () => {
     );
   }
 
+  // Calculate Dashboard Statistics
+  const totalRequests = filtered.length;
+  const totalAmountUZS = filtered
+    .filter(e => e.currency === 'UZS' && !['declined', 'archived', 'rejected_senior'].includes(e.status))
+    .reduce((sum, e) => sum + Number(e.totalAmount || 0), 0);
+  const pendingCount = filtered.filter(e => ['review', 'pending_senior'].includes(e.status)).length;
+  const approvedCount = filtered.filter(e => ['confirmed', 'approved_senior'].includes(e.status)).length;
+
   return (
     <div className="p-6 space-y-6 animate-slide-in">
       <div>
@@ -150,6 +159,37 @@ const Applications = () => {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
       />
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="glass-card rounded-xl p-4 flex flex-col justify-center">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><FileText className="w-4 h-4" /></div>
+            <p className="text-sm font-medium text-muted-foreground">Всего заявок</p>
+          </div>
+          <h3 className="text-2xl font-bold">{totalRequests}</h3>
+        </div>
+        <div className="glass-card rounded-xl p-4 flex flex-col justify-center">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-amber-100 text-amber-600 rounded-lg"><Clock className="w-4 h-4" /></div>
+            <p className="text-sm font-medium text-muted-foreground">На рассмотрении</p>
+          </div>
+          <h3 className="text-2xl font-bold">{pendingCount}</h3>
+        </div>
+        <div className="glass-card rounded-xl p-4 flex flex-col justify-center">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg"><CheckCircle className="w-4 h-4" /></div>
+            <p className="text-sm font-medium text-muted-foreground">Утверждено</p>
+          </div>
+          <h3 className="text-2xl font-bold">{approvedCount}</h3>
+        </div>
+        <div className="glass-card rounded-xl p-4 flex flex-col justify-center">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg"><DollarSign className="w-4 h-4" /></div>
+            <p className="text-sm font-medium text-muted-foreground">Сумма (UZS к оплате)</p>
+          </div>
+          <h3 className="text-xl font-bold truncate" title={totalAmountUZS.toLocaleString()}>{totalAmountUZS.toLocaleString()}</h3>
+        </div>
+      </div>
 
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 lg:grid-cols-5 md:grid-cols-3 gap-4">

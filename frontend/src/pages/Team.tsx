@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2 } from "lucide-react";
+import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2, KeyRound } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -24,6 +24,8 @@ const Team = () => {
     login: "",
     password: "",
     position: "",
+    branch: "",
+    team: "",
   });
 
   const { data: team = [], isLoading: isTeamLoading } = useQuery({
@@ -40,7 +42,7 @@ const Team = () => {
     mutationFn: (newMember: any) => store.createTeamMember(newMember),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team"] });
-      setFormData({ lastName: "", firstName: "", projectIds: [], login: "", password: "", position: "" });
+      setFormData({ lastName: "", firstName: "", projectIds: [], login: "", password: "", position: "", branch: "", team: "" });
       toast.success("Участник добавлен");
     },
     onError: () => toast.error("Ошибка при добавлении")
@@ -61,13 +63,18 @@ const Team = () => {
     }
   };
 
+  const generatePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let pass = "";
+    for (let i = 0; i < 6; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setFormData(prev => ({ ...prev, password: pass }));
+  };
+
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.projectIds.length > 0) {
-      mutation.mutate(formData);
-    } else {
-      toast.error("Выберите хотя бы один проект");
-    }
+    mutation.mutate(formData);
   };
 
   const toggleProject = (id: string) => {
@@ -130,7 +137,25 @@ const Team = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label>Проекты</Label>
+              <Label htmlFor="branch">Филиал (например, "Школа", пустой для всех)</Label>
+              <Input
+                id="branch"
+                value={formData.branch}
+                onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+                placeholder="Садик, Школа..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="team">Команда (например, "Avlod")</Label>
+              <Input
+                id="team"
+                value={formData.team}
+                onChange={(e) => setFormData({ ...formData, team: e.target.value })}
+                placeholder="Avlod, Thompson..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Проекты (Необязательно)</Label>
               <div className="space-y-2 max-h-[150px] overflow-y-auto p-2 border rounded-md">
                 {projects.map((p: Project) => (
                   <label key={p.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded cursor-pointer transition-colors">
@@ -156,14 +181,25 @@ const Team = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Пароль</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
-                minLength={6}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                  minLength={6}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={generatePassword}
+                  title="Сгенерировать случайный пароль"
+                >
+                  <KeyRound className="w-4 h-4 text-muted-foreground" />
+                </Button>
+              </div>
             </div>
             <Button type="submit" className="w-full" disabled={mutation.isPending}>
               {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -185,6 +221,9 @@ const Team = () => {
                   </th>
                   <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
                     Проекты
+                  </th>
+                  <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                    Филиал / Команда
                   </th>
                   <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
                     Логин
@@ -224,6 +263,12 @@ const Team = () => {
                             </span>
                           ))}
                           {(!member.projects || member.projects.length === 0) && <span className="text-xs text-muted-foreground">—</span>}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm">{member.branch || "—"}</span>
+                          <span className="text-xs text-muted-foreground">{member.team || "—"}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
