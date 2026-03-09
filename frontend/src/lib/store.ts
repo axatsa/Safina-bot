@@ -1,4 +1,4 @@
-import { ExpenseRequest, ExpenseStatus, Project, TeamMember } from "./types";
+import { ExpenseRequest, ExpenseStatus, Project, TeamMember, UserRole } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_APP_API_URL || "/api";
 
@@ -9,6 +9,11 @@ const getHeaders = () => {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 };
+
+// ─── Role helpers ────────────────────────────────────────────────────────────
+
+const getRole = (): UserRole =>
+  (localStorage.getItem("safina_role") as UserRole) ?? "user";
 
 export const store = {
   // Auth
@@ -22,7 +27,7 @@ export const store = {
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem("safina_token", data.access_token);
-        localStorage.setItem("safina_role", data.role);
+        localStorage.setItem("safina_role", data.role ?? "user");
         if (data.projectId) localStorage.setItem("safina_projectId", data.projectId);
         return true;
       }
@@ -38,7 +43,13 @@ export const store = {
     localStorage.removeItem("safina_projectId");
   },
 
-  isAdmin: (): boolean => localStorage.getItem("safina_role") === "admin",
+  isAdmin: (): boolean => getRole() === "admin",
+  isSeniorFinancier: (): boolean => getRole() === "senior_financier",
+  isCeo: (): boolean => getRole() === "ceo",
+  /** Returns true for any role that has web panel access */
+  hasWebAccess: (): boolean => ["admin", "senior_financier"].includes(getRole()),
+  /** Returns true when the user should see team/project management tabs */
+  canManageTeam: (): boolean => getRole() === "admin",
 
   // Projects
   getProjects: async (): Promise<Project[]> => {
@@ -220,8 +231,18 @@ export const store = {
       method: "POST",
       headers: getHeaders(),
     });
+    if (!res.ok) throw new Error("Failed to forward to Senior Financier");
+    return res.json();
+  },
+
+  forwardToCeo: async (expenseId: string): Promise<ExpenseRequest> => {
+    const res = await fetch(`${API_BASE_URL}/expenses/${expenseId}/forward_ceo`, {
+      method: "POST",
+      headers: getHeaders(),
+    });
     if (!res.ok) {
-      throw new Error("Failed to forward to Senior Financier");
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.message ?? "Failed to forward to CEO");
     }
     return res.json();
   },

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   ArrowLeft, Download, Clock, CheckCircle, XCircle,
-  RotateCcw, Archive, Send, Loader2, FastForward
+  RotateCcw, Archive, Send, Loader2, FastForward, Crown
 } from "lucide-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -17,15 +17,18 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const statusColorMap: Record<ExpenseStatus, string> = {
-  request: "bg-amber-100 text-amber-800",
-  review: "bg-blue-100 text-blue-800",
-  confirmed: "bg-emerald-100 text-emerald-800",
-  declined: "bg-red-100 text-red-800",
-  revision: "bg-orange-100 text-orange-800",
-  archived: "bg-gray-100 text-gray-800",
-  pending_senior: "bg-purple-100 text-purple-800",
+  request:         "bg-amber-100 text-amber-800",
+  review:          "bg-blue-100 text-blue-800",
+  confirmed:       "bg-emerald-100 text-emerald-800",
+  declined:        "bg-red-100 text-red-800",
+  revision:        "bg-orange-100 text-orange-800",
+  archived:        "bg-gray-100 text-gray-800",
+  pending_senior:  "bg-purple-100 text-purple-800",
   approved_senior: "bg-teal-100 text-teal-800",
   rejected_senior: "bg-rose-100 text-rose-800",
+  pending_ceo:     "bg-violet-100 text-violet-800",
+  approved_ceo:    "bg-green-100 text-green-800",
+  rejected_ceo:    "bg-pink-100 text-pink-800",
 };
 
 const ExpenseDetail = () => {
@@ -73,9 +76,18 @@ const ExpenseDetail = () => {
     mutationFn: () => store.forwardToSenior(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      toast.success("Заявка отправлена Старшему финансисту");
+      toast.success("Заявка отправлена CFO");
     },
-    onError: () => toast.error("Ошибка при отправке Старшему финансисту"),
+    onError: () => toast.error("Ошибка при отправке CFO"),
+  });
+
+  const forwardCeoMutation = useMutation({
+    mutationFn: () => store.forwardToCeo(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Заявка отправлена CEO");
+    },
+    onError: (e: Error) => toast.error(e.message || "Ошибка при отправке CEO"),
   });
 
   if (!expense) {
@@ -204,7 +216,8 @@ const ExpenseDetail = () => {
               </Button>
             ))}
 
-          {store.isAdmin() && expense.status === 'review' && (
+          {/* Safina: forward to CFO */}
+          {store.isAdmin() && expense.status === "review" && (
             <Button
               variant="default"
               size="sm"
@@ -212,8 +225,26 @@ const ExpenseDetail = () => {
               onClick={() => forwardSeniorMutation.mutate()}
               disabled={forwardSeniorMutation.isPending || statusMutation.isPending}
             >
-              {forwardSeniorMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FastForward className="w-4 h-4" />}
-              На согласование СФ
+              {forwardSeniorMutation.isPending
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <FastForward className="w-4 h-4" />}
+              На согласование CFO
+            </Button>
+          )}
+
+          {/* CFO: forward to CEO (only when already approved by CFO) */}
+          {store.isSeniorFinancier() && expense.status === "approved_senior" && (
+            <Button
+              variant="default"
+              size="sm"
+              className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+              onClick={() => forwardCeoMutation.mutate()}
+              disabled={forwardCeoMutation.isPending || statusMutation.isPending}
+            >
+              {forwardCeoMutation.isPending
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Crown className="w-4 h-4" />}
+              Отправить CEO
             </Button>
           )}
         </div>

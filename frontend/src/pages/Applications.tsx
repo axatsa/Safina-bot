@@ -10,12 +10,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const kanbanColors: Record<string, string> = {
-  request: "kanban-request",
-  review: "kanban-review",
-  confirmed: "kanban-confirmed",
-  declined: "kanban-declined",
-  revision: "kanban-revision",
+  request:        "kanban-request",
+  review:         "kanban-review",
+  confirmed:      "kanban-confirmed",
+  declined:       "kanban-declined",
+  revision:       "kanban-revision",
   pending_senior: "kanban-review",
+  pending_ceo:    "kanban-review",
 };
 
 const Applications = () => {
