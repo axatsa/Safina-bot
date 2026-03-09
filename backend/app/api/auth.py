@@ -31,11 +31,23 @@ def login(request: schemas.LoginRequest, db: Session = Depends(database.get_db))
     # Check team members
     user = db.query(models.TeamMember).filter(models.TeamMember.login == request.login).first()
     if user and auth.verify_password(request.password, user.password_hash):
-        logger.info(f"User login successful: {user.login}")
+        if user.status != "active":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is blocked",
+            )
+        logger.info(f"User login successful: {user.login} (position={user.position})")
         access_token = auth.create_access_token(data={"sub": user.login})
-        # Use first project ID as default for frontend
+        # Use first project ID as default for non-admin frontend views
         project_id = user.projects[0].id if user.projects else None
-        return {"access_token": access_token, "token_type": "bearer", "role": "user", "projectId": project_id}
+        # Return the real position so the frontend can tailor its UI
+        role = user.position if user.position in ("senior_financier", "ceo") else "user"
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "role": role,
+            "projectId": project_id,
+        }
         
     logger.warning(f"Failed login attempt for user: {request.login}")
     raise HTTPException(

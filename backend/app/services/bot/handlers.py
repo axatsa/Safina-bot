@@ -1,76 +1,252 @@
+"""
+Telegram bot handlers.
+
+Hierarchy:
+  Zarina (employee)  → creates requests
+  Safina (admin)     → receives all new request notifications
+  CFO (Farrukh)      → receives forwarded requests, approves/rejects
+  CEO (Ganiev)       → receives CFO-forwarded requests, final decision
+
+Each role logs in via /start + login/password. The bot links telegram_chat_id
+to the TeamMember row which is how future notifications are routed.
+"""
+
+import asyncio
+import datetime
+import os
+
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
-from .states import ExpenseWizard, RefundWizard
-from app.db import models, schemas, crud
+
 from app.core import auth, database
-import datetime
-import os
-from .notifications import set_admin_chat_id, get_admin_chat_id
+from app.core.logging_config import get_logger
+from app.db import models, schemas, crud
 from app.services.docx.generator import generate_docx
 from app.services.excel.generator import generate_smeta_excel
-from app.core.logging_config import get_logger
+from .notifications import (
+    set_admin_chat_id,
+    get_admin_chat_id,
+    send_admin_notification,
+    send_ceo_decision_notification,
+)
+from .states import ExpenseWizard, RefundWizard
 
 logger = get_logger(__name__)
-
+router = Router()
 
 TASHKENT_TZ = datetime.timezone(datetime.timedelta(hours=5))
 
+# ---------------------------------------------------------------------------
+# Utility
+# ---------------------------------------------------------------------------
+
 def tashkent_now() -> datetime.datetime:
-    """Return current datetime in Tashkent time (UTC+5)."""
     return datetime.datetime.now(tz=TASHKENT_TZ)
 
-router = Router()
+
+def _get_user_position(login: str) -> str | None:
+    """Sync DB lookup for a user's position."""
+    with next(database.get_db()) as db:
+        user = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
+        return user.position if user else None
+
+
+# ---------------------------------------------------------------------------
+# Keyboards
+# ---------------------------------------------------------------------------
 
 def get_confirm_kb():
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="Добавить ещё позицию")
-    builder.button(text="Готово")
-    return builder.as_markup(resize_keyboard=True)
+    b = ReplyKeyboardBuilder()
+    b.button(text="Добавить ещё позицию")
+    b.button(text="Готово")
+    return b.as_markup(resize_keyboard=True)
 
 def get_date_kb():
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="Сейчас")
-    return builder.as_markup(resize_keyboard=True)
+    b = ReplyKeyboardBuilder()
+    b.button(text="Сейчас")
+    return b.as_markup(resize_keyboard=True)
 
 def get_currency_kb():
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="UZS")
-    builder.button(text="USD")
-    return builder.as_markup(resize_keyboard=True)
+    b = ReplyKeyboardBuilder()
+    b.button(text="UZS")
+    b.button(text="USD")
+    return b.as_markup(resize_keyboard=True)
 
 def get_main_kb():
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="Создать заявку (в боте)")
-    builder.button(text="Оформить возврат (в боте)")
-    builder.button(text="Создать заявку (Web-App)")
-    builder.button(text="Создать возврат (Web-App)")
-    builder.adjust(1)
-    return builder.as_markup(resize_keyboard=True)
+    b = ReplyKeyboardBuilder()
+    b.button(text="Создать заявку (в боте)")
+    b.button(text="Оформить возврат (в боте)")
+    b.button(text="Создать заявку (Web-App)")
+    b.button(text="Создать возврат (Web-App)")
+    b.adjust(1)
+    return b.as_markup(resize_keyboard=True)
 
 def get_projects_kb(projects):
-    builder = ReplyKeyboardBuilder()
+    b = ReplyKeyboardBuilder()
     for p in projects:
-        builder.button(text=f"{p.name} ({p.code})")
-    builder.adjust(1)
-    return builder.as_markup(resize_keyboard=True)
+        b.button(text=f"{p.name} ({p.code})")
+    b.adjust(1)
+    return b.as_markup(resize_keyboard=True)
+
+def get_retention_kb():
+    b = ReplyKeyboardBuilder()
+    b.button(text="Да")
+    b.button(text="Нет")
+    return b.as_markup(resize_keyboard=True)
+
+
+# ---------------------------------------------------------------------------
+# /start  — universal entry point for all roles
+# ---------------------------------------------------------------------------
 
 @router.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
-    # Check if user already linked
+    tg_id = message.from_user.id
+
     with next(database.get_db()) as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == tg_id).first()
         if user:
             await state.update_data(user_id=user.id)
-            await message.answer(
-                f"С возвращением, {user.first_name}! Как хотите создать заявку?",
-                reply_markup=get_main_kb()
-            )
+            if user.position == "ceo":
+                await message.answer(
+                    f"👋 С возвращением, {user.first_name} (CEO)!\n"
+                    "Вы будете получать заявки для финального согласования.",
+                    reply_markup=types.ReplyKeyboardRemove()
+                )
+            else:
+                await message.answer(
+                    f"С возвращением, {user.first_name}! Как хотите создать заявку?",
+                    reply_markup=get_main_kb()
+                )
             return
 
-    await message.answer("Добро пожаловать в Thompson Finance Bot! Пожалуйста, введите ваш логин:", reply_markup=types.ReplyKeyboardRemove())
+    # Also check if this is the Safina admin already registered
+    admin_login = os.getenv("ADMIN_LOGIN", "safina")
+    with next(database.get_db()) as db:
+        setting = db.query(models.Setting).filter(models.Setting.key == "admin_chat_id").first()
+        if setting and setting.value == str(tg_id):
+            await message.answer("С возвращением, Сафина!", reply_markup=types.ReplyKeyboardRemove())
+            return
+
+    await message.answer(
+        "Добро пожаловать в Thompson Finance Bot!\nПожалуйста, введите ваш логин:",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
     await state.set_state(ExpenseWizard.waiting_for_auth)
+
+
+# ---------------------------------------------------------------------------
+# Auth flow (shared by all roles)
+# ---------------------------------------------------------------------------
+
+@router.message(ExpenseWizard.waiting_for_auth)
+async def process_login(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    if "login" not in data:
+        await state.update_data(login=message.text)
+        await message.answer("Теперь введите пароль:")
+        return
+
+    login = data["login"]
+    password = message.text
+    tg_id = message.from_user.id
+
+    # --- Safina (admin) ---
+    admin_login = os.getenv("ADMIN_LOGIN", "safina")
+    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+    if login == admin_login and password == admin_password:
+        set_admin_chat_id(tg_id)
+        await message.answer(
+            "✅ Вход выполнен (Администратор Сафина)!\n"
+            "Вы будете получать уведомления о новых заявках.",
+            reply_markup=types.ReplyKeyboardRemove()
+        )
+        await state.clear()
+        return
+
+    # --- Team members (including CFO and CEO) ---
+    with next(database.get_db()) as db:
+        user = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
+
+        if not (user and auth.verify_password(password, user.password_hash)):
+            await message.answer("❌ Неверный логин или пароль. Попробуйте снова:")
+            await state.clear()
+            await state.set_state(ExpenseWizard.waiting_for_auth)
+            return
+
+        if user.status != "active":
+            await message.answer("❌ Ваш аккаунт заблокирован. Обратитесь к администратору.")
+            await state.clear()
+            return
+
+        # Clear stale telegram_chat_id from another user if any
+        db.query(models.TeamMember).filter(
+            models.TeamMember.telegram_chat_id == tg_id,
+            models.TeamMember.id != user.id
+        ).update({models.TeamMember.telegram_chat_id: None})
+
+        user.telegram_chat_id = tg_id
+        db.commit()
+
+        await state.update_data(user_id=user.id)
+
+        # CEO — minimal menu
+        if user.position == "ceo":
+            await message.answer(
+                f"✅ Авторизация успешна, {user.first_name} (CEO)!\n"
+                "Вы будете получать заявки для финального согласования.",
+                reply_markup=types.ReplyKeyboardRemove()
+            )
+            await state.clear()
+            return
+
+        # CFO (senior_financier) and regular employees — full create menu
+        if len(user.projects) > 1:
+            await message.answer("Авторизация успешна! Выберите проект:", reply_markup=get_projects_kb(user.projects))
+            await state.set_state(ExpenseWizard.project_selection)
+        elif len(user.projects) == 1:
+            await state.update_data(project_id=user.projects[0].id)
+            await message.answer(
+                f"Авторизация успешна, {user.first_name}! Введите дату (ГГГГ-ММ-ДД) или «Сейчас»:",
+                reply_markup=get_date_kb()
+            )
+            await state.set_state(ExpenseWizard.date)
+        else:
+            await message.answer("Авторизация успешна, но к вам не привязано ни одного проекта.")
+            await state.clear()
+
+
+# ---------------------------------------------------------------------------
+# Admin /admin command (legacy support)
+# ---------------------------------------------------------------------------
+
+@router.message(Command("admin"))
+async def cmd_admin(message: types.Message, state: FSMContext):
+    await message.answer("Введите логин администратора:")
+    await state.set_state(ExpenseWizard.waiting_for_admin_login)
+
+@router.message(ExpenseWizard.waiting_for_admin_login)
+async def process_admin_login(message: types.Message, state: FSMContext):
+    await state.update_data(admin_login=message.text)
+    await message.answer("Введите пароль:")
+    await state.set_state(ExpenseWizard.waiting_for_admin_password)
+
+@router.message(ExpenseWizard.waiting_for_admin_password)
+async def process_admin_password(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    if data["admin_login"] == os.getenv("ADMIN_LOGIN", "safina") and message.text == os.getenv("ADMIN_PASSWORD", "admin123"):
+        set_admin_chat_id(message.from_user.id)
+        await message.answer("✅ Вход выполнен! Уведомления будут приходить в этот чат.")
+    else:
+        await message.answer("❌ Неверный логин или пароль.")
+    await state.clear()
+
+
+# ---------------------------------------------------------------------------
+# Web-App links
+# ---------------------------------------------------------------------------
 
 @router.message(F.text == "Создать заявку (Web-App)")
 @router.message(Command("form"))
@@ -80,10 +256,8 @@ async def show_form_link(message: types.Message):
     builder = InlineKeyboardBuilder()
     builder.button(text="📝 Открыть форму заявки", url=url)
     await message.answer(
-        "Нажмите кнопку ниже, чтобы открыть форму заявки на расход:\n"
-        "_(Убедитесь, что вы авторизованы в боте)_",
-        reply_markup=builder.as_markup(),
-        parse_mode="Markdown"
+        "Нажмите кнопку ниже, чтобы открыть форму заявки:\n_(Убедитесь, что вы авторизованы)_",
+        reply_markup=builder.as_markup(), parse_mode="Markdown"
     )
 
 @router.message(F.text == "Создать возврат (Web-App)")
@@ -93,11 +267,14 @@ async def show_refund_form_link(message: types.Message):
     builder = InlineKeyboardBuilder()
     builder.button(text="💸 Открыть форму возврата", url=url)
     await message.answer(
-        "Нажмите кнопку ниже, чтобы открыть форму возврата:\n"
-        "_(Убедитесь, что вы авторизованы в боте)_",
-        reply_markup=builder.as_markup(),
-        parse_mode="Markdown"
+        "Нажмите кнопку ниже, чтобы открыть форму возврата:\n_(Убедитесь, что вы авторизованы)_",
+        reply_markup=builder.as_markup(), parse_mode="Markdown"
     )
+
+
+# ---------------------------------------------------------------------------
+# Expense creation wizard
+# ---------------------------------------------------------------------------
 
 @router.message(F.text == "Создать заявку (в боте)")
 async def start_wizard_selection(message: types.Message, state: FSMContext):
@@ -106,102 +283,38 @@ async def start_wizard_selection(message: types.Message, state: FSMContext):
         if not user:
             await message.answer("Пожалуйста, сначала авторизуйтесь с помощью /start")
             return
-        
         if len(user.projects) > 1:
             await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
             await state.set_state(ExpenseWizard.project_selection)
         elif len(user.projects) == 1:
             await state.update_data(project_id=user.projects[0].id)
-            await message.answer(
-                "Введите дату (ГГГГ-ММ-ДД), или нажмите кнопку «Сейчас»:",
-                reply_markup=get_date_kb()
-            )
+            await message.answer("Введите дату (ГГГГ-ММ-ДД), или нажмите «Сейчас»:", reply_markup=get_date_kb())
             await state.set_state(ExpenseWizard.date)
         else:
             await message.answer("К вашему аккаунту не привязано ни одного проекта.")
 
-@router.message(ExpenseWizard.waiting_for_auth)
-async def process_login(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    if "login" not in data:
-        await state.update_data(login=message.text)
-        await message.answer("Теперь введите пароль:")
-    else:
-        with next(database.get_db()) as db:
-            # Check if it's admin login
-            admin_login = os.getenv("ADMIN_LOGIN", "safina")
-            admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
-            
-            if data["login"] == admin_login and message.text == admin_password:
-                set_admin_chat_id(message.from_user.id)
-                await message.answer("✅ Вход выполнен (Администратор)!\nТеперь вы будете получать уведомления о новых заявках в этом чате.")
-                await state.clear()
-                return
-
-            user = db.query(models.TeamMember).filter(models.TeamMember.login == data["login"]).first()
-            if user and auth.verify_password(message.text, user.password_hash):
-                if user.status != "active":
-                    await message.answer("❌ Ваш аккаунт заблокирован. Обратитесь к администратору.")
-                    await state.clear()
-                    return
-                # IMPORTANT: Clear this chat_id if it's already linked to someone else
-                # to prevent UniqueConstraint error
-                db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).update({models.TeamMember.telegram_chat_id: None})
-                
-                # Save chat ID for persistence
-                user.telegram_chat_id = message.from_user.id
-                db.commit()
-                
-                await state.update_data(user_id=user.id)
-                if len(user.projects) > 1:
-                    await message.answer("Авторизация успешна! Выберите проект:", reply_markup=get_projects_kb(user.projects))
-                    await state.set_state(ExpenseWizard.project_selection)
-                elif len(user.projects) == 1:
-                    await state.update_data(project_id=user.projects[0].id)
-                    await message.answer(
-                        f"Авторизация успешна, {user.first_name}! Давайте создадим заявку.\nВведите дату (ГГГГ-ММ-ДД), или нажмите кнопку «Сейчас»:",
-                        reply_markup=get_date_kb()
-                    )
-                    await state.set_state(ExpenseWizard.date)
-                else:
-                    await message.answer("Авторизация успешна, но к вам не привязано ни одного проекта.")
-                    await state.clear()
-            else:
-                await message.answer("Ошибка авторизации. Попробуйте логин еще раз:")
-                await state.clear()
-                await state.set_state(ExpenseWizard.waiting_for_auth)
-
 @router.message(ExpenseWizard.project_selection)
 async def process_project_selection(message: types.Message, state: FSMContext):
     with next(database.get_db()) as db:
-        # Match project by name (Code)
         projects = db.query(models.Project).all()
-        selected_project = None
-        for p in projects:
-            if f"{p.name} ({p.code})" == message.text:
-                selected_project = p
-                break
-        
-        if selected_project:
-            await state.update_data(project_id=selected_project.id)
-            await message.answer(
-                f"Проект выбран: {selected_project.name}. Введите дату (ГГГГ-ММ-ДД) или нажмите «Сейчас»:",
-                reply_markup=get_date_kb()
-            )
+        selected = next((p for p in projects if f"{p.name} ({p.code})" == message.text), None)
+        if selected:
+            await state.update_data(project_id=selected.id)
+            await message.answer(f"Проект выбран: {selected.name}. Введите дату или «Сейчас»:", reply_markup=get_date_kb())
             await state.set_state(ExpenseWizard.date)
         else:
             await message.answer("Пожалуйста, выберите проект из списка.")
 
 @router.message(ExpenseWizard.date)
 async def process_date(message: types.Message, state: FSMContext):
-    date_val = message.text.lower()
-    if date_val == "сейчас":
+    val = message.text.lower()
+    if val == "сейчас":
         d = tashkent_now().isoformat()
     else:
         try:
-            d = datetime.datetime.strptime(date_val, "%Y-%m-%d").isoformat()
-        except:
-            await message.answer("Неверный формат. Используйте ГГГГ-ММ-ДД или нажмите «Сейчас»:", reply_markup=get_date_kb())
+            d = datetime.datetime.strptime(val, "%Y-%m-%d").isoformat()
+        except ValueError:
+            await message.answer("Неверный формат. Используйте ГГГГ-ММ-ДД или «Сейчас»:", reply_markup=get_date_kb())
             return
     await state.update_data(date=d)
     await message.answer("Введите назначение расхода:", reply_markup=types.ReplyKeyboardRemove())
@@ -222,9 +335,7 @@ async def process_item_name(message: types.Message, state: FSMContext):
 @router.message(ExpenseWizard.item_qty)
 async def process_item_qty(message: types.Message, state: FSMContext):
     try:
-        # Support both dot and comma
-        qty_str = message.text.replace(",", ".")
-        qty = float(qty_str)
+        qty = float(message.text.replace(",", "."))
         await state.update_data(current_item_qty=qty)
         await message.answer("Сумма (за 1 единицу):")
         await state.set_state(ExpenseWizard.item_amount)
@@ -234,9 +345,7 @@ async def process_item_qty(message: types.Message, state: FSMContext):
 @router.message(ExpenseWizard.item_amount)
 async def process_item_amount(message: types.Message, state: FSMContext):
     try:
-        # Support both dot and comma
-        amount_str = message.text.replace(",", ".")
-        amount = float(amount_str)
+        amount = float(message.text.replace(",", "."))
         await state.update_data(current_item_amount=amount)
         await message.answer("Выберите валюту:", reply_markup=get_currency_kb())
         await state.set_state(ExpenseWizard.item_currency)
@@ -246,18 +355,17 @@ async def process_item_amount(message: types.Message, state: FSMContext):
 @router.message(ExpenseWizard.item_currency)
 async def process_item_currency(message: types.Message, state: FSMContext):
     currency = message.text.upper()
-    if currency not in ["UZS", "USD"]:
-        await message.answer("Пожалуйста, выберите валюту (UZS или USD) с помощью кнопок:", reply_markup=get_currency_kb())
+    if currency not in ("UZS", "USD"):
+        await message.answer("Пожалуйста, выберите валюту (UZS или USD):", reply_markup=get_currency_kb())
         return
-    
     data = await state.get_data()
     items = data.get("items", [])
-    
-    # Currency Enforce: check if currency matches existing items
     if items and items[0]["currency"] != currency:
-        await message.answer(f"❌ В одной заявке должна быть одна валюта. Ваша текущая валюта: {items[0]['currency']}.\nДля другой валюты создайте новую заявку.")
+        await message.answer(
+            f"❌ В одной заявке должна быть одна валюта. Текущая: {items[0]['currency']}.\n"
+            "Для другой валюты создайте новую заявку."
+        )
         return
-
     items.append({
         "name": data["current_item_name"],
         "quantity": data["current_item_qty"],
@@ -265,8 +373,7 @@ async def process_item_currency(message: types.Message, state: FSMContext):
         "currency": currency
     })
     await state.update_data(items=items)
-    
-    await message.answer("Позиция добавлена. Хотите добавить еще одну?", reply_markup=get_confirm_kb())
+    await message.answer("Позиция добавлена. Хотите добавить ещё?", reply_markup=get_confirm_kb())
     await state.set_state(ExpenseWizard.confirm)
 
 @router.message(ExpenseWizard.confirm, F.text == "Добавить ещё позицию")
@@ -279,96 +386,80 @@ async def process_finish(message: types.Message, state: FSMContext):
     data = await state.get_data()
     with next(database.get_db()) as db:
         try:
-            # Calculate total amount (Price * Quantity)
-            total_amount = sum(item["amount"] * item["quantity"] for item in data["items"])
-            # Currency is guaranteed to be consistent due to enforced check
+            total_amount = sum(i["amount"] * i["quantity"] for i in data["items"])
             currency = data["items"][0]["currency"] if data["items"] else "UZS"
-
             expense_create = schemas.ExpenseRequestCreate(
                 purpose=data["purpose"],
-                items=[schemas.ExpenseItemSchema(**item) for item in data["items"]],
+                items=[schemas.ExpenseItemSchema(**i) for i in data["items"]],
                 total_amount=total_amount,
                 currency=currency,
                 project_id=data["project_id"],
-                date=datetime.datetime.fromisoformat(data["date"])
+                date=datetime.datetime.fromisoformat(data["date"]),
             )
-            
             db_expense = crud.create_expense_request(db, expense_create, user_id=data["user_id"])
-            
-            # Link telegram_chat_id if not linked yet
+
+            # Link telegram_chat_id if not yet done
             user = db.query(models.TeamMember).filter(models.TeamMember.id == data["user_id"]).first()
             if user and not user.telegram_chat_id:
-                # Clear from others first
-                db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).update({models.TeamMember.telegram_chat_id: None})
+                db.query(models.TeamMember).filter(
+                    models.TeamMember.telegram_chat_id == message.from_user.id
+                ).update({models.TeamMember.telegram_chat_id: None})
                 user.telegram_chat_id = message.from_user.id
                 db.commit()
 
-            await message.answer(f"✅ Заявка {db_expense.request_id} успешно создана!\nСумма: {total_amount} {currency}", reply_markup=types.ReplyKeyboardRemove())
+            await message.answer(
+                f"✅ Заявка {db_expense.request_id} успешно создана!\nСумма: {total_amount} {currency}",
+                reply_markup=types.ReplyKeyboardRemove()
+            )
         except Exception as e:
-            logger.error(f"Error saving expense from bot: {str(e)}", exc_info=True)
-            await message.answer(f"❌ Ошибка при сохранении: {str(e)}")
-        
+            logger.error(f"Error saving expense from bot: {e}", exc_info=True)
+            await message.answer(f"❌ Ошибка при сохранении: {e}")
     await state.clear()
 
-@router.message(Command("admin"))
-async def cmd_admin(message: types.Message, state: FSMContext):
-    await message.answer("Вход в панель администратора. Введите логин:")
-    await state.set_state(ExpenseWizard.waiting_for_admin_login)
 
-@router.message(ExpenseWizard.waiting_for_admin_login)
-async def process_admin_login(message: types.Message, state: FSMContext):
-    await state.update_data(admin_login=message.text)
-    await message.answer("Введите пароль:")
-    await state.set_state(ExpenseWizard.waiting_for_admin_password)
+# ---------------------------------------------------------------------------
+# Document download callbacks (shared across roles)
+# ---------------------------------------------------------------------------
 
-@router.message(ExpenseWizard.waiting_for_admin_password)
-async def process_admin_password(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    admin_login = os.getenv("ADMIN_LOGIN", "safina")
-    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
-    
-    if data["admin_login"] == admin_login and message.text == admin_password:
-        set_admin_chat_id(message.from_user.id)
-        await message.answer("✅ Вход выполнен! Теперь вы будете получать уведомления о новых заявках в этом чате.")
-    else:
-        await message.answer("❌ Неверный логин или пароль.")
-    await state.clear()
+def _prepare_items_data(raw_items) -> list[dict]:
+    """Parse raw JSON items from DB into a list of dicts for document generators."""
+    import json
+    if isinstance(raw_items, str):
+        try:
+            raw_items = json.loads(raw_items)
+        except Exception:
+            raw_items = []
+    result = []
+    if isinstance(raw_items, list):
+        for idx, item in enumerate(raw_items):
+            if isinstance(item, dict):
+                try:
+                    qty = float(item.get("quantity", 0))
+                    price = float(item.get("amount", 0))
+                    result.append({
+                        "no": idx + 1,
+                        "name": item.get("name", ""),
+                        "quantity": qty,
+                        "amount": price,
+                        "price": price,
+                        "unit_price": price,
+                        "total": qty * price,
+                    })
+                except (ValueError, TypeError):
+                    continue
+    return result
+
 
 @router.callback_query(F.data.startswith("download_smeta_"))
 async def handle_download_smeta(callback: types.CallbackQuery):
-    expense_id = callback.data.replace("download_smeta_", "")
-    
+    expense_id = callback.data.removeprefix("download_smeta_")
     with next(database.get_db()) as db:
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
             await callback.answer("Заявка не найдена")
             return
-            
         await callback.answer("Генерирую смету...")
-        
-        # Prepare items, ensuring they are a list of dicts and adding line totals
-        items_data = []
-        raw_items = expense.items
-        if isinstance(raw_items, str):
-            import json
-            try:
-                raw_items = json.loads(raw_items)
-            except:
-                raw_items = []
-                
-        if isinstance(raw_items, list):
-            for idx, item in enumerate(raw_items):
-                if isinstance(item, dict):
-                    items_data.append({
-                        "no": idx + 1,
-                        "name": item.get("name", ""),
-                        "quantity": item.get("quantity", 0),
-                        "amount": item.get("amount", 0),
-                        "price": item.get("amount", 0),
-                        "unit_price": item.get("amount", 0),
-                        "total": float(item.get("amount", 0)) * float(item.get("quantity", 0))
-                    })
-
+        items_data = _prepare_items_data(expense.items)
         data = {
             "sender_name": expense.created_by,
             "sender_position": expense.created_by_position or "Сотрудник",
@@ -377,79 +468,44 @@ async def handle_download_smeta(callback: types.CallbackQuery):
             "total_amount": float(expense.total_amount),
             "currency": expense.currency,
             "request_id": expense.request_id,
-            "date": expense.date.strftime("%d.%m.%Y")
+            "date": expense.date.strftime("%d.%m.%Y"),
         }
-        
         template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docx", "template.docx")
-
         try:
             file_stream = generate_docx(template_path, data)
-            document = types.BufferedInputFile(file_stream.read(), filename=f"smeta_{expense.request_id}.docx")
-            await callback.message.answer_document(document)
+            doc = types.BufferedInputFile(file_stream.read(), filename=f"smeta_{expense.request_id}.docx")
+            await callback.message.answer_document(doc)
         except Exception as e:
-            logger.error(f"Error generating smeta from bot callback: {str(e)}", exc_info=True)
-            await callback.message.answer(f"❌ Ошибка генерации: {str(e)}")
+            logger.error(f"Error generating smeta: {e}", exc_info=True)
+            await callback.message.answer(f"❌ Ошибка генерации: {e}")
 
-@router.callback_query(F.data.startswith("approve_senior_"))
-async def handle_approve_senior(callback: types.CallbackQuery):
-    expense_id = callback.data.replace("approve_senior_", "")
-    with next(database.get_db()) as db:
-        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
-        if not expense:
-            await callback.answer("Заявка не найдена")
-            return
-            
-        update = schemas.ExpenseStatusUpdate(status="approved_senior", comment="Утверждено Старшим финансистом")
-        crud.update_expense_status(db, expense_id, update)
-        
-        await callback.message.edit_text(callback.message.text + "\n\n✅ **Утверждено Старшим финансистом**", parse_mode="Markdown")
-        await callback.answer("Заявка утверждена!")
-
-@router.callback_query(F.data.startswith("reject_senior_"))
-async def handle_reject_senior(callback: types.CallbackQuery):
-    expense_id = callback.data.replace("reject_senior_", "")
-    with next(database.get_db()) as db:
-        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
-        if not expense:
-            await callback.answer("Заявка не найдена")
-            return
-            
-        update = schemas.ExpenseStatusUpdate(status="rejected_senior", comment="Отклонено Старшим финансистом")
-        crud.update_expense_status(db, expense_id, update)
-        
-        await callback.message.edit_text(callback.message.text + "\n\n❌ **Отклонено Старшим финансистом**", parse_mode="Markdown")
-        await callback.answer("Заявка отклонена!")
 
 @router.callback_query(F.data.startswith("download_excel_"))
 async def handle_download_excel(callback: types.CallbackQuery):
-    expense_id = callback.data.replace("download_excel_", "")
+    expense_id = callback.data.removeprefix("download_excel_")
     with next(database.get_db()) as db:
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
             await callback.answer("Заявка не найдена")
             return
-            
         await callback.answer("Генерирую Excel смету...")
-        
+        raw = expense.items
         items_data = []
-        raw_items = expense.items
-        if isinstance(raw_items, str):
-            import json
+        import json
+        if isinstance(raw, str):
             try:
-                raw_items = json.loads(raw_items)
-            except:
-                raw_items = []
-                
-        if isinstance(raw_items, list):
-            for idx, item in enumerate(raw_items):
+                raw = json.loads(raw)
+            except Exception:
+                raw = []
+        if isinstance(raw, list):
+            for item in raw:
                 if isinstance(item, dict):
                     items_data.append({
                         "name": item.get("name", ""),
                         "quantity": float(item.get("quantity", 0)),
                         "price": float(item.get("amount", 0)),
-                        "total": float(item.get("amount", 0)) * float(item.get("quantity", 0))
+                        "total": float(item.get("amount", 0)) * float(item.get("quantity", 0)),
                     })
-
         data = {
             "request_id": expense.request_id,
             "date": expense.date.strftime("%d.%m.%Y"),
@@ -458,18 +514,121 @@ async def handle_download_excel(callback: types.CallbackQuery):
             "purpose": expense.purpose,
             "items": items_data,
             "total_amount": float(expense.total_amount),
-            "currency": expense.currency
+            "currency": expense.currency,
         }
-        
         try:
             file_stream = generate_smeta_excel(data)
-            document = types.BufferedInputFile(file_stream.read(), filename=f"smeta_{expense.request_id}.xlsx")
-            await callback.message.answer_document(document)
+            doc = types.BufferedInputFile(file_stream.read(), filename=f"smeta_{expense.request_id}.xlsx")
+            await callback.message.answer_document(doc)
         except Exception as e:
-            logger.error(f"Error generating excel from bot callback: {str(e)}", exc_info=True)
-            await callback.message.answer(f"❌ Ошибка генерации Excel: {str(e)}")
+            logger.error(f"Error generating excel: {e}", exc_info=True)
+            await callback.message.answer(f"❌ Ошибка генерации Excel: {e}")
 
-# --- Возврат (Бот) Флоу ---
+
+# ---------------------------------------------------------------------------
+# CFO (senior_financier) callbacks: approve / reject
+# ---------------------------------------------------------------------------
+
+@router.callback_query(F.data.startswith("approve_senior_"))
+async def handle_approve_senior(callback: types.CallbackQuery):
+    expense_id = callback.data.removeprefix("approve_senior_")
+    with next(database.get_db()) as db:
+        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+        if not expense:
+            await callback.answer("Заявка не найдена")
+            return
+        update = schemas.ExpenseStatusUpdate(status="approved_senior", comment="Утверждено CFO (Старшим финансистом)")
+        crud.update_expense_status(db, expense_id, update)
+        await callback.message.edit_text(
+            callback.message.text + "\n\n✅ *Утверждено CFO*", parse_mode="Markdown"
+        )
+        await callback.answer("Заявка утверждена!")
+
+
+@router.callback_query(F.data.startswith("reject_senior_"))
+async def handle_reject_senior(callback: types.CallbackQuery):
+    expense_id = callback.data.removeprefix("reject_senior_")
+    with next(database.get_db()) as db:
+        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+        if not expense:
+            await callback.answer("Заявка не найдена")
+            return
+        update = schemas.ExpenseStatusUpdate(status="rejected_senior", comment="Отклонено CFO (Старшим финансистом)")
+        crud.update_expense_status(db, expense_id, update)
+        await callback.message.edit_text(
+            callback.message.text + "\n\n❌ *Отклонено CFO*", parse_mode="Markdown"
+        )
+        await callback.answer("Заявка отклонена!")
+
+
+# ---------------------------------------------------------------------------
+# CEO (Ganiev) callbacks: approve / reject
+# ---------------------------------------------------------------------------
+
+@router.callback_query(F.data.startswith("approve_ceo_"))
+async def handle_approve_ceo(callback: types.CallbackQuery):
+    expense_id = callback.data.removeprefix("approve_ceo_")
+    with next(database.get_db()) as db:
+        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+        if not expense:
+            await callback.answer("Заявка не найдена")
+            return
+
+        update = schemas.ExpenseStatusUpdate(status="approved_ceo", comment="Одобрено CEO")
+        crud.update_expense_status(db, expense_id, update)
+
+        await callback.message.edit_text(
+            callback.message.text + "\n\n✅ *Одобрено CEO*", parse_mode="Markdown"
+        )
+        await callback.answer("Заявка одобрена CEO!")
+
+        # Notify Safina AND CFO about CEO's decision
+        amount = float(expense.total_amount)
+        currency = expense.currency
+        request_id = expense.request_id
+
+        admin_chat_id = get_admin_chat_id()
+        if admin_chat_id:
+            asyncio.create_task(send_ceo_decision_notification(admin_chat_id, request_id, amount, currency, approved=True))
+
+        from .notifications import get_senior_financier_chat_ids
+        for cfo_chat_id in get_senior_financier_chat_ids():
+            asyncio.create_task(send_ceo_decision_notification(cfo_chat_id, request_id, amount, currency, approved=True))
+
+
+@router.callback_query(F.data.startswith("reject_ceo_"))
+async def handle_reject_ceo(callback: types.CallbackQuery):
+    expense_id = callback.data.removeprefix("reject_ceo_")
+    with next(database.get_db()) as db:
+        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+        if not expense:
+            await callback.answer("Заявка не найдена")
+            return
+
+        update = schemas.ExpenseStatusUpdate(status="rejected_ceo", comment="Отклонено CEO")
+        crud.update_expense_status(db, expense_id, update)
+
+        await callback.message.edit_text(
+            callback.message.text + "\n\n❌ *Отклонено CEO*", parse_mode="Markdown"
+        )
+        await callback.answer("Заявка отклонена CEO!")
+
+        amount = float(expense.total_amount)
+        currency = expense.currency
+        request_id = expense.request_id
+
+        admin_chat_id = get_admin_chat_id()
+        if admin_chat_id:
+            asyncio.create_task(send_ceo_decision_notification(admin_chat_id, request_id, amount, currency, approved=False))
+
+        from .notifications import get_senior_financier_chat_ids
+        for cfo_chat_id in get_senior_financier_chat_ids():
+            asyncio.create_task(send_ceo_decision_notification(cfo_chat_id, request_id, amount, currency, approved=False))
+
+
+# ---------------------------------------------------------------------------
+# Refund wizard (unchanged logic, cleaned up)
+# ---------------------------------------------------------------------------
 
 @router.message(F.text == "Оформить возврат (в боте)")
 async def start_refund_wizard(message: types.Message, state: FSMContext):
@@ -478,7 +637,6 @@ async def start_refund_wizard(message: types.Message, state: FSMContext):
         if not user:
             await message.answer("Пожалуйста, сначала авторизуйтесь с помощью /start")
             return
-        
         await state.update_data(user_id=user.id)
         await message.answer("Введите ID ученика:", reply_markup=types.ReplyKeyboardRemove())
         await state.set_state(RefundWizard.student_id)
@@ -498,19 +656,12 @@ async def process_refund_reason(message: types.Message, state: FSMContext):
 @router.message(RefundWizard.amount)
 async def process_refund_amount(message: types.Message, state: FSMContext):
     try:
-        amount_str = message.text.replace(",", ".")
-        amount = float(amount_str)
+        amount = float(message.text.replace(",", "."))
         await state.update_data(amount=amount)
         await message.answer("Введите номер карты (без пробелов):")
         await state.set_state(RefundWizard.card_number)
     except ValueError:
         await message.answer("Пожалуйста, введите число (например: 1000 или 1500.50):")
-
-def get_retention_kb():
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="Да")
-    builder.button(text="Нет")
-    return builder.as_markup(resize_keyboard=True)
 
 @router.message(RefundWizard.card_number)
 async def process_refund_card(message: types.Message, state: FSMContext):
@@ -520,36 +671,33 @@ async def process_refund_card(message: types.Message, state: FSMContext):
 
 @router.message(RefundWizard.retention)
 async def process_refund_retention(message: types.Message, state: FSMContext):
-    retention_val = message.text.lower()
-    if retention_val not in ["да", "нет"]:
-        await message.answer("Выберите Да или Нет, используя клавиатуру.", reply_markup=get_retention_kb())
+    val = message.text.lower()
+    if val not in ("да", "нет"):
+        await message.answer("Выберите Да или Нет.", reply_markup=get_retention_kb())
         return
-    await state.update_data(retention=(retention_val == "да"))
+    await state.update_data(retention=(val == "да"))
     await message.answer("Отправьте фото чека (обязательно):", reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(RefundWizard.receipt_photo)
 
 @router.message(RefundWizard.receipt_photo, F.photo)
 async def process_refund_receipt(message: types.Message, state: FSMContext):
-    photo_file_id = message.photo[-1].file_id # Get best quality
+    photo_file_id = message.photo[-1].file_id
     await state.update_data(receipt_photo_file_id=photo_file_id)
-    
     data = await state.get_data()
     retention_text = "Да" if data["retention"] else "Нет"
     text = (
-        "Пожалуйста, проверьте данные возврата перед отправкой:\n\n"
+        "Проверьте данные возврата:\n\n"
         f"👤 ID ученика: {data['student_id']}\n"
         f"📝 Причина: {data['reason']}\n"
         f"💰 Сумма: {data['amount']} UZS\n"
-        f"💳 Номер карты: {data['card_number']}\n"
+        f"💳 Карта: {data['card_number']}\n"
         f"✂️ Удержание: {retention_text}\n"
     )
-    
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="✅ Отправить заявку Сафине")
-    builder.button(text="🔙 Изменить данные")
-    builder.adjust(1)
-    
-    await message.answer_photo(photo_file_id, caption=text, reply_markup=builder.as_markup(resize_keyboard=True))
+    b = ReplyKeyboardBuilder()
+    b.button(text="✅ Отправить заявку Сафине")
+    b.button(text="🔙 Изменить данные")
+    b.adjust(1)
+    await message.answer_photo(photo_file_id, caption=text, reply_markup=b.as_markup(resize_keyboard=True))
     await state.set_state(RefundWizard.confirm)
 
 @router.message(RefundWizard.receipt_photo)
@@ -570,16 +718,14 @@ async def process_refund_finish(message: types.Message, state: FSMContext):
                 student_id=data["student_id"],
                 reason=data["reason"],
                 card_number=data["card_number"],
-                retention=data["retention"]
+                retention=data["retention"],
             )
-            
             items = [schemas.ExpenseItemSchema(
                 name=f"Возврат (ID: {data['student_id']})",
                 quantity=1,
                 amount=data["amount"],
                 currency="UZS"
             )]
-            
             expense_create = schemas.ExpenseRequestCreate(
                 purpose=f"Возврат (Ученик: {data['student_id']})",
                 items=items,
@@ -589,26 +735,25 @@ async def process_refund_finish(message: types.Message, state: FSMContext):
                 date=tashkent_now(),
                 request_type="refund",
                 receipt_photo_file_id=data["receipt_photo_file_id"],
-                refund_data=refund_data
+                refund_data=refund_data,
             )
-            
             db_expense = crud.create_expense_request(db, expense_create, user_id=data["user_id"])
-            await message.answer(f"✅ Возврат {db_expense.request_id} отправлен!\nОжидайте рассмотрения.", reply_markup=get_main_kb())
-            
-            # Notify Safina
-            from .notifications import send_admin_notification
+            await message.answer(
+                f"✅ Возврат {db_expense.request_id} отправлен!\nОжидайте рассмотрения.",
+                reply_markup=get_main_kb()
+            )
             admin_chat_id = get_admin_chat_id()
             if admin_chat_id:
-                # Need to run without background_tasks here, so we await it
-                import asyncio
                 asyncio.create_task(send_admin_notification(db_expense.id, admin_chat_id))
-            
         except Exception as e:
-            logger.error(f"Error saving refund from bot: {str(e)}", exc_info=True)
-            await message.answer(f"❌ Ошибка при сохранении: {str(e)}")
-            
+            logger.error(f"Error saving refund from bot: {e}", exc_info=True)
+            await message.answer(f"❌ Ошибка при сохранении: {e}")
     await state.clear()
 
+
+# ---------------------------------------------------------------------------
+# Registration
+# ---------------------------------------------------------------------------
 
 def register_handlers(dp):
     dp.include_router(router)
