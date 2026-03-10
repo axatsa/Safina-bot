@@ -75,24 +75,32 @@ export const STATUS_LABELS: Record<ExpenseStatus, string> = {
   pending_senior:   "Ожидает CFO",
   approved_senior:  "Одобрено CFO",
   rejected_senior:  "Отклонено CFO",
-  pending_ceo:      "Ожидает CEO",
-  approved_ceo:     "Одобрено CEO",
-  rejected_ceo:     "Отклонено CEO",
+  pending_ceo:      "Ожидает Ganiev",
+  approved_ceo:     "Одобрено Ganiev",
+  rejected_ceo:     "Отклонено Ganiev",
   confirmed:        "Подтверждено",
   declined:         "Отклонено",
   revision:         "На доработку",
   archived:         "В архиве",
 };
 
-/** Statuses shown in the Kanban board for all users */
+/** Statuses shown in the main Kanban board */
 export const KANBAN_STATUSES: ExpenseStatus[] = [
   "request",
   "review",
-  "pending_senior",
-  "pending_ceo",
   "confirmed",
   "declined",
   "revision",
+];
+
+/** Statuses shown in the Approval Sidebar (CFO + Ganiev chain) */
+export const APPROVAL_STATUSES: ExpenseStatus[] = [
+  "pending_senior",
+  "approved_senior",
+  "rejected_senior",
+  "pending_ceo",
+  "approved_ceo",
+  "rejected_ceo",
 ];
 
 /** User roles used in localStorage */

@@ -293,5 +293,22 @@ export const store = {
     document.body.appendChild(link);
     link.click();
     link.remove();
-  }
+  },
+
+  exportRefundApplication: async (expenseId: string): Promise<void> => {
+    const res = await fetch(`${API_BASE_URL}/expenses/refund/${expenseId}/export-application-docx`, { headers: getHeaders() });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.detail ?? "Ошибка скачивания заявления");
+    }
+    const blob = await res.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', `заявление_${expenseId}.docx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  },
 };
+

@@ -1,13 +1,22 @@
 import { useState, useMemo } from "react";
 import { store } from "@/lib/store";
-import { ExpenseRequest, ExpenseStatus, KANBAN_STATUSES, STATUS_LABELS } from "@/lib/types";
+import { ExpenseRequest, ExpenseStatus, KANBAN_STATUSES, APPROVAL_STATUSES, STATUS_LABELS } from "@/lib/types";
 import ExpenseCard from "@/components/ExpenseCard";
 import CompactExpenseCard from "@/components/CompactExpenseCard";
 import FilterBar from "@/components/FilterBar";
-import { ChevronDown, ChevronRight, Loader2, DollarSign, FileText, Clock, CheckCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, DollarSign, FileText, Clock, CheckCircle, UserCheck } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+
+const APPROVAL_STATUS_GROUPS = [
+  { label: "📋 Ожидает CFO",      statuses: ["pending_senior"]  as ExpenseStatus[] },
+  { label: "✅ Одобрено CFO",      statuses: ["approved_senior"] as ExpenseStatus[] },
+  { label: "❌ Отклонено CFO",    statuses: ["rejected_senior"] as ExpenseStatus[] },
+  { label: "👤 Ожидает Ganiev",   statuses: ["pending_ceo"]    as ExpenseStatus[] },
+  { label: "✅ Одобрено Ganiev",   statuses: ["approved_ceo"]   as ExpenseStatus[] },
+  { label: "❌ Отклонено Ganiev", statuses: ["rejected_ceo"]   as ExpenseStatus[] },
+];
 
 const kanbanColors: Record<string, string> = {
   request:        "kanban-request",
@@ -140,6 +149,8 @@ const Applications = () => {
   const pendingCount = filtered.filter(e => ['review', 'pending_senior'].includes(e.status)).length;
   const approvedCount = filtered.filter(e => ['confirmed', 'approved_senior'].includes(e.status)).length;
 
+  const isAdmin = store.isAdmin();
+
   return (
     <div className="p-6 space-y-6 animate-slide-in">
       <div>
@@ -192,69 +203,109 @@ const Applications = () => {
         </div>
       </div>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 lg:grid-cols-5 md:grid-cols-3 gap-4">
-          {KANBAN_STATUSES.map((statusKey) => {
-            const items = filtered.filter((e) => e.status === statusKey);
-            const isCollapsed = !!collapsedColumns[statusKey];
+      {/* Main area: kanban + optional sidebar */}
+      <div className={isAdmin ? "flex gap-4" : ""}>
+        {/* Kanban board */}
+        <div className="flex-1 min-w-0">
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="grid grid-cols-1 lg:grid-cols-5 md:grid-cols-3 gap-4">
+              {KANBAN_STATUSES.map((statusKey) => {
+                const items = filtered.filter((e) => e.status === statusKey);
+                const isCollapsed = !!collapsedColumns[statusKey];
 
-            return (
-              <div key={statusKey} className="rounded-xl border bg-card overflow-hidden">
-                <button
-                  onClick={() => toggleColumn(statusKey)}
-                  className={`flex items-center gap-2 px-3 py-2.5 w-full text-left ${kanbanColors[statusKey]}`}
-                >
-                  {isCollapsed ? (
-                    <ChevronRight className="w-3.5 h-3.5 shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-                  )}
-                  <h3 className="font-display font-semibold text-xs">{STATUS_LABELS[statusKey]}</h3>
-                  <span className="ml-auto text-xs font-medium bg-foreground/10 px-2 py-0.5 rounded-full">
-                    {items.length}
-                  </span>
-                </button>
-
-                <Droppable droppableId={statusKey}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`p-2 space-y-2 min-h-[120px] transition-colors ${snapshot.isDraggingOver ? "bg-accent/30" : ""
-                        }`}
+                return (
+                  <div key={statusKey} className="rounded-xl border bg-card overflow-hidden">
+                    <button
+                      onClick={() => toggleColumn(statusKey)}
+                      className={`flex items-center gap-2 px-3 py-2.5 w-full text-left ${kanbanColors[statusKey]}`}
                     >
-                      {items.map((expense, index) => (
-                        <Draggable key={expense.id} draggableId={expense.id} index={index}>
-                          {(dragProvided, dragSnapshot) => (
-                            <div
-                              ref={dragProvided.innerRef}
-                              {...dragProvided.draggableProps}
-                              {...dragProvided.dragHandleProps}
-                              className={dragSnapshot.isDragging ? "opacity-80 rotate-1" : ""}
-                            >
-                              {isCollapsed ? (
-                                <CompactExpenseCard expense={expense} />
-                              ) : (
-                                <ExpenseCard expense={expense} />
+                      {isCollapsed ? (
+                        <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+                      )}
+                      <h3 className="font-display font-semibold text-xs">{STATUS_LABELS[statusKey]}</h3>
+                      <span className="ml-auto text-xs font-medium bg-foreground/10 px-2 py-0.5 rounded-full">
+                        {items.length}
+                      </span>
+                    </button>
+
+                    <Droppable droppableId={statusKey}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`p-2 space-y-2 min-h-[120px] transition-colors ${
+                            snapshot.isDraggingOver ? "bg-accent/30" : ""
+                          }`}
+                        >
+                          {items.map((expense, index) => (
+                            <Draggable key={expense.id} draggableId={expense.id} index={index}>
+                              {(dragProvided, dragSnapshot) => (
+                                <div
+                                  ref={dragProvided.innerRef}
+                                  {...dragProvided.draggableProps}
+                                  {...dragProvided.dragHandleProps}
+                                  className={dragSnapshot.isDragging ? "opacity-80 rotate-1" : ""}
+                                >
+                                  {isCollapsed ? (
+                                    <CompactExpenseCard expense={expense} />
+                                  ) : (
+                                    <ExpenseCard expense={expense} />
+                                  )}
+                                </div>
                               )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                          {items.length === 0 && (
+                            <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
+                              Нет заявок
                             </div>
                           )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                      {items.length === 0 && (
-                        <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
-                          Нет заявок
                         </div>
                       )}
-                    </div>
-                  )}
-                </Droppable>
-              </div>
-            );
-          })}
+                    </Droppable>
+                  </div>
+                );
+              })}
+            </div>
+          </DragDropContext>
         </div>
-      </DragDropContext>
+
+        {/* Approval Sidebar — only for Safina (admin) */}
+        {isAdmin && (
+          <aside className="w-72 shrink-0 space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <UserCheck className="w-4 h-4 text-violet-500" />
+              <h2 className="text-sm font-semibold text-foreground">Согласования (CFO / Ganiev)</h2>
+            </div>
+            {APPROVAL_STATUS_GROUPS.map(({ label, statuses }) => {
+              const items = expenses.filter((e) => statuses.includes(e.status));
+              return (
+                <div key={label} className="rounded-xl border bg-card overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2 bg-muted/40 border-b">
+                    <span className="text-xs font-semibold">{label}</span>
+                    <span className="text-xs font-medium bg-foreground/10 px-2 py-0.5 rounded-full">{items.length}</span>
+                  </div>
+                  <div className="p-2 space-y-1.5 max-h-48 overflow-y-auto">
+                    {items.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-3">Пусто</p>
+                    ) : (
+                      items.map((e) => (
+                        <div key={e.id} className="text-xs px-2 py-1.5 rounded-lg bg-background border hover:bg-accent/30 cursor-pointer transition-colors">
+                          <p className="font-mono font-bold">{e.requestId}</p>
+                          <p className="text-muted-foreground truncate">{e.createdBy} — {Number(e.totalAmount).toLocaleString()} {e.currency}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </aside>
+        )}
+      </div>
     </div>
   );
 };
