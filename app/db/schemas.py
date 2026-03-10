@@ -10,6 +10,9 @@ class ExpenseStatusEnum(str, Enum):
     pending_senior = "pending_senior"
     approved_senior = "approved_senior"
     rejected_senior = "rejected_senior"
+    pending_ceo = "pending_ceo"
+    approved_ceo = "approved_ceo"
+    rejected_ceo = "rejected_ceo"
     confirmed = "confirmed"
     declined = "declined"
     revision = "revision"
@@ -79,6 +82,8 @@ class RefundDataSchema(BaseModel):
     reason: str
     card_number: str
     retention: bool
+    branch: Optional[str] = None   # Филиал сотрудника (из TeamMember.branch)
+    team: Optional[str] = None     # Команда сотрудника (из TeamMember.team)
 
 class ExpenseRequestCreate(BaseModel):
     purpose: str

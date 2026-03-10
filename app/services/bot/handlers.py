@@ -14,10 +14,12 @@ to the TeamMember row which is how future notifications are routed.
 import asyncio
 import datetime
 import os
+import re
 
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
+from aiogram.types import WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 
 from app.core import auth, database
@@ -94,7 +96,47 @@ def get_retention_kb():
     b = ReplyKeyboardBuilder()
     b.button(text="Да")
     b.button(text="Нет")
+    b.button(text="◀️ Назад")
+    b.adjust(2, 1)
     return b.as_markup(resize_keyboard=True)
+
+
+def get_back_kb():
+    b = ReplyKeyboardBuilder()
+    b.button(text="◀️ Назад")
+    return b.as_markup(resize_keyboard=True)
+
+
+def get_reason_kb():
+    """Пресет-клавиатура причин возврата с кнопкой Назад."""
+    reasons = ["Переезд", "Отчисление", "Болезнь", "Другое"]
+    b = ReplyKeyboardBuilder()
+    for r in reasons:
+        b.button(text=r)
+    b.button(text="◀️ Назад")
+    b.adjust(2, 2, 1)
+    return b.as_markup(resize_keyboard=True)
+
+
+def get_refund_confirm_markup(expense_id: str) -> InlineKeyboardMarkup:
+    """Inline-кнопки редактирования полей на экране подтверждения."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✏️ ID ученика",  callback_data="refund_edit_student_id"),
+            InlineKeyboardButton(text="✏️ Причину",     callback_data="refund_edit_reason"),
+        ],
+        [
+            InlineKeyboardButton(text="✏️ Сумму",       callback_data="refund_edit_amount"),
+            InlineKeyboardButton(text="✏️ Карту",       callback_data="refund_edit_card_number"),
+        ],
+        [
+            InlineKeyboardButton(text="✏️ Удержание",   callback_data="refund_edit_retention"),
+            InlineKeyboardButton(text="✏️ Фото чека",   callback_data="refund_edit_receipt_photo"),
+        ],
+        [
+            InlineKeyboardButton(text="✅ Отправить заявку Сафине", callback_data="refund_submit"),
+        ],
+    ])
 
 
 # ---------------------------------------------------------------------------
@@ -261,14 +303,16 @@ async def show_form_link(message: types.Message):
     )
 
 @router.message(F.text == "Создать возврат (Web-App)")
-async def show_refund_form_link(message: types.Message):
+async def show_refund_form_webapplink(message: types.Message):
+    """Открывает форму возврата как настоящий Telegram Mini-App overlay."""
     base_url = os.getenv("WEB_FORM_BASE_URL", "https://finance.thompson.uz")
     url = f"{base_url}/submit?chat_id={message.from_user.id}&type=refund"
-    builder = InlineKeyboardBuilder()
-    builder.button(text="💸 Открыть форму возврата", url=url)
+    kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="💸 Оформить возврат", web_app=WebAppInfo(url=url))
+    ]])
     await message.answer(
-        "Нажмите кнопку ниже, чтобы открыть форму возврата:\n_(Убедитесь, что вы авторизованы)_",
-        reply_markup=builder.as_markup(), parse_mode="Markdown"
+        "Нажмите кнопку ниже — откроется форма возврата:",
+        reply_markup=kb,
     )
 
 
@@ -627,57 +671,138 @@ async def handle_reject_ceo(callback: types.CallbackQuery):
 
 
 # ---------------------------------------------------------------------------
-# Refund wizard (unchanged logic, cleaned up)
+# Refund wizard
 # ---------------------------------------------------------------------------
+
+_BACK = "◀️ Назад"
+
 
 @router.message(F.text == "Оформить возврат (в боте)")
 async def start_refund_wizard(message: types.Message, state: FSMContext):
     with next(database.get_db()) as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+        user = db.query(models.TeamMember).filter(
+            models.TeamMember.telegram_chat_id == message.from_user.id
+        ).first()
         if not user:
             await message.answer("Пожалуйста, сначала авторизуйтесь с помощью /start")
             return
-        await state.update_data(user_id=user.id)
-        await message.answer("Введите ID ученика:", reply_markup=types.ReplyKeyboardRemove())
-        await state.set_state(RefundWizard.student_id)
+        await state.update_data(
+            user_id=user.id,
+            branch=user.branch,
+            team=user.team,
+        )
+    await message.answer(
+        "Шаг 1/6 — Введите ID ученика:",
+        reply_markup=types.ReplyKeyboardRemove(),
+    )
+    await state.set_state(RefundWizard.student_id)
+
 
 @router.message(RefundWizard.student_id)
 async def process_refund_student_id(message: types.Message, state: FSMContext):
     await state.update_data(student_id=message.text)
-    await message.answer("Введите причину возврата:")
+    await message.answer(
+        "Шаг 2/6 — Выберите или введите причину возврата:",
+        reply_markup=get_reason_kb(),
+    )
     await state.set_state(RefundWizard.reason)
+
 
 @router.message(RefundWizard.reason)
 async def process_refund_reason(message: types.Message, state: FSMContext):
+    if message.text == _BACK:
+        data = await state.get_data()
+        hint = f" (текущий: {data.get('student_id', '—')})"
+        await message.answer(
+            f"Шаг 1/6 — Введите ID ученика{hint}:",
+            reply_markup=types.ReplyKeyboardRemove(),
+        )
+        await state.set_state(RefundWizard.student_id)
+        return
     await state.update_data(reason=message.text)
-    await message.answer("Введите сумму возврата (только число):")
+    await message.answer(
+        "Шаг 3/6 — Введите сумму возврата (только число):",
+        reply_markup=get_back_kb(),
+    )
     await state.set_state(RefundWizard.amount)
+
 
 @router.message(RefundWizard.amount)
 async def process_refund_amount(message: types.Message, state: FSMContext):
+    if message.text == _BACK:
+        data = await state.get_data()
+        hint = f" (текущая: {data.get('reason', '—')})"
+        await message.answer(
+            f"Шаг 2/6 — Выберите или введите причину возврата{hint}:",
+            reply_markup=get_reason_kb(),
+        )
+        await state.set_state(RefundWizard.reason)
+        return
     try:
-        amount = float(message.text.replace(",", "."))
+        amount = float(message.text.replace(",", ".").replace(" ", ""))
+        if amount <= 0:
+            raise ValueError("Сумма должна быть положительной")
         await state.update_data(amount=amount)
-        await message.answer("Введите номер карты (без пробелов):")
+        await message.answer(
+            "Шаг 4/6 — Введите номер карты (16 цифр, без пробелов):",
+            reply_markup=get_back_kb(),
+        )
         await state.set_state(RefundWizard.card_number)
     except ValueError:
-        await message.answer("Пожалуйста, введите число (например: 1000 или 1500.50):")
+        await message.answer(
+            "❌ Введите корректное число (например: 1500000):",
+            reply_markup=get_back_kb(),
+        )
+
 
 @router.message(RefundWizard.card_number)
 async def process_refund_card(message: types.Message, state: FSMContext):
-    await state.update_data(card_number=message.text)
-    await message.answer("Удержание? (Да/Нет)", reply_markup=get_retention_kb())
+    if message.text == _BACK:
+        data = await state.get_data()
+        hint = f" (текущая: {data.get('amount', '—')})"
+        await message.answer(
+            f"Шаг 3/6 — Введите сумму возврата{hint}:",
+            reply_markup=get_back_kb(),
+        )
+        await state.set_state(RefundWizard.amount)
+        return
+    digits = re.sub(r"\D", "", message.text)
+    if len(digits) != 16:
+        await message.answer(
+            f"❌ Номер карты должен содержать 16 цифр (введено {len(digits)}). Попробуйте ещё раз:",
+            reply_markup=get_back_kb(),
+        )
+        return
+    await state.update_data(card_number=digits)
+    await message.answer(
+        "Шаг 5/6 — Применяется ли удержание?",
+        reply_markup=get_retention_kb(),
+    )
     await state.set_state(RefundWizard.retention)
+
 
 @router.message(RefundWizard.retention)
 async def process_refund_retention(message: types.Message, state: FSMContext):
+    if message.text == _BACK:
+        data = await state.get_data()
+        hint = f" (текущий: {data.get('card_number', '—')})"
+        await message.answer(
+            f"Шаг 4/6 — Введите номер карты (16 цифр){hint}:",
+            reply_markup=get_back_kb(),
+        )
+        await state.set_state(RefundWizard.card_number)
+        return
     val = message.text.lower()
     if val not in ("да", "нет"):
         await message.answer("Выберите Да или Нет.", reply_markup=get_retention_kb())
         return
     await state.update_data(retention=(val == "да"))
-    await message.answer("Отправьте фото чека (обязательно):", reply_markup=types.ReplyKeyboardRemove())
+    await message.answer(
+        "Шаг 6/6 — Отправьте фото чека:",
+        reply_markup=get_back_kb(),
+    )
     await state.set_state(RefundWizard.receipt_photo)
+
 
 @router.message(RefundWizard.receipt_photo, F.photo)
 async def process_refund_receipt(message: types.Message, state: FSMContext):
@@ -686,69 +811,120 @@ async def process_refund_receipt(message: types.Message, state: FSMContext):
     data = await state.get_data()
     retention_text = "Да" if data["retention"] else "Нет"
     text = (
-        "Проверьте данные возврата:\n\n"
+        "✅ Проверьте данные возврата:\n\n"
         f"👤 ID ученика: {data['student_id']}\n"
         f"📝 Причина: {data['reason']}\n"
-        f"💰 Сумма: {data['amount']} UZS\n"
+        f"💰 Сумма: {data['amount']:,.0f} UZS\n"
         f"💳 Карта: {data['card_number']}\n"
         f"✂️ Удержание: {retention_text}\n"
+        f"🏢 Филиал: {data.get('branch') or '—'}\n"
+        f"👥 Команда: {data.get('team') or '—'}\n\n"
+        "Выберите действие:"
     )
-    b = ReplyKeyboardBuilder()
-    b.button(text="✅ Отправить заявку Сафине")
-    b.button(text="🔙 Изменить данные")
-    b.adjust(1)
-    await message.answer_photo(photo_file_id, caption=text, reply_markup=b.as_markup(resize_keyboard=True))
+    await message.answer_photo(
+        photo_file_id,
+        caption=text,
+        reply_markup=get_refund_confirm_markup(expense_id=""),  # id ещё не создан
+    )
+    await message.answer(
+        "Или нажмите ◀️ Назад:",
+        reply_markup=get_back_kb(),
+    )
     await state.set_state(RefundWizard.confirm)
+
+
+@router.message(RefundWizard.receipt_photo, F.text == _BACK)
+async def process_refund_receipt_back(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    retention_txt = "Да" if data.get("retention") else "Нет"
+    await message.answer(
+        f"Шаг 5/6 — Удержание было: {retention_txt}. Изменить?",
+        reply_markup=get_retention_kb(),
+    )
+    await state.set_state(RefundWizard.retention)
+
 
 @router.message(RefundWizard.receipt_photo)
 async def process_refund_receipt_invalid(message: types.Message):
-    await message.answer("Пожалуйста, отправьте именно ФОТО чека.")
+    await message.answer("Пожалуйста, отправьте именно ФОТО чека 📷")
 
-@router.message(RefundWizard.confirm, F.text == "🔙 Изменить данные")
-async def process_refund_edit(message: types.Message, state: FSMContext):
-    await message.answer("Введите ID ученика:", reply_markup=types.ReplyKeyboardRemove())
-    await state.set_state(RefundWizard.student_id)
 
-@router.message(RefundWizard.confirm, F.text == "✅ Отправить заявку Сафине")
-async def process_refund_finish(message: types.Message, state: FSMContext):
+# --- Confirm: Back (text button)
+
+@router.message(RefundWizard.confirm, F.text == _BACK)
+async def process_refund_confirm_back(message: types.Message, state: FSMContext):
+    await message.answer(
+        "Шаг 6/6 — Отправьте новое фото чека:",
+        reply_markup=get_back_kb(),
+    )
+    await state.set_state(RefundWizard.receipt_photo)
+
+
+# --- Confirm: inline field-edit callbacks
+
+_FIELD_PROMPTS = {
+    "student_id":    (RefundWizard.student_id,   "Шаг 1/6 — Введите ID ученика:",              None),
+    "reason":        (RefundWizard.reason,        "Шаг 2/6 — Введите причину возврата:",       "reason_kb"),
+    "amount":        (RefundWizard.amount,        "Шаг 3/6 — Введите сумму возврата:",         "back_kb"),
+    "card_number":   (RefundWizard.card_number,   "Шаг 4/6 — Введите номер карты (16 цифр):", "back_kb"),
+    "retention":     (RefundWizard.retention,     "Шаг 5/6 — Применяется ли удержание?",      "retention_kb"),
+    "receipt_photo": (RefundWizard.receipt_photo, "Шаг 6/6 — Отправьте новое фото чека:",     "back_kb"),
+}
+
+
+@router.callback_query(F.data.startswith("refund_edit_"))
+async def handle_refund_edit(callback: types.CallbackQuery, state: FSMContext):
+    field = callback.data.removeprefix("refund_edit_")
+    if field not in _FIELD_PROMPTS:
+        await callback.answer("Неизвестное поле")
+        return
+    target_state, prompt, kb_type = _FIELD_PROMPTS[field]
+    if kb_type == "reason_kb":
+        kb = get_reason_kb()
+    elif kb_type == "retention_kb":
+        kb = get_retention_kb()
+    elif kb_type == "back_kb":
+        kb = get_back_kb()
+    else:
+        kb = types.ReplyKeyboardRemove()
+    await callback.message.answer(prompt, reply_markup=kb)
+    await state.set_state(target_state)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "refund_submit")
+async def handle_refund_submit_callback(callback: types.CallbackQuery, state: FSMContext):
+    """Финальная отправка возврата через inline-кнопку на экране подтверждения."""
     data = await state.get_data()
     with next(database.get_db()) as db:
         try:
-            refund_data = schemas.RefundDataSchema(
+            from app.services.refund.service import create_refund
+            db_expense = create_refund(
+                db,
                 student_id=data["student_id"],
                 reason=data["reason"],
+                amount=data["amount"],
                 card_number=data["card_number"],
                 retention=data["retention"],
+                receipt_photo_ref=data["receipt_photo_file_id"],
+                user_id=data.get("user_id"),
+                branch=data.get("branch"),
+                team=data.get("team"),
             )
-            items = [schemas.ExpenseItemSchema(
-                name=f"Возврат (ID: {data['student_id']})",
-                quantity=1,
-                amount=data["amount"],
-                currency="UZS"
-            )]
-            expense_create = schemas.ExpenseRequestCreate(
-                purpose=f"Возврат (Ученик: {data['student_id']})",
-                items=items,
-                total_amount=data["amount"],
-                currency="UZS",
-                project_id=None,
-                date=tashkent_now(),
-                request_type="refund",
-                receipt_photo_file_id=data["receipt_photo_file_id"],
-                refund_data=refund_data,
-            )
-            db_expense = crud.create_expense_request(db, expense_create, user_id=data["user_id"])
-            await message.answer(
-                f"✅ Возврат {db_expense.request_id} отправлен!\nОжидайте рассмотрения.",
-                reply_markup=get_main_kb()
+            await callback.message.answer(
+                f"✅ Возврат {db_expense.request_id} отправлен Сафине!\nОжидайте рассмотрения.",
+                reply_markup=get_main_kb(),
             )
             admin_chat_id = get_admin_chat_id()
             if admin_chat_id:
                 asyncio.create_task(send_admin_notification(db_expense.id, admin_chat_id))
+        except ValueError as e:
+            await callback.message.answer(f"❌ Ошибка: {e}")
         except Exception as e:
-            logger.error(f"Error saving refund from bot: {e}", exc_info=True)
-            await message.answer(f"❌ Ошибка при сохранении: {e}")
+            logger.error("Error saving refund from bot: %s", e, exc_info=True)
+            await callback.message.answer(f"❌ Ошибка при сохранении: {e}")
     await state.clear()
+    await callback.answer()
 
 
 # ---------------------------------------------------------------------------

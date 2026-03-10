@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
 import io
+import re
 import csv
 import datetime
 import os
@@ -12,6 +13,14 @@ from app.db import models, schemas, crud
 from app.core import auth, database
 from app.core.logging_config import get_logger
 from app.services.docx.generator import generate_docx
+from app.services.refund.service import (
+    create_refund,
+    save_receipt_photo,
+    is_school_branch,
+    EXPORTABLE_STATUSES,
+    EXCLUDED_FROM_EXPORT,
+)
+from app.services.refund.docx_export import generate_application_docx
 from app.services.bot.notifications import (
     send_status_notification,
     send_admin_notification,
@@ -92,58 +101,90 @@ async def web_submit_refund(
     receipt_photo: UploadFile = File(...),
     chat_id: str = Form(None)
 ):
+    """Web-App endpoint: создаёт заявку возврата (принимает данные из формы)."""
+    user = None
     user_id = None
+    branch = None
+    team = None
+
     if chat_id:
         try:
             chat_id_int = int(chat_id)
-            user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == chat_id_int).first()
+            user = db.query(models.TeamMember).filter(
+                models.TeamMember.telegram_chat_id == chat_id_int
+            ).first()
             if not user:
-                raise HTTPException(status_code=404, detail="User not found for this telegram account")
+                raise HTTPException(status_code=404, detail="Пользователь не найден для этого Telegram-аккаунта")
             user_id = user.id
+            branch = user.branch
+            team = user.team
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid chat_id format")
-            
-    # Save the receipt photo locally
-    upload_dir = "uploads/receipts"
-    os.makedirs(upload_dir, exist_ok=True)
-    ext = receipt_photo.filename.split('.')[-1] if '.' in receipt_photo.filename else 'jpg'
-    filename = f"{uuid.uuid4()}.{ext}"
-    file_path = os.path.join(upload_dir, filename)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(receipt_photo.file, buffer)
-        
+            raise HTTPException(status_code=400, detail="Неверный формат chat_id")
+
+    receipt_path = save_receipt_photo(receipt_photo)
     retention_bool = retention.lower() == "true"
-    refund_data = schemas.RefundDataSchema(
-        student_id=student_id,
-        reason=reason,
-        card_number=card_number,
-        retention=retention_bool
-    )
-    
-    items = [schemas.ExpenseItemSchema(
-        name=f"Возврат (ID: {student_id})",
-        quantity=1,
-        amount=amount,
-        currency="UZS"
-    )]
-    
-    expense_create = schemas.ExpenseRequestCreate(
-        purpose=f"Возврат (Ученик: {student_id})",
-        items=items,
-        total_amount=amount,
-        currency="UZS",
-        project_id=None,
-        request_type="refund",
-        receipt_photo_file_id=file_path,
-        refund_data=refund_data
-    )
-    
-    expense_req = crud.create_expense_request(db=db, expense=expense_create, user_id=user_id)
-    
+
+    try:
+        expense_req = create_refund(
+            db,
+            student_id=student_id,
+            reason=reason,
+            amount=amount,
+            card_number=card_number,
+            retention=retention_bool,
+            receipt_photo_ref=receipt_path,
+            user_id=user_id,
+            branch=branch,
+            team=team,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:
         background_tasks.add_task(send_admin_notification, expense_req.id, admin_chat_id)
     return expense_req
+
+
+@router.get("/refund/{expense_id}/export-application-docx")
+def export_refund_application(
+    expense_id: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.TeamMember = Depends(auth.get_current_user),
+):
+    """Скачать заявление на возврат (шаблон для школьного филиала)."""
+    expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Заявка не найдена")
+    if expense.request_type != "refund":
+        raise HTTPException(status_code=400, detail="Только для заявок типа 'refund'")
+
+    rd = expense.refund_data or {}
+    try:
+        stream = generate_application_docx(
+            student_id=rd.get("student_id", ""),
+            reason=rd.get("reason", ""),
+            amount=float(expense.total_amount),
+            card_number=rd.get("card_number", ""),
+            retention=bool(rd.get("retention", False)),
+            branch=rd.get("branch"),
+            team=rd.get("team"),
+            sender_name=expense.created_by,
+            sender_position=expense.created_by_position,
+            request_id=expense.request_id,
+            date=expense.date,
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    fname = f"заявление_{expense.request_id}.docx"
+    return StreamingResponse(
+        stream,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{fname}"},
+    )
 
 @router.patch("/{expense_id}/status", response_model=schemas.ExpenseRequestSchema)
 def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db)):
@@ -258,7 +299,7 @@ def update_internal_comment(expense_id: str, update: schemas.InternalCommentUpda
 def export_expenses(project: str = None, user_id: str = None, from_date: str = None, to_date: str = None, allStatuses: bool = False, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     query = db.query(models.ExpenseRequest)
     
-    # Restrict non-admins to only view their own expenses
+    # Ограничение по пользователю
     is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
     if not is_admin:
         query = query.filter(models.ExpenseRequest.created_by_id == current_user.id)
@@ -267,8 +308,12 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
 
     if project:
         query = query.filter(models.ExpenseRequest.project_id == project)
-    if not allStatuses:
-        query = query.filter(models.ExpenseRequest.status == "confirmed")
+
+    # Фильтр статусов: pending_* и archived никогда не попадают в экспорт
+    if allStatuses:
+        query = query.filter(~models.ExpenseRequest.status.in_(list(EXCLUDED_FROM_EXPORT)))
+    else:
+        query = query.filter(models.ExpenseRequest.status.in_(EXPORTABLE_STATUSES))
     
     if from_date:
         try:
@@ -332,7 +377,6 @@ def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: st
     
     query = db.query(models.ExpenseRequest)
     
-    # Restrict non-admins to only view their own expenses
     is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
     if not is_admin:
         query = query.filter(models.ExpenseRequest.created_by_id == current_user.id)
@@ -341,8 +385,12 @@ def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: st
 
     if project:
         query = query.filter(models.ExpenseRequest.project_id == project)
-    if not allStatuses:
-        query = query.filter(models.ExpenseRequest.status == "confirmed")
+
+    # Фильтр статусов: pending_* и archived никогда не попадают в экспорт
+    if allStatuses:
+        query = query.filter(~models.ExpenseRequest.status.in_(list(EXCLUDED_FROM_EXPORT)))
+    else:
+        query = query.filter(models.ExpenseRequest.status.in_(EXPORTABLE_STATUSES))
     
     if from_date:
         try:
