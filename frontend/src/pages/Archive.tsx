@@ -8,7 +8,7 @@ import { Download, ExternalLink, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { ru } from "date-fns/locale";
+
 
 const Archive = () => {
   const navigate = useNavigate();

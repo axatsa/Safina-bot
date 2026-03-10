@@ -11,6 +11,14 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      // Forward /api/* requests to the FastAPI backend
+      "/api": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
@@ -19,3 +27,4 @@ export default defineConfig(({ mode }) => ({
     },
   },
 }));
+
