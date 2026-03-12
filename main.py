@@ -96,7 +96,7 @@ app = FastAPI(title="Safina API", lifespan=lifespan)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle FastAPI HTTPExtensions with a consistent JSON format."""
     logger.error(f"HTTP Error: {exc.status_code} - {exc.detail} | Path: {request.url.path}")
-    return JSONResponse(
+    response = JSONResponse(
         status_code=exc.status_code,
         content={
             "status": "error",
@@ -104,12 +104,20 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "path": request.url.path
         },
     )
+    # Explicitly add CORS headers for browsers in case middleware is bypassed
+    origin = request.headers.get("origin")
+    if origin in origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all for any unexpected application errors."""
     logger.critical(f"Uncaught Exception: {str(exc)} | Path: {request.url.path}", exc_info=True)
-    return JSONResponse(
+    response = JSONResponse(
         status_code=500,
         content={
             "status": "critical_error",
@@ -117,6 +125,14 @@ async def global_exception_handler(request: Request, exc: Exception):
             "detail": str(exc) if os.getenv("DEBUG") == "true" else "Contact administrator"
         },
     )
+    # Explicitly add CORS headers for browsers
+    origin = request.headers.get("origin")
+    if origin in origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 # --------------------------------
 
