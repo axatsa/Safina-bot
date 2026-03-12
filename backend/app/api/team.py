@@ -9,7 +9,7 @@ router = APIRouter(prefix="/team", tags=["team"])
 
 @router.get("", response_model=List[schemas.TeamMemberSchema])
 def read_team(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
+    if not auth.is_admin(current_user):
         raise HTTPException(status_code=403, detail="Only admins can view the team list")
     return crud.get_team(db, skip=skip, limit=limit)
 

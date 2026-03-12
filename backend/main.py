@@ -90,39 +90,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Safina API", lifespan=lifespan)
 
-# --- Global Exception Handlers ---
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    """Handle FastAPI HTTPExtensions with a consistent JSON format."""
-    logger.error(f"HTTP Error: {exc.status_code} - {exc.detail} | Path: {request.url.path}")
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "status": "error",
-            "message": exc.detail,
-            "path": request.url.path
-        },
-    )
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """Catch-all for any unexpected application errors."""
-    logger.critical(f"Uncaught Exception: {str(exc)} | Path: {request.url.path}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "status": "critical_error",
-            "message": "An unexpected error occurred internal to the server.",
-            "detail": str(exc) if os.getenv("DEBUG") == "true" else "Contact administrator"
-        },
-    )
-
-# --------------------------------
-
-# Add structured logging middleware
-app.add_middleware(LoggingMiddleware)
-
 # Allowed origins
 origins = [
     "https://finance.thompson.uz",
@@ -133,12 +100,55 @@ origins = [
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:8080",
+    "http://localhost:8000",
 ]
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handle FastAPI HTTPExtensions with a consistent JSON format."""
+    logger.error(f"HTTP Error: {exc.status_code} - {exc.detail} | Path: {request.url.path}")
+    response = JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": "error",
+            "message": exc.detail,
+            "path": request.url.path
+        },
+    )
+    # Permissive CORS for troubleshooting - returning * is safest for 'removing cross-origin'
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    # Credentials must be false if origin is *
+    response.headers["Access-Control-Allow-Credentials"] = "false"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch-all for any unexpected application errors."""
+    logger.critical(f"Uncaught Exception: {str(exc)} | Path: {request.url.path}", exc_info=True)
+    response = JSONResponse(
+        status_code=500,
+        content={
+            "status": "critical_error",
+            "message": "An unexpected error occurred internal to the server.",
+            "detail": str(exc) if os.getenv("DEBUG") == "true" else "Contact administrator"
+        },
+    )
+    # Permissive CORS for troubleshooting
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "false"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+# Add structured logging middleware
+app.add_middleware(LoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
@@ -152,9 +162,18 @@ app.include_router(team.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 
+@app.get("/ping")
+async def ping():
+    return "pong"
+
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "version": "1.1.0"}
+    return {
+        "status": "ok", 
+        "version": "1.1.4", 
+        "database": "connected",
+        "cors": "permissive"
+    }
 
 if __name__ == "__main__":
     import uvicorn

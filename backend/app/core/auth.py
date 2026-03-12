@@ -40,6 +40,16 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
+def is_admin(user: models.TeamMember) -> bool:
+    """Check if the user has administrative privileges."""
+    admin_login = os.getenv("ADMIN_LOGIN", "safina")
+    # Hardcoded admin login or administrative position
+    return (
+        user.login == admin_login or 
+        user.position in ("admin", "senior_financier", "ceo") or
+        user.id == "admin"
+    )
+
 def get_current_user(db: Session = Depends(database.get_db), token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -58,11 +68,11 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
     
     user = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
     if user is None:
-        # Check if it's the admin user
+        # Check if it's the virtual admin user
         admin_login = os.getenv("ADMIN_LOGIN", "safina")
         if login == admin_login:
             # Return a "virtual" user object for admin
-            return models.TeamMember(id="admin", login=admin_login, first_name="Admin", last_name="Safina", projects=[], status="active")
+            return models.TeamMember(id="admin", login=admin_login, first_name="Admin", last_name="Safina", projects=[], status="active", position="admin")
         
         logger.warning(f"Token validated but user not found: {login}")
         raise credentials_exception

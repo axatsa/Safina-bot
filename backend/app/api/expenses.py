@@ -36,7 +36,7 @@ router = APIRouter(prefix="/expenses", tags=["expenses"])
 
 @router.get("", response_model=List[schemas.ExpenseRequestSchema])
 def read_expenses(project: str = None, status: str = None, skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    user_id = None if current_user.login == os.getenv("ADMIN_LOGIN", "safina") else current_user.id
+    user_id = None if auth.is_admin(current_user) else current_user.id
     return crud.get_expenses(db, project_id=project, status=status, user_id=user_id, skip=skip, limit=limit)
 
 @router.post("", response_model=schemas.ExpenseRequestSchema)
@@ -214,9 +214,8 @@ def forward_to_senior_financier(
     db: Session = Depends(database.get_db),
     current_user: models.TeamMember = Depends(auth.get_current_user),
 ):
-    """Forward an expense to the CFO (Senior Financier). Only Safina admin can do this."""
-    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
-    if not is_admin:
+    """Forward an expense to the CFO (Senior Financier). Only Admins can do this."""
+    if not auth.is_admin(current_user):
         raise HTTPException(status_code=403, detail="Only administrators can forward to the Senior Financier")
 
     update = schemas.ExpenseStatusUpdate(
@@ -300,8 +299,7 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
     query = db.query(models.ExpenseRequest)
     
     # Ограничение по пользователю
-    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
-    if not is_admin:
+    if not auth.is_admin(current_user):
         query = query.filter(models.ExpenseRequest.created_by_id == current_user.id)
     elif user_id:
         query = query.filter(models.ExpenseRequest.created_by_id == user_id)
@@ -377,8 +375,7 @@ def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: st
     
     query = db.query(models.ExpenseRequest)
     
-    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
-    if not is_admin:
+    if not auth.is_admin(current_user):
         query = query.filter(models.ExpenseRequest.created_by_id == current_user.id)
     elif user_id:
         query = query.filter(models.ExpenseRequest.created_by_id == user_id)

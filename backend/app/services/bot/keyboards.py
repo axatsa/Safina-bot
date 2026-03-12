@@ -2,7 +2,7 @@ from aiogram import types
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-_BACK = "◀️ Назад"
+from .utils import _BACK
 
 def get_confirm_kb():
     b = ReplyKeyboardBuilder()

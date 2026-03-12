@@ -79,8 +79,8 @@ def create_refund(
     reason: str,
     amount: float,
     card_number: str,
-    retention: bool,
-    receipt_photo_ref: str,          # Telegram file_id ИЛИ локальный путь
+    retention: bool = False,
+    receipt_photo_ref: Optional[str] = None,          # Telegram file_id ИЛИ локальный путь
     user_id: Optional[str] = None,
     branch: Optional[str] = None,
     team: Optional[str] = None,

@@ -5,6 +5,10 @@ export const teamService = {
   getTeam: async (): Promise<TeamMember[]> => {
     const res = await apiFetch("/team");
     const data = await res.json();
+    if (!Array.isArray(data)) {
+      console.error("Expected array from /api/team, got:", data);
+      return [];
+    }
     return data.map((m: any) => ({
       id: m.id,
       lastName: m.last_name,

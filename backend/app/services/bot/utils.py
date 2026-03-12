@@ -1,5 +1,7 @@
 import datetime
 
+_BACK = "◀️ Назад"
+
 TASHKENT_TZ = datetime.timezone(datetime.timedelta(hours=5))
 
 def tashkent_now() -> datetime.datetime:

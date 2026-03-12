@@ -28,7 +28,7 @@ const Team = () => {
     team: "",
   });
 
-  const { data: team = [], isLoading: isTeamLoading } = useQuery({
+  const { data: team = [], isLoading: isTeamLoading, isError: isTeamError } = useQuery({
     queryKey: ["team"],
     queryFn: () => store.getTeam(),
   });
@@ -90,6 +90,17 @@ const Team = () => {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isTeamError) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center space-y-4">
+        <ShieldAlert className="w-12 h-12 text-destructive" />
+        <h2 className="text-xl font-bold">Доступ ограничен</h2>
+        <p className="text-muted-foreground">У вас нет прав для просмотра этого раздела.</p>
+        <Button onClick={() => window.history.back()}>Назад</Button>
       </div>
     );
   }

@@ -2,7 +2,7 @@ import os
 import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from .handlers import register_handlers
+from .handlers import register_all_handlers as register_handlers
 from dotenv import load_dotenv
 
 load_dotenv()

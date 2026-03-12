@@ -9,7 +9,7 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 
 @router.get("", response_model=List[schemas.ProjectSchema])
 def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    if current_user.login == os.getenv("ADMIN_LOGIN", "safina"):
+    if auth.is_admin(current_user):
         return crud.get_projects(db, skip=skip, limit=limit)
     return current_user.projects
 
@@ -22,7 +22,7 @@ def read_projects_by_chat_id(chat_id: int, db: Session = Depends(database.get_db
 
 @router.post("", response_model=schemas.ProjectSchema)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
+    if not auth.is_admin(current_user):
         raise HTTPException(status_code=403, detail="Only admins can create projects")
     
     existing_project = db.query(models.Project).filter(models.Project.code == project.code).first()

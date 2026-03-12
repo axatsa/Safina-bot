@@ -48,19 +48,24 @@ def setup_logging():
     root_logger.addHandler(console_handler)
 
     # File Handler with rotation
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    
-    log_file = os.path.join(log_dir, "app.log")
-    file_handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=10*1024*1024, # 10MB
-        backupCount=5,
-        encoding='utf-8'
-    )
-    file_handler.setFormatter(formatter)
-    root_logger.addHandler(file_handler)
+    try:
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        
+        log_file = os.path.join(log_dir, "app.log")
+        file_handler = RotatingFileHandler(
+            log_file, 
+            maxBytes=10*1024*1024, # 10MB
+            backupCount=5,
+            encoding='utf-8'
+        )
+        file_handler.setFormatter(formatter)
+        root_logger.addHandler(file_handler)
+    except Exception as e:
+        # Fallback if logs directory is not writable
+        print(f"CRITICAL: Failed to setup file logging: {str(e)}")
+        print("Continuing with console logging only.")
     
     # Optional: silence noisy loggers from libraries
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
