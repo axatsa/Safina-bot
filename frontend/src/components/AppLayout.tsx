@@ -4,7 +4,9 @@ import { store } from "@/lib/store";
 
 const AppLayout = () => {
   const role = localStorage.getItem("safina_role");
-  if (!role || (role !== "admin" && role !== "user")) {
+  const isValidRole = role && ["admin", "user", "senior_financier", "ceo"].includes(role);
+
+  if (!isValidRole) {
     return <Navigate to="/" replace />;
   }
 

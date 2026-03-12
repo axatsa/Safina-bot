@@ -273,8 +273,8 @@ const Applications = () => {
           </DragDropContext>
         </div>
 
-        {/* Approval Sidebar — only for Safina (admin) */}
-        {isAdmin && (
+        {/* Approval Sidebar — for admin, CFO and CEO */}
+        {(isAdmin || store.isSeniorFinancier() || store.isCeo()) && (
           <aside className="w-72 shrink-0 space-y-3">
             <div className="flex items-center gap-2 mb-2">
               <UserCheck className="w-4 h-4 text-violet-500" />
