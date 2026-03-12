@@ -1,4 +1,4 @@
-import { ClipboardList, FolderOpen, Users, LogOut, Archive, Send, BarChart } from "lucide-react";
+import { ClipboardList, FolderOpen, Users, LogOut, Archive, Send, BarChart, RotateCcw } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
@@ -22,6 +22,7 @@ const AppSidebar = () => {
   const menuItems = [
     { title: "Заявки", url: "/dashboard", icon: ClipboardList, show: true },
     { title: "Новая заявка", url: "/submit", icon: Send, show: true },
+    { title: "Возвраты", url: "/dashboard/refunds", icon: RotateCcw, show: true },
     { title: "Статистика", url: "/dashboard/statistics", icon: BarChart, show: isAdmin },
     { title: "Архив", url: "/dashboard/archive", icon: Archive, show: true },
     { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen, show: isAdmin },

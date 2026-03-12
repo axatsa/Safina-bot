@@ -12,6 +12,7 @@ import ArchivePage from "./pages/Archive";
 import ExpenseDetail from "./pages/ExpenseDetail";
 import SubmitExpense from "./pages/SubmitExpense";
 import Statistics from "./pages/Statistics";
+import Refunds from "./pages/Refunds";
 import NotFound from "./pages/NotFound";
 import { SSEProvider } from "./lib/contexts/SSEContext";
 
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/dashboard" element={<AppLayout />}>
               <Route index element={<Applications />} />
               <Route path="archive" element={<ArchivePage />} />
+              <Route path="refunds" element={<Refunds />} />
               <Route path="projects" element={<Projects />} />
               <Route path="team" element={<Team />} />
               <Route path="statistics" element={<Statistics />} />

@@ -146,15 +146,6 @@ const Team = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="team">Команда (например, "Avlod")</Label>
-              <Input
-                id="team"
-                value={formData.team}
-                onChange={(e) => setFormData({ ...formData, team: e.target.value })}
-                placeholder="Avlod, Thompson..."
-              />
-            </div>
-            <div className="space-y-2">
               <Label>Проекты (Необязательно)</Label>
               <div className="space-y-2 max-h-[150px] overflow-y-auto p-2 border rounded-md">
                 {projects.map((p: Project) => (
