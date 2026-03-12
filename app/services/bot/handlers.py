@@ -179,6 +179,29 @@ async def cmd_start(message: types.Message, state: FSMContext):
     await state.set_state(ExpenseWizard.waiting_for_auth)
 
 
+@router.message(Command("logout"))
+async def cmd_logout(message: types.Message, state: FSMContext):
+    tg_id = message.from_user.id
+    with next(database.get_db()) as db:
+        # 1. Unlink TeamMember
+        db.query(models.TeamMember).filter(
+            models.TeamMember.telegram_chat_id == tg_id
+        ).update({models.TeamMember.telegram_chat_id: None})
+
+        # 2. Unlink Admin (Safina) if matches
+        setting = db.query(models.Setting).filter(models.Setting.key == "admin_chat_id").first()
+        if setting and setting.value == str(tg_id):
+            db.delete(setting)
+
+        db.commit()
+
+    await state.clear()
+    await message.answer(
+        "✅ Вы вышли из аккаунта. Используйте /start для нового входа.",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+
+
 # ---------------------------------------------------------------------------
 # Auth flow (shared by all roles)
 # ---------------------------------------------------------------------------
