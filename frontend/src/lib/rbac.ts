@@ -8,5 +8,5 @@ export const rbac = {
   isSeniorFinancier: () => getRole() === "senior_financier",
   isCeo: () => getRole() === "ceo",
   hasWebAccess: () => ["admin", "senior_financier"].includes(getRole()),
-  canManageTeam: () => getRole() === "admin",
+  canManageTeam: () => ["admin", "senior_financier", "ceo"].includes(getRole()),
 };

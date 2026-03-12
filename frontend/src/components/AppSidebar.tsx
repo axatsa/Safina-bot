@@ -26,7 +26,7 @@ const AppSidebar = () => {
     { title: "Статистика", url: "/dashboard/statistics", icon: BarChart, show: isAdmin },
     { title: "Архив", url: "/dashboard/archive", icon: Archive, show: true },
     { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen, show: isAdmin },
-    { title: "Команда", url: "/dashboard/team", icon: Users, show: isAdmin },
+    { title: "Команда", url: "/dashboard/team", icon: Users, show: store.canManageTeam() },
   ].filter(item => item.show);
 
   return (

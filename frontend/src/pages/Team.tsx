@@ -86,31 +86,25 @@ const Team = () => {
     }));
   };
 
-  if (isTeamLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (isTeamError) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center space-y-4">
-        <ShieldAlert className="w-12 h-12 text-destructive" />
-        <h2 className="text-xl font-bold">Доступ ограничен</h2>
-        <p className="text-muted-foreground">У вас нет прав для просмотра этого раздела.</p>
-        <Button onClick={() => window.history.back()}>Назад</Button>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6 space-y-8 animate-slide-in">
-      <div>
-        <h1 className="text-2xl font-display font-bold text-foreground">Команда</h1>
-        <p className="text-sm text-muted-foreground mt-1">Управление участниками проектов</p>
-      </div>
+      {isTeamLoading ? (
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : isTeamError ? (
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <ShieldAlert className="w-12 h-12 text-destructive" />
+          <h2 className="text-xl font-bold">Доступ ограничен</h2>
+          <p className="text-muted-foreground">У вас нет прав для просмотра этого раздела или произошла ошибка.</p>
+          <Button variant="outline" onClick={() => window.history.back()}>Назад</Button>
+        </div>
+      ) : (
+        <>
+          <div>
+            <h1 className="text-2xl font-display font-bold text-foreground">Команда</h1>
+            <p className="text-sm text-muted-foreground mt-1">Управление участниками проектов</p>
+          </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
         <div className="xl:col-span-1 glass-card p-6 rounded-2xl border space-y-6 h-fit">
@@ -309,6 +303,8 @@ const Team = () => {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };
