@@ -24,6 +24,4 @@ class RefundWizard(StatesGroup):
     reason = State()
     amount = State()
     card_number = State()
-    retention = State()
-    receipt_photo = State()
     confirm = State()
