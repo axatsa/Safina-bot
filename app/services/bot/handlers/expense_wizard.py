@@ -8,7 +8,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app.core import database
 from app.db import models, schemas, crud
 from ..states import ExpenseWizard
-from ..keyboards import get_confirm_kb, get_date_kb, get_currency_kb, get_projects_kb
+from ..keyboards import get_confirm_kb, get_date_kb, get_currency_kb, get_projects_kb, get_main_kb
 from ..utils import tashkent_now
 
 router = Router()

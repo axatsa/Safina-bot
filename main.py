@@ -90,7 +90,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Safina API", lifespan=lifespan)
 
-# --- Global Exception Handlers ---
+# Allowed origins
+origins = [
+    "https://finance.thompson.uz",
+    "https://api-finance.thompson.uz",
+    "http://finance.thompson.uz",
+    "http://api-finance.thompson.uz",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:8080",
+    "http://localhost:8000",
+]
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -134,22 +145,8 @@ async def global_exception_handler(request: Request, exc: Exception):
         response.headers["Access-Control-Allow-Headers"] = "*"
     return response
 
-# --------------------------------
-
 # Add structured logging middleware
 app.add_middleware(LoggingMiddleware)
-
-# Allowed origins
-origins = [
-    "https://finance.thompson.uz",
-    "https://api-finance.thompson.uz",
-    "http://finance.thompson.uz",
-    "http://api-finance.thompson.uz",
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:8080",
-]
 
 app.add_middleware(
     CORSMiddleware,
@@ -170,7 +167,12 @@ app.include_router(analytics.router, prefix="/api")
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "version": "1.1.0"}
+    return {
+        "status": "ok", 
+        "version": "1.1.3", 
+        "database": "connected",
+        "allowed_origins": origins[:2] if 'origins' in locals() or 'origins' in globals() else "undefined"
+    }
 
 if __name__ == "__main__":
     import uvicorn
