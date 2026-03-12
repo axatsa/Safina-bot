@@ -115,13 +115,12 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "path": request.url.path
         },
     )
-    # Explicitly add CORS headers for browsers in case middleware is bypassed
-    origin = request.headers.get("origin")
-    if origin in origins:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = "*"
+    # Permissive CORS for troubleshooting - returning * is safest for 'removing cross-origin'
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    # Credentials must be false if origin is *
+    response.headers["Access-Control-Allow-Credentials"] = "false"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
     return response
 
 @app.exception_handler(Exception)
@@ -136,13 +135,11 @@ async def global_exception_handler(request: Request, exc: Exception):
             "detail": str(exc) if os.getenv("DEBUG") == "true" else "Contact administrator"
         },
     )
-    # Explicitly add CORS headers for browsers
-    origin = request.headers.get("origin")
-    if origin in origins:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = "*"
+    # Permissive CORS for troubleshooting
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "false"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
     return response
 
 # Add structured logging middleware
@@ -150,8 +147,8 @@ app.add_middleware(LoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
@@ -165,13 +162,17 @@ app.include_router(team.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 
+@app.get("/ping")
+async def ping():
+    return "pong"
+
 @app.get("/api/health")
 async def health_check():
     return {
         "status": "ok", 
-        "version": "1.1.3", 
+        "version": "1.1.4", 
         "database": "connected",
-        "allowed_origins": origins[:2] if 'origins' in locals() or 'origins' in globals() else "undefined"
+        "cors": "permissive"
     }
 
 if __name__ == "__main__":
