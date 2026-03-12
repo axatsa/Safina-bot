@@ -34,6 +34,8 @@ const statusColorMap: Record<ExpenseStatus, string> = {
 const ExpenseDetail = () => {
   const { id = "" } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isAdmin = store.isAdmin();
+  const isFarrukh = store.isFarrukh();
   const queryClient = useQueryClient();
 
   const { data: expenses = [] } = useQuery({
@@ -234,6 +236,22 @@ const ExpenseDetail = () => {
 
           {/* CFO: forward to CEO (only when already approved by CFO) */}
           {store.isSeniorFinancier() && expense.status === "approved_senior" && (
+            <Button
+              variant="default"
+              size="sm"
+              className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+              onClick={() => forwardCeoMutation.mutate()}
+              disabled={forwardCeoMutation.isPending || statusMutation.isPending}
+            >
+              {forwardCeoMutation.isPending
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Crown className="w-4 h-4" />}
+              Отправить CEO
+            </Button>
+          )}
+
+          {/* Farrukh: forward to CEO */}
+          {isFarrukh && !["pending_ceo", "approved_ceo", "rejected_ceo"].includes(expense.status) && (
             <Button
               variant="default"
               size="sm"

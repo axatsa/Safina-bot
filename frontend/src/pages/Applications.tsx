@@ -10,15 +10,6 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-const APPROVAL_STATUS_GROUPS = [
-  { label: "📋 Ожидает CFO",      statuses: ["pending_senior"]  as ExpenseStatus[] },
-  { label: "✅ Одобрено CFO",      statuses: ["approved_senior"] as ExpenseStatus[] },
-  { label: "❌ Отклонено CFO",    statuses: ["rejected_senior"] as ExpenseStatus[] },
-  { label: "👤 Ожидает Ganiev",   statuses: ["pending_ceo"]    as ExpenseStatus[] },
-  { label: "✅ Одобрено Ganiev",   statuses: ["approved_ceo"]   as ExpenseStatus[] },
-  { label: "❌ Отклонено Ganiev", statuses: ["rejected_ceo"]   as ExpenseStatus[] },
-];
-
 const kanbanColors: Record<string, string> = {
   request:        "kanban-request",
   review:         "kanban-review",
@@ -31,6 +22,7 @@ const kanbanColors: Record<string, string> = {
 
 const Applications = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selectedProject, setSelectedProject] = useState("all");
   const [selectedUser, setSelectedUser] = useState("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
@@ -72,6 +64,9 @@ const Applications = () => {
     return expenses.filter((e) => {
       // Basic Status Filter (Archive is separate)
       if (e.status === "archived") return false;
+
+      // Filter out refunds from main dashboard
+      if (e.requestType === "refund" || (e as any).request_type === "refund") return false;
 
       // Project Filter
       if (selectedProject !== "all" && e.projectId !== selectedProject) return false;
@@ -151,107 +146,6 @@ const Applications = () => {
   const approvedCount = filtered.filter(e => ['confirmed', 'approved_senior'].includes(e.status)).length;
 
   const isAdmin = store.isAdmin();
-  const isCFO = store.isSeniorFinancier();
-  const isCEO = store.isCeo();
-  const navigate = useNavigate();
-
-  // ── CFO / CEO approval kanban columns ─────────────────────────────────────
-  const CFO_COLUMNS = [
-    {
-      label: "📋 Ожидает CFO",
-      statuses: ["pending_senior"] as ExpenseStatus[],
-      headerClass: "bg-amber-50 border-amber-200 text-amber-800",
-      neutral: true,
-    },
-    {
-      label: "Решение CFO",
-      statuses: ["approved_senior", "rejected_senior"] as ExpenseStatus[],
-      headerClass: "bg-slate-50 border-slate-200 text-slate-700",
-      neutral: false,
-    },
-    {
-      label: "👤 Ожидает CEO",
-      statuses: ["pending_ceo"] as ExpenseStatus[],
-      headerClass: "bg-violet-50 border-violet-200 text-violet-800",
-      neutral: true,
-    },
-    {
-      label: "Решение CEO",
-      statuses: ["approved_ceo", "rejected_ceo"] as ExpenseStatus[],
-      headerClass: "bg-slate-50 border-slate-200 text-slate-700",
-      neutral: false,
-    },
-  ];
-
-  const getCardAccent = (status: ExpenseStatus) => {
-    if (["approved_senior", "approved_ceo"].includes(status))
-      return "border-l-4 border-l-emerald-500 bg-emerald-50/60";
-    if (["rejected_senior", "rejected_ceo"].includes(status))
-      return "border-l-4 border-l-red-500 bg-red-50/60";
-    return "";
-  };
-
-  const getCardBadge = (status: ExpenseStatus) => {
-    if (["approved_senior", "approved_ceo"].includes(status))
-      return <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">✅ Одобрено</span>;
-    if (["rejected_senior", "rejected_ceo"].includes(status))
-      return <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full">❌ Отклонено</span>;
-    return null;
-  };
-
-  // ── JSX: approval kanban for CFO / CEO ────────────────────────────────────
-  if (isCFO || isCEO) {
-    return (
-      <div className="p-6 space-y-6 animate-slide-in">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-foreground">Согласования</h1>
-          <p className="text-sm text-muted-foreground mt-1">Заявки в цепочке утверждения CFO / CEO</p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          {CFO_COLUMNS.map((col) => {
-            const items = expenses.filter((e) => col.statuses.includes(e.status));
-            return (
-              <div key={col.label} className="rounded-xl border bg-card overflow-hidden flex flex-col">
-                {/* Column header */}
-                <div className={`flex items-center justify-between px-4 py-3 border-b ${col.headerClass}`}>
-                  <span className="font-display font-semibold text-sm">{col.label}</span>
-                  <span className="text-xs font-medium bg-foreground/10 px-2 py-0.5 rounded-full">{items.length}</span>
-                </div>
-
-                {/* Cards */}
-                <div className="p-2 space-y-2 flex-1">
-                  {items.length === 0 ? (
-                    <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
-                      Нет заявок
-                    </div>
-                  ) : (
-                    items.map((e) => (
-                      <div
-                        key={e.id}
-                        onClick={() => navigate(`/dashboard/expense/${e.id}`)}
-                        className={`rounded-lg border bg-background p-3 cursor-pointer hover:shadow-md transition-all ${getCardAccent(e.status)}`}
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-1.5">
-                          <p className="font-mono font-bold text-xs text-primary">{e.requestId}</p>
-                          {getCardBadge(e.status)}
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate mb-1">{e.purpose}</p>
-                        <p className="text-xs font-semibold">
-                          {Number(e.totalAmount).toLocaleString()} {e.currency}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground mt-1">{e.createdBy}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
 
   // ── JSX: standard kanban for admin / user ─────────────────────────────────
   return (
@@ -306,8 +200,8 @@ const Applications = () => {
         </div>
       </div>
 
-      {/* Main area: kanban + optional sidebar */}
-      <div className={isAdmin ? "flex gap-4" : ""}>
+      {/* Main area: kanban */}
+      <div className="flex gap-4">
         {/* Kanban board */}
         <div className="flex-1 min-w-0">
           <DragDropContext onDragEnd={handleDragEnd}>
@@ -375,39 +269,6 @@ const Applications = () => {
             </div>
           </DragDropContext>
         </div>
-
-        {/* Approval Sidebar — for admin, CFO and CEO */}
-        {(isAdmin || store.isSeniorFinancier() || store.isCeo()) && (
-          <aside className="w-72 shrink-0 space-y-3">
-            <div className="flex items-center gap-2 mb-2">
-              <UserCheck className="w-4 h-4 text-violet-500" />
-              <h2 className="text-sm font-semibold text-foreground">Согласования (CFO / Ganiev)</h2>
-            </div>
-            {APPROVAL_STATUS_GROUPS.map(({ label, statuses }) => {
-              const items = expenses.filter((e) => statuses.includes(e.status));
-              return (
-                <div key={label} className="rounded-xl border bg-card overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-2 bg-muted/40 border-b">
-                    <span className="text-xs font-semibold">{label}</span>
-                    <span className="text-xs font-medium bg-foreground/10 px-2 py-0.5 rounded-full">{items.length}</span>
-                  </div>
-                  <div className="p-2 space-y-1.5 max-h-48 overflow-y-auto">
-                    {items.length === 0 ? (
-                      <p className="text-xs text-muted-foreground text-center py-3">Пусто</p>
-                    ) : (
-                      items.map((e) => (
-                        <div key={e.id} className="text-xs px-2 py-1.5 rounded-lg bg-background border hover:bg-accent/30 cursor-pointer transition-colors">
-                          <p className="font-mono font-bold">{e.requestId}</p>
-                          <p className="text-muted-foreground truncate">{e.createdBy} — {Number(e.totalAmount).toLocaleString()} {e.currency}</p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </aside>
-        )}
       </div>
     </div>
   );

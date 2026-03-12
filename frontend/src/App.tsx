@@ -13,6 +13,7 @@ import ExpenseDetail from "./pages/ExpenseDetail";
 import SubmitExpense from "./pages/SubmitExpense";
 import Statistics from "./pages/Statistics";
 import Refunds from "./pages/Refunds";
+import Approvals from "./pages/Approvals";
 import NotFound from "./pages/NotFound";
 import { SSEProvider } from "./lib/contexts/SSEContext";
 
@@ -25,6 +26,16 @@ const queryClient = new QueryClient({
   },
 });
 
+import { store } from "./lib/store";
+import { Navigate } from "react-router-dom";
+
+const DashboardIndex = () => {
+  if (store.isFarrukh()) {
+    return <Navigate to="/dashboard/approvals" replace />;
+  }
+  return <Applications />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <SSEProvider>
@@ -35,12 +46,13 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/dashboard" element={<AppLayout />}>
-              <Route index element={<Applications />} />
+              <Route index element={<DashboardIndex />} />
               <Route path="archive" element={<ArchivePage />} />
               <Route path="refunds" element={<Refunds />} />
               <Route path="projects" element={<Projects />} />
               <Route path="team" element={<Team />} />
               <Route path="statistics" element={<Statistics />} />
+              <Route path="approvals" element={<Approvals />} />
               <Route path="expense/:id" element={<ExpenseDetail />} />
             </Route>
             <Route path="/submit" element={<SubmitExpense />} />

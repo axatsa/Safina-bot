@@ -1,4 +1,4 @@
-import { ClipboardList, FolderOpen, Users, LogOut, Archive, Send, BarChart, RotateCcw } from "lucide-react";
+import { ClipboardList, FolderOpen, Users, LogOut, Archive, Send, BarChart, RotateCcw, ShieldCheck } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
@@ -13,6 +13,9 @@ const navItems = [
 const AppSidebar = () => {
   const navigate = useNavigate();
   const isAdmin = store.isAdmin();
+  const userName = store.getUser();
+  const isSafina = store.isSafina();
+  const isFarrukh = store.isFarrukh();
 
   const handleLogout = () => {
     store.logout();
@@ -20,13 +23,14 @@ const AppSidebar = () => {
   };
 
   const menuItems = [
-    { title: "Заявки", url: "/dashboard", icon: ClipboardList, show: true },
+    { title: "Заявки", url: "/dashboard", icon: ClipboardList, show: !isFarrukh },
     { title: "Новая заявка", url: "/submit", icon: Send, show: true },
-    { title: "Возвраты", url: "/dashboard/refunds", icon: RotateCcw, show: true },
+    { title: "Согласования", url: "/dashboard/approvals", icon: ShieldCheck, show: isAdmin || store.isSeniorFinancier() || store.isCeo() || isSafina },
+    { title: "Возвраты", url: "/dashboard/refunds", icon: RotateCcw, show: !isFarrukh },
     { title: "Статистика", url: "/dashboard/statistics", icon: BarChart, show: isAdmin },
     { title: "Архив", url: "/dashboard/archive", icon: Archive, show: true },
     { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen, show: isAdmin },
-    { title: "Команда", url: "/dashboard/team", icon: Users, show: store.canManageTeam() },
+    { title: "Команда", url: "/dashboard/team", icon: Users, show: store.canManageTeam() && !isFarrukh },
   ].filter(item => item.show);
 
   return (
@@ -39,6 +43,11 @@ const AppSidebar = () => {
           </h2>
         </div>
         <p className="text-xs text-sidebar-muted">Управление расходами</p>
+        {userName && (
+          <div className="mt-4 px-1 py-1 text-[10px] font-medium text-sidebar-muted border-t border-sidebar-border/30 pt-2">
+            Пользователь: <span className="text-sidebar-foreground">{userName}</span>
+          </div>
+        )}
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
