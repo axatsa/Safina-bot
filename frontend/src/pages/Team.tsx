@@ -132,14 +132,21 @@ const Team = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="position">Должность (для сметы)</Label>
-              <Input
-                id="position"
+              <Label htmlFor="position">Системная Роль (Доступ)</Label>
+              <Select
                 value={formData.position}
-                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                placeholder="например: Операционный директор"
-                required
-              />
+                onValueChange={(val) => setFormData({ ...formData, position: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите роль" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Обычный пользователь</SelectItem>
+                  <SelectItem value="admin">Администратор (Сафина)</SelectItem>
+                  <SelectItem value="senior_financier">Руководитель (CFO)</SelectItem>
+                  <SelectItem value="ceo">Директор (CEO)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="branch">Филиал (например, "Школа", пустой для всех)</Label>

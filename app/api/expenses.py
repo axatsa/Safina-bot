@@ -228,6 +228,7 @@ def forward_to_senior_financier(
         raise HTTPException(status_code=404, detail="Expense not found")
 
     from app.services.bot.notifications import get_senior_financier_chat_ids
+    logger.info(f"Forwarding expense {expense.request_id} (status: {expense.status}) to Senior Financier")
     senior_chat_ids = get_senior_financier_chat_ids()
     if senior_chat_ids:
         for chat_id in senior_chat_ids:
@@ -251,19 +252,14 @@ def forward_to_ceo(
     db: Session = Depends(database.get_db),
     current_user: models.TeamMember = Depends(auth.get_current_user),
 ):
-    """Forward an expense to the CEO. Only CFO (senior_financier) can do this."""
-    if current_user.position != "senior_financier":
-        raise HTTPException(status_code=403, detail="Only the CFO (Senior Financier) can forward to CEO")
+    """Forward an expense to the CEO. Only CFO (senior_financier) or Admin can do this."""
+    if current_user.position not in ["senior_financier", "admin"] and current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
+        raise HTTPException(status_code=403, detail="Only the CFO or Admin can forward to CEO")
 
     expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
 
-    if expense.status != "approved_senior":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Only expenses with status 'approved_senior' can be forwarded to CEO (current: {expense.status})",
-        )
 
     update = schemas.ExpenseStatusUpdate(
         status="pending_ceo",
@@ -271,6 +267,7 @@ def forward_to_ceo(
     )
     expense = crud.update_expense_status(db, expense_id, update)
 
+    logger.info(f"Forwarding expense {expense.request_id} (status: {expense.status}) to CEO")
     ceo_chat_id = get_ceo_chat_id()
     if ceo_chat_id:
         background_tasks.add_task(send_ceo_notification, expense.id, ceo_chat_id)

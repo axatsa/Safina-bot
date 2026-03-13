@@ -66,7 +66,11 @@ const Applications = () => {
       if (e.status === "archived") return false;
 
       // Filter out refunds from main dashboard
-      if (e.requestType === "refund" || (e as any).request_type === "refund") return false;
+      const isRefund = e.requestType === "refund" || 
+                       (e as any).request_type === "refund" || 
+                       (e.purpose && e.purpose.toLowerCase().includes("возврат"));
+      
+      if (isRefund) return false;
 
       // Project Filter
       if (selectedProject !== "all" && e.projectId !== selectedProject) return false;

@@ -218,8 +218,8 @@ const ExpenseDetail = () => {
               </Button>
             ))}
 
-          {/* Safina: forward to CFO */}
-          {store.isAdmin() && expense.status === "review" && (
+          {/* Safina/Admin: forward to CFO */}
+          {(store.isAdmin() || store.isSafina()) && expense.status !== "archived" && expense.status !== "pending_senior" && (
             <Button
               variant="default"
               size="sm"
@@ -234,24 +234,10 @@ const ExpenseDetail = () => {
             </Button>
           )}
 
-          {/* CFO: forward to CEO (only when already approved by CFO) */}
-          {store.isSeniorFinancier() && expense.status === "approved_senior" && (
-            <Button
-              variant="default"
-              size="sm"
-              className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
-              onClick={() => forwardCeoMutation.mutate()}
-              disabled={forwardCeoMutation.isPending || statusMutation.isPending}
-            >
-              {forwardCeoMutation.isPending
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <Crown className="w-4 h-4" />}
-              Отправить CEO
-            </Button>
-          )}
-
-          {/* Farrukh: forward to CEO */}
-          {isFarrukh && !["pending_ceo", "approved_ceo", "rejected_ceo"].includes(expense.status) && (
+          {/* CFO/Admin/Farrukh: forward to CEO */}
+          {(store.isSeniorFinancier() || store.isAdmin() || isFarrukh) && 
+            expense.status !== "archived" && 
+            !["pending_ceo", "approved_ceo"].includes(expense.status) && (
             <Button
               variant="default"
               size="sm"

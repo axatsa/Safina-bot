@@ -100,15 +100,8 @@ async def process_login(message: types.Message, state: FSMContext):
         await state.update_data(user_id=user.id)
 
         if user.position == "ceo":
-            await message.answer(f"✅ Успешно, {user.first_name} (CEO)!", reply_markup=types.ReplyKeyboardRemove())
-            await state.clear()
-        elif len(user.projects) > 1:
-            await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
-            await state.set_state(ExpenseWizard.project_selection)
-        elif len(user.projects) == 1:
-            await state.update_data(project_id=user.projects[0].id)
-            await message.answer(f"Успешно! Введите дату или «Сейчас»:", reply_markup=get_date_kb())
-            await state.set_state(ExpenseWizard.date)
+            await message.answer(f"✅ Успешно, {user.first_name} (CEO)!", reply_markup=get_main_kb())
         else:
-            await message.answer("Проекты не привязаны.")
-            await state.clear()
+            await message.answer(f"✅ Успешно, {user.first_name}!", reply_markup=get_main_kb())
+        
+        await state.clear()
