@@ -115,7 +115,7 @@ const Applications = () => {
 
     if (item && item.status !== newStatus) {
       if (newStatus === "declined" || newStatus === "revision") {
-        toast.info("Для этого статуса требуется комментарий. Откройте детали заявки.");
+        toast.info("Для этого статуса требуется комментарий. Откройте детали инвестиции.");
         return;
       }
       mutation.mutate({ id: draggableId, status: newStatus });
@@ -155,8 +155,8 @@ const Applications = () => {
   return (
     <div className="p-6 space-y-6 animate-slide-in">
       <div>
-        <h1 className="text-2xl font-display font-bold text-foreground">Заявки</h1>
-        <p className="text-sm text-muted-foreground mt-1">Управление заявками на расход</p>
+        <h1 className="text-2xl font-display font-bold text-foreground">Инвестиции</h1>
+        <p className="text-sm text-muted-foreground mt-1">Управление инвестициями на расход</p>
       </div>
 
       <FilterBar
@@ -177,7 +177,7 @@ const Applications = () => {
         <div className="glass-card rounded-xl p-4 flex flex-col justify-center">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><FileText className="w-4 h-4" /></div>
-            <p className="text-sm font-medium text-muted-foreground">Всего заявок</p>
+            <p className="text-sm font-medium text-muted-foreground">Всего инвестиций</p>
           </div>
           <h3 className="text-2xl font-bold">{totalRequests}</h3>
         </div>
@@ -261,7 +261,7 @@ const Applications = () => {
                           {provided.placeholder}
                           {items.length === 0 && (
                             <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
-                              Нет заявок
+                              Нет инвестиций
                             </div>
                           )}
                         </div>

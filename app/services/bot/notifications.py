@@ -72,7 +72,7 @@ async def send_status_notification(
     }
     status_text, status_emoji = status_map.get(raw_status, (raw_status, "📌"))
     text = (
-        f"{status_emoji} Заявка {request_id}\n"
+        f"{status_emoji} Инвестиция {request_id}\n"
         f"📌 Статус: {status_text}\n"
         f"💰 Сумма: {amount} {currency}\n"
     )
@@ -103,7 +103,7 @@ async def send_admin_notification(expense_id: str, admin_chat_id: int) -> None:
         text = (
             f"🔴 *Safina Expense Tracker*\n"
             f"🟢 {expense.project_name} ({expense.project_code})\n"
-            f"➡️ Параметры заявки:\n"
+            f"➡️ Параметры инвестиции:\n"
             f"🔸 {expense.created_by}\n"
             f"🔸 {expense.purpose}\n"
             f"🆔 {expense.request_id}\n"
@@ -183,7 +183,7 @@ async def send_ceo_notification(expense_id: str, ceo_chat_id: int) -> None:
         builder = InlineKeyboardBuilder()
         builder.button(text="✅ Одобрить",  callback_data=f"approve_ceo_{expense.id}")
         builder.button(text="❌ Отклонить", callback_data=f"reject_ceo_{expense.id}")
-        builder.button(text="📄 Скачать заявку", callback_data=f"download_excel_{expense.id}")
+        builder.button(text="📄 Скачать инвестицию", callback_data=f"download_excel_{expense.id}")
         builder.adjust(2, 1)
 
         await _send_message(ceo_chat_id, text, reply_markup=builder.as_markup())
@@ -203,7 +203,7 @@ async def send_ceo_decision_notification(
     emoji = "✅" if approved else "❌"
     decision = "Одобрено CEO" if approved else "Отклонено CEO"
     text = (
-        f"{emoji} *Решение CEO по заявке {request_id}*\n"
+        f"{emoji} *Решение CEO по инвестиции {request_id}*\n"
         f"📌 Статус: {decision}\n"
         f"💰 Сумма: {total_amount:,.2f} {currency}\n"
     )

@@ -70,7 +70,7 @@ const ExpenseDetail = () => {
     mutationFn: (comment: string) => store.updateInternalComment(id, comment),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      toast.success("Комментарий сохранен");
+      toast.info("Для этого статуса требуется комментарий. Откройте детали инвестиции.");
     },
   });
 
@@ -78,7 +78,7 @@ const ExpenseDetail = () => {
     mutationFn: () => store.forwardToSenior(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      toast.success("Заявка отправлена CFO");
+      toast.success("Инвестиция отправлена CFO");
     },
     onError: () => toast.error("Ошибка при отправке CFO"),
   });
@@ -87,7 +87,7 @@ const ExpenseDetail = () => {
     mutationFn: () => store.forwardToCeo(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      toast.success("Заявка отправлена CEO");
+      toast.success("Инвестиция отправлена CEO");
     },
     onError: (e: Error) => toast.error(e.message || "Ошибка при отправке CEO"),
   });
@@ -95,7 +95,7 @@ const ExpenseDetail = () => {
   if (!expense) {
     return (
       <div className="p-6 text-center text-muted-foreground">
-        <p>Заявка не найдена</p>
+        <p>Инвестиция не найдена</p>
         <Button variant="outline" className="mt-4" onClick={() => navigate("/dashboard")}>
           Назад
         </Button>
@@ -148,7 +148,7 @@ const ExpenseDetail = () => {
         </div>
         <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportDocx(expense.id)}>
           <Download className="w-4 h-4" />
-          Скачать смету (Word)
+          Скачать инвестицию (Word)
         </Button>
       </div>
 

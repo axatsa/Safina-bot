@@ -65,8 +65,8 @@ const Approvals = () => {
   return (
     <div className="p-6 space-y-6 animate-slide-in">
       <div>
-        <h1 className="text-2xl font-display font-bold text-foreground">Согласования</h1>
-        <p className="text-sm text-muted-foreground mt-1">Заявки в цепочке утверждения CFO / CEO</p>
+        <h1 className="text-2xl font-display font-bold text-foreground">Инвестиции на согласовании</h1>
+        <p className="text-sm text-muted-foreground mt-1">Одобрите или отклоните инвестиции</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

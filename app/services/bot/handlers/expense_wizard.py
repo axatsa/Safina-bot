@@ -13,7 +13,7 @@ from ..utils import tashkent_now
 
 router = Router()
 
-@router.message(F.text == "Создать заявку (в боте)")
+@router.message(F.text == "Создать инвестицию (в боте)")
 async def start_wizard_selection(message: types.Message, state: FSMContext):
     with next(database.get_db()) as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()

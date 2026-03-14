@@ -43,8 +43,8 @@ const Refunds = () => {
     <div className="p-6 space-y-6 animate-slide-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-display font-bold text-foreground">Возвраты</h1>
-          <p className="text-sm text-muted-foreground mt-1">Заявки на возврат средств ученикам</p>
+          <h1 className="text-2xl font-display font-bold text-foreground">Возвраты инвестиций</h1>
+          <p className="text-sm text-muted-foreground mt-1">Управление возвратами средств ученикам</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => store.exportXLSX({ allStatuses: true, project: 'all' })}>

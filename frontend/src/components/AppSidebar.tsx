@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
 
 const navItems = [
-  { title: "Заявки", url: "/dashboard", icon: ClipboardList },
+  { title: "Инвестиции", url: "/dashboard", icon: ClipboardList },
   { title: "Архив", url: "/dashboard/archive", icon: Archive },
   { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen },
   { title: "Команда", url: "/dashboard/team", icon: Users },
@@ -23,8 +23,8 @@ const AppSidebar = () => {
   };
 
   const menuItems = [
-    { title: "Заявки", url: "/dashboard", icon: ClipboardList, show: !isFarrukh },
-    { title: "Новая заявка", url: "/submit", icon: Send, show: true },
+    { title: "Инвестиции", url: "/dashboard", icon: ClipboardList, show: !isFarrukh },
+    { title: "Новая инвестиция", url: "/submit", icon: Send, show: true },
     { title: "Согласования", url: "/dashboard/approvals", icon: ShieldCheck, show: isAdmin || store.isSeniorFinancier() || store.isCeo() || isSafina },
     { title: "Возвраты", url: "/dashboard/refunds", icon: RotateCcw, show: !isFarrukh },
     { title: "Статистика", url: "/dashboard/statistics", icon: BarChart, show: isAdmin || store.isSeniorFinancier() },

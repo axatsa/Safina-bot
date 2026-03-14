@@ -126,8 +126,8 @@ const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
         )}
 
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Оформление возврата</h1>
-          <p className="text-muted-foreground">Заполните форму для оформления возврата средств</p>
+          <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Возврат инвестиции</h1>
+          <p className="text-muted-foreground">Заполните данные для возврата средств по инвестиции</p>
         </div>
 
         <form onSubmit={handleSubmit} className="glass-card p-6 md:p-8 rounded-2xl border space-y-6">

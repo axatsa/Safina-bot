@@ -171,8 +171,8 @@ const SubmitExpense = () => {
                 )}
 
                 <div className="text-center space-y-2">
-                    <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Новая заявка</h1>
-                    <p className="text-muted-foreground">Заполните форму для отправки запроса на расход</p>
+                    <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Новая инвестиция</h1>
+                    <p className="text-muted-foreground">Оформите новую инвестицию на расход</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="glass-card p-6 md:p-8 rounded-2xl border space-y-6">
@@ -293,7 +293,7 @@ const SubmitExpense = () => {
 
                     <Button type="submit" className="w-full rounded-xl py-6 text-lg font-bold" disabled={mutation.isPending}>
                         {mutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Send className="w-5 h-5 mr-2" />}
-                        Отправить на согласование
+                        {mutation.isPending ? "Создание..." : "Создать инвестицию"}
                     </Button>
                 </form>
             </div>
