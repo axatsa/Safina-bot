@@ -36,7 +36,7 @@ router = APIRouter(prefix="/expenses", tags=["expenses"])
 
 @router.get("", response_model=List[schemas.ExpenseRequestSchema])
 def read_expenses(project: str = None, status: str = None, skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    user_id = None if auth.is_admin(current_user) else current_user.id
+    user_id = None if current_user.login == os.getenv("ADMIN_LOGIN", "safina") else current_user.id
     return crud.get_expenses(db, project_id=project, status=status, user_id=user_id, skip=skip, limit=limit)
 
 @router.post("", response_model=schemas.ExpenseRequestSchema)
@@ -214,8 +214,9 @@ def forward_to_senior_financier(
     db: Session = Depends(database.get_db),
     current_user: models.TeamMember = Depends(auth.get_current_user),
 ):
-    """Forward an expense to the CFO (Senior Financier). Only Admins can do this."""
-    if not auth.is_admin(current_user):
+    """Forward an expense to the CFO (Senior Financier). Only Safina admin can do this."""
+    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
+    if not is_admin:
         raise HTTPException(status_code=403, detail="Only administrators can forward to the Senior Financier")
 
     update = schemas.ExpenseStatusUpdate(
@@ -233,7 +234,7 @@ def forward_to_senior_financier(
         for chat_id in senior_chat_ids:
             background_tasks.add_task(send_senior_notification, expense.id, chat_id)
     else:
-        logger.warning("No linked Senior Financiers found in database.")
+        logger.warning(f"No linked Senior Financiers (CFO) found for expense {expense.request_id}")
 
     from app.services.notifications.sse import publish_notification
     background_tasks.add_task(
@@ -296,7 +297,8 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
     query = db.query(models.ExpenseRequest)
     
     # Ограничение по пользователю
-    if not auth.is_admin(current_user):
+    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
+    if not is_admin:
         query = query.filter(models.ExpenseRequest.created_by_id == current_user.id)
     elif user_id:
         query = query.filter(models.ExpenseRequest.created_by_id == user_id)
@@ -372,7 +374,8 @@ def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: st
     
     query = db.query(models.ExpenseRequest)
     
-    if not auth.is_admin(current_user):
+    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
+    if not is_admin:
         query = query.filter(models.ExpenseRequest.created_by_id == current_user.id)
     elif user_id:
         query = query.filter(models.ExpenseRequest.created_by_id == user_id)
@@ -420,15 +423,12 @@ def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: st
             data.append({
                 "ID Запроса": e.request_id,
                 "Дата": e.date.strftime("%d.%m.%Y %H:%M"),
-                "Код проекта": e.project_code,
-                "Название проекта": e.project_name,
+                "Проект": f"{e.project_name} ({e.project_code})",
+                "Цель расхода": e.purpose,
+                "Сумма": float(e.total_amount),
+                "Валюта": e.currency,
                 "Ответственный": e.created_by,
-                "Статус": status_map.get(e.status, e.status),
-                "Наименование": item.get("name", ""),
-                "Кол-во": item.get("quantity", 0),
-                "Сумма": item.get("amount", 0),
-                "Валюта": item.get("currency", e.currency),
-                "Общая сумма": float(e.total_amount)
+                "Статус": status_map.get(e.status, e.status)
             })
     
     df = pd.DataFrame(data)
@@ -466,11 +466,11 @@ def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: st
             
         # Add SUM formula
         total_row = len(df) + 2
-        worksheet.cell(row=total_row, column=10, value="ИТОГО:").font = bold_font
-        worksheet.cell(row=total_row, column=10).border = thin_border
+        worksheet.cell(row=total_row, column=4, value="ИТОГО:").font = bold_font
+        worksheet.cell(row=total_row, column=4).border = thin_border
         
-        sum_cell = worksheet.cell(row=total_row, column=11)
-        sum_cell.value = f"=SUM(K2:K{total_row-1})"
+        sum_cell = worksheet.cell(row=total_row, column=5)
+        sum_cell.value = f"=SUM(E2:E{total_row-1})"
         sum_cell.font = bold_font
         sum_cell.border = thin_border
 

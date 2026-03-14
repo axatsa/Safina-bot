@@ -15,7 +15,7 @@ async def handle_approve_senior(callback: types.CallbackQuery):
         update = schemas.ExpenseStatusUpdate(status="approved_senior", comment="Утверждено CFO")
         crud.update_expense_status(db, expense_id, update)
     await callback.message.edit_text(callback.message.text + "\n\n✅ *Утверждено CFO*", parse_mode="Markdown")
-    await callback.answer("Заявка утверждена!")
+    await callback.answer("Инвестиция утверждена!")
 
 @router.callback_query(F.data.startswith("reject_senior_"))
 async def handle_reject_senior(callback: types.CallbackQuery):
@@ -24,7 +24,7 @@ async def handle_reject_senior(callback: types.CallbackQuery):
         update = schemas.ExpenseStatusUpdate(status="rejected_senior", comment="Отклонено CFO")
         crud.update_expense_status(db, expense_id, update)
     await callback.message.edit_text(callback.message.text + "\n\n❌ *Отклонено CFO*", parse_mode="Markdown")
-    await callback.answer("Заявка отклонена!")
+    await callback.answer("Инвестиция отклонена!")
 
 @router.callback_query(F.data.startswith("approve_ceo_"))
 async def handle_approve_ceo(callback: types.CallbackQuery):
@@ -35,7 +35,7 @@ async def handle_approve_ceo(callback: types.CallbackQuery):
         crud.update_expense_status(db, expense_id, update)
 
     await callback.message.edit_text(callback.message.text + "\n\n✅ *Одобрено CEO*", parse_mode="Markdown")
-    await callback.answer("Заявка одобрена CEO!")
+    await callback.answer("Инвестиция одобрена CEO!")
 
     # Notifications
     admin_id = get_admin_chat_id()
@@ -53,7 +53,7 @@ async def handle_reject_ceo(callback: types.CallbackQuery):
         crud.update_expense_status(db, expense_id, update)
 
     await callback.message.edit_text(callback.message.text + "\n\n❌ *Отклонено CEO*", parse_mode="Markdown")
-    await callback.answer("Заявка отклонена CEO!")
+    await callback.answer("Инвестиция отклонена CEO!")
 
     admin_id = get_admin_chat_id()
     if admin_id:

@@ -22,12 +22,12 @@ async def cmd_start(message: types.Message, state: FSMContext):
                 await message.answer(
                     f"👋 С возвращением, {user.first_name} (CEO)!\n"
                     "Вы будете получать заявки для финального согласования.",
-                    reply_markup=types.ReplyKeyboardRemove()
+                    reply_markup=get_main_kb(is_ceo=True)
                 )
             else:
                 await message.answer(
                     f"С возвращением, {user.first_name}! Как хотите создать заявку?",
-                    reply_markup=get_main_kb()
+                    reply_markup=get_main_kb(is_ceo=(user.position == "ceo"))
                 )
             return
 
@@ -100,8 +100,8 @@ async def process_login(message: types.Message, state: FSMContext):
         await state.update_data(user_id=user.id)
 
         if user.position == "ceo":
-            await message.answer(f"✅ Успешно, {user.first_name} (CEO)!", reply_markup=get_main_kb())
+            await message.answer(f"✅ Успешно, {user.first_name} (CEO)!", reply_markup=get_main_kb(is_ceo=True))
         else:
-            await message.answer(f"✅ Успешно, {user.first_name}!", reply_markup=get_main_kb())
+            await message.answer(f"✅ Успешно, {user.first_name}!", reply_markup=get_main_kb(is_ceo=False))
         
         await state.clear()

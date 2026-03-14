@@ -129,7 +129,9 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
         user = db.query(models.TeamMember).filter(models.TeamMember.id == user_id).first()
         if not user:
             raise ValueError("User not found")
-        user_name = f"{user.last_name} {user.first_name}"
+        user_name = f"{user.last_name} {user.first_name}".strip()
+        if user_name.lower().startswith("user "):
+            user_name = user_name[5:].strip()
         user_position = user.position
         
     if expense.project_id:

@@ -47,10 +47,7 @@ def login(request: schemas.LoginRequest, db: Session = Depends(database.get_db))
                 project_id = user.projects[0].id
                 
             # Return the real position so the frontend can tailor its UI
-            role = user.position
-            if role not in ("admin", "senior_financier", "ceo"):
-                role = "user"
-                
+            role = user.position if user.position in ("senior_financier", "ceo") else "user"
             return {
                 "access_token": access_token,
                 "token_type": "bearer",
