@@ -16,21 +16,25 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from app.core.logging_config import get_logger
+from decimal import Decimal
+
+logger = get_logger(__name__)
 TASHKENT_TZ = datetime.timezone(datetime.timedelta(hours=5))
+
+# Persistent bot instance
+bot = Bot(token=os.getenv("BOT_TOKEN"))
 
 # ---------------------------------------------------------------------------
 # Generic send helper
 # ---------------------------------------------------------------------------
 
 async def _send_message(chat_id: int, text: str, reply_markup=None, parse_mode: str = "Markdown") -> None:
-    """Send a single Telegram message, safely closing the session afterwards."""
-    bot = Bot(token=os.getenv("BOT_TOKEN"))
+    """Send a single Telegram message using the shared bot instance."""
     try:
         await bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode=parse_mode)
     except Exception as e:
-        print(f"[TG] Failed to send message to {chat_id}: {e}")
-    finally:
-        await bot.session.close()
+        logger.error(f"Failed to send message to {chat_id}: {e}")
 
 
 def _format_expense_dt(expense_date: datetime.datetime) -> str:
@@ -51,7 +55,7 @@ async def send_status_notification(
     chat_id: int,
     request_id: str,
     raw_status: str,
-    amount: float,
+    amount: Decimal,
     currency: str,
     comment: str | None = None,
 ) -> None:
@@ -108,6 +112,12 @@ async def send_admin_notification(expense_id: str, admin_chat_id: int) -> None:
             f"🔸 {expense.purpose}\n"
             f"🆔 {expense.request_id}\n"
             f"💵 {expense.total_amount:,.2f} {expense.currency}\n"
+        )
+        
+        if expense.usd_rate:
+            text += f"📉 Курс: {Decimal(str(expense.usd_rate)):,.2f} UZS/USD\n"
+            
+        text += (
             f"🕒 {dt_str} (Ташкент)\n"
             f"✅ Ожидает рассмотрения"
         )
@@ -145,6 +155,8 @@ async def send_senior_notification(expense_id: str, senior_chat_id: int) -> None
             f"🆔 {expense.request_id}\n"
             f"💵 {expense.total_amount:,.2f} {expense.currency}\n"
         )
+        if expense.usd_rate:
+            text += f"📉 Курс: {Decimal(str(expense.usd_rate)):,.2f} UZS/USD\n"
         builder = InlineKeyboardBuilder()
         builder.button(text="✅ Утвердить", callback_data=f"approve_senior_{expense.id}")
         builder.button(text="❌ Отклонить", callback_data=f"reject_senior_{expense.id}")
@@ -180,6 +192,8 @@ async def send_ceo_notification(expense_id: str, ceo_chat_id: int) -> None:
             f"🆔 {expense.request_id}\n"
             f"💵 {expense.total_amount:,.2f} {expense.currency}\n"
         )
+        if expense.usd_rate:
+            text += f"📉 Курс: {Decimal(str(expense.usd_rate)):,.2f} UZS/USD\n"
         builder = InlineKeyboardBuilder()
         builder.button(text="✅ Одобрить",  callback_data=f"approve_ceo_{expense.id}")
         builder.button(text="❌ Отклонить", callback_data=f"reject_ceo_{expense.id}")
@@ -194,7 +208,7 @@ async def send_ceo_notification(expense_id: str, ceo_chat_id: int) -> None:
 async def send_ceo_decision_notification(
     chat_id: int,
     request_id: str,
-    total_amount: float,
+    total_amount: Decimal,
     currency: str,
     approved: bool,
     comment: str | None = None,

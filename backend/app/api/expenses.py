@@ -12,15 +12,15 @@ import shutil
 from app.db import models, schemas, crud
 from app.core import auth, database
 from app.core.logging_config import get_logger
-from app.services.docx.generator import generate_docx
+from decimal import Decimal
+from app.services.currency.service import currency_service
+from app.services.docx.service import docx_service
 from app.services.refund.service import (
     create_refund,
     save_receipt_photo,
-    is_school_branch,
     EXPORTABLE_STATUSES,
     EXCLUDED_FROM_EXPORT,
 )
-from app.services.refund.docx_export import generate_application_docx
 from app.services.bot.notifications import (
     send_status_notification,
     send_admin_notification,
@@ -40,11 +40,13 @@ def read_expenses(project: str = None, status: str = None, skip: int = 0, limit:
     return crud.get_expenses(db, project_id=project, status=status, user_id=user_id, skip=skip, limit=limit)
 
 @router.post("", response_model=schemas.ExpenseRequestSchema)
-def create_expense(expense: schemas.ExpenseRequestCreate, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+async def create_expense(expense: schemas.ExpenseRequestCreate, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     user_id = getattr(current_user, "id", None)
     if not user_id:
         raise HTTPException(status_code=400, detail="Admin cannot create expenses directly")
-    expense_req = crud.create_expense_request(db=db, expense=expense, user_id=user_id)
+    
+    usd_rate = await currency_service.get_usd_rate()
+    expense_req = crud.create_expense_request(db=db, expense=expense, user_id=user_id, usd_rate=usd_rate)
     
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:
@@ -52,19 +54,13 @@ def create_expense(expense: schemas.ExpenseRequestCreate, background_tasks: Back
     return expense_req
 
 @router.post("/web-submit", response_model=schemas.ExpenseRequestSchema)
-async def web_submit_expense(data: dict, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db)):
-    chat_id = data.get("chat_id")
+async def web_submit_expense(data: dict, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    chat_id = current_user.telegram_chat_id
     if not chat_id:
-        raise HTTPException(status_code=400, detail="chat_id is required")
+        raise HTTPException(status_code=400, detail="У вашего аккаунта не привязан Telegram Chat ID")
     
-    try:
-        chat_id_int = int(chat_id)
-    except:
-        raise HTTPException(status_code=400, detail="Invalid chat_id format")
-
-    user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == chat_id_int).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found for this telegram account")
+    chat_id_int = chat_id
+    user = current_user
     
     items = []
     for item in data.get("items", []):
@@ -82,7 +78,8 @@ async def web_submit_expense(data: dict, background_tasks: BackgroundTasks, db: 
         currency=items[0].currency if items else "UZS"
     )
     
-    expense_req = crud.create_expense_request(db=db, expense=expense_create, user_id=user.id)
+    usd_rate = await currency_service.get_usd_rate()
+    expense_req = crud.create_expense_request(db=db, expense=expense_create, user_id=user.id, usd_rate=usd_rate)
     
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:
@@ -93,39 +90,29 @@ async def web_submit_expense(data: dict, background_tasks: BackgroundTasks, db: 
 async def web_submit_refund(
     background_tasks: BackgroundTasks,
     db: Session = Depends(database.get_db),
+    current_user: models.TeamMember = Depends(auth.get_current_user),
     student_id: str = Form(...),
     reason: str = Form(...),
     amount: float = Form(...),
     card_number: str = Form(...),
     retention: str = Form(...),
-    receipt_photo: UploadFile = File(...),
-    chat_id: str = Form(None)
+    receipt_photo: UploadFile = File(...)
 ):
     """Web-App endpoint: создаёт заявку возврата (принимает данные из формы)."""
-    user = None
-    user_id = None
-    branch = None
-    team = None
+    user = current_user
+    user_id = user.id
+    branch = user.branch
+    team = user.team
+    chat_id_int = user.telegram_chat_id
 
-    if chat_id:
-        try:
-            chat_id_int = int(chat_id)
-            user = db.query(models.TeamMember).filter(
-                models.TeamMember.telegram_chat_id == chat_id_int
-            ).first()
-            if not user:
-                raise HTTPException(status_code=404, detail="Пользователь не найден для этого Telegram-аккаунта")
-            user_id = user.id
-            branch = user.branch
-            team = user.team
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Неверный формат chat_id")
+    if not chat_id_int:
+        raise HTTPException(status_code=400, detail="У вашего аккаунта не привязан Telegram Chat ID")
 
     receipt_path = save_receipt_photo(receipt_photo)
     retention_bool = retention.lower() == "true"
 
     try:
-        expense_req = create_refund(
+        expense_req = await create_refund(
             db,
             student_id=student_id,
             reason=reason,
@@ -160,26 +147,12 @@ def export_refund_application(
         raise HTTPException(status_code=400, detail="Только для заявок типа 'refund'")
 
     rd = expense.refund_data or {}
+    fname = f"заявление_{expense.request_id}.docx"
     try:
-        stream = generate_application_docx(
-            student_id=rd.get("student_id", ""),
-            reason=rd.get("reason", ""),
-            amount=float(expense.total_amount),
-            card_number=rd.get("card_number", ""),
-            retention=bool(rd.get("retention", False)),
-            branch=rd.get("branch"),
-            team=rd.get("team"),
-            sender_name=expense.created_by,
-            sender_position=expense.created_by_position,
-            request_id=expense.request_id,
-            date=expense.date,
-        )
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        stream = docx_service.generate_expense_docx(expense)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    fname = f"заявление_{expense.request_id}.docx"
     return StreamingResponse(
         stream,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -187,11 +160,12 @@ def export_refund_application(
     )
 
 @router.patch("/{expense_id}/status", response_model=schemas.ExpenseRequestSchema)
-def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db)):
+def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     if update.status in ["declined", "revision"] and not update.comment:
         raise HTTPException(status_code=400, detail="Comment is required for declined or revision status")
     
-    expense = crud.update_expense_status(db, expense_id, update)
+    user_name = f"{current_user.last_name} {current_user.first_name}"
+    expense = crud.update_expense_status(db, expense_id, update, user_id=current_user.id, user_name=user_name)
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
     
@@ -206,6 +180,13 @@ def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, backgrou
             update.comment
         )
     return expense
+
+@router.get("/{expense_id}/history", response_model=List[schemas.ExpenseStatusHistorySchema])
+def read_expense_history(expense_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    return expense.status_history
 
 @router.post("/{expense_id}/forward_senior", response_model=schemas.ExpenseRequestSchema)
 def forward_to_senior_financier(
@@ -223,7 +204,8 @@ def forward_to_senior_financier(
         status="pending_senior",
         comment="Отправлено на согласование Старшему финансисту (CFO)",
     )
-    expense = crud.update_expense_status(db, expense_id, update)
+    user_name = f"{current_user.last_name} {current_user.first_name}"
+    expense = crud.update_expense_status(db, expense_id, update, user_id=current_user.id, user_name=user_name)
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
 
@@ -265,7 +247,8 @@ def forward_to_ceo(
         status="pending_ceo",
         comment="Отправлено на финальное согласование CEO",
     )
-    expense = crud.update_expense_status(db, expense_id, update)
+    user_name = f"{current_user.last_name} {current_user.first_name}"
+    expense = crud.update_expense_status(db, expense_id, update, user_id=current_user.id, user_name=user_name)
 
     logger.info(f"Forwarding expense {expense.request_id} (status: {expense.status}) to CEO")
     ceo_chat_id = get_ceo_chat_id()
@@ -284,7 +267,7 @@ def forward_to_ceo(
 
 
 @router.put("/{expense_id}/comment")
-def update_internal_comment(expense_id: str, update: schemas.InternalCommentUpdate, db: Session = Depends(database.get_db)):
+def update_internal_comment(expense_id: str, update: schemas.InternalCommentUpdate, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     db_expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
     if not db_expense:
         raise HTTPException(status_code=404, detail="Expense not found")
@@ -332,11 +315,15 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Request ID", "Date", "Project Code", "Project Name", "Responsible", "Status", "Item Name", "Qty", "Amount", "Currency", "Total Amount"])
+    writer.writerow(["Request ID", "Date", "Project Code", "Project Name", "Responsible", "Status", "Item Name", "Qty", "Amount", "Currency", "USD Rate", "Amount in USD", "Total Amount"])
     
     status_map = {
         "request": "Запрос",
         "review": "На рассмотрении",
+        "pending_senior": "На согласовании CFO",
+        "approved_senior": "Утверждено CFO",
+        "pending_ceo": "На согласовании CEO",
+        "approved_ceo": "Одобрено CEO",
         "confirmed": "Подтверждено",
         "declined": "Отклонено",
         "revision": "Возврат на доработку",
@@ -344,8 +331,18 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
     }
 
     for e in expenses:
+        usd_rate = Decimal(str(e.usd_rate)) if e.usd_rate else Decimal("1.0")
         items = e.items if isinstance(e.items, list) else []
         for item in items:
+            item_currency = item.get("currency", e.currency)
+            item_amount = Decimal(str(item.get("amount", 0))) * Decimal(str(item.get("quantity", 0)))
+            
+            amount_in_usd = item_amount
+            if item_currency == "UZS" and usd_rate > 0:
+                amount_in_usd = item_amount / usd_rate
+            elif item_currency == "RUB": # Fallback if RUB appears
+                amount_in_usd = item_amount / Decimal("100") 
+
             writer.writerow([
                 e.request_id,
                 e.date.strftime("%Y-%m-%d %H:%M"),
@@ -356,7 +353,9 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
                 item.get("name", ""),
                 item.get("quantity", 0),
                 item.get("amount", 0),
-                item.get("currency", e.currency),
+                item_currency,
+                usd_rate,
+                round(amount_in_usd, 2),
                 e.total_amount
             ])
     
@@ -370,7 +369,7 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
 
 @router.get("/export-xlsx")
 def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: str = None, to_date: str = None, allStatuses: bool = False, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    import pandas as pd
+    from app.services.analytics import export as export_service
     
     query = db.query(models.ExpenseRequest)
     
@@ -406,75 +405,7 @@ def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: st
             pass
         
     expenses = query.all()
-    
-    data = []
-    status_map = {
-        "request": "Запрос",
-        "review": "На рассмотрении",
-        "confirmed": "Подтверждено",
-        "declined": "Отклонено",
-        "revision": "Возврат на доработку",
-        "archived": "Архивировано"
-    }
-
-    for e in expenses:
-        items = e.items if isinstance(e.items, list) else []
-        for item in items:
-            data.append({
-                "ID Запроса": e.request_id,
-                "Дата": e.date.strftime("%d.%m.%Y %H:%M"),
-                "Проект": f"{e.project_name} ({e.project_code})",
-                "Цель расхода": e.purpose,
-                "Сумма": float(e.total_amount),
-                "Валюта": e.currency,
-                "Ответственный": e.created_by,
-                "Статус": status_map.get(e.status, e.status)
-            })
-    
-    df = pd.DataFrame(data)
-    
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Expenses')
-        
-        worksheet = writer.sheets['Expenses']
-        from openpyxl.styles import PatternFill, Border, Side, Font, Alignment
-        
-        yellow_fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
-        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        bold_font = Font(bold=True)
-        center_align = Alignment(horizontal="center", vertical="center")
-        
-        # Styles for header
-        for col_idx in range(1, len(df.columns) + 1):
-            cell = worksheet.cell(row=1, column=col_idx)
-            cell.fill = yellow_fill
-            cell.font = bold_font
-            cell.border = thin_border
-            cell.alignment = center_align
-            
-        # Borders for content
-        for row_idx in range(2, len(df) + 2):
-            for col_idx in range(1, len(df.columns) + 1):
-                cell = worksheet.cell(row=row_idx, column=col_idx)
-                cell.border = thin_border
-                
-        # Auto-adjust columns width
-        for idx, col in enumerate(df.columns):
-            max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
-            worksheet.column_dimensions[chr(65 + idx)].width = min(max_len, 50)
-            
-        # Add SUM formula
-        total_row = len(df) + 2
-        worksheet.cell(row=total_row, column=4, value="ИТОГО:").font = bold_font
-        worksheet.cell(row=total_row, column=4).border = thin_border
-        
-        sum_cell = worksheet.cell(row=total_row, column=5)
-        sum_cell.value = f"=SUM(E2:E{total_row-1})"
-        sum_cell.font = bold_font
-        sum_cell.border = thin_border
-
-    output.seek(0)
+    output = export_service.generate_expenses_xlsx(expenses)
     
     return StreamingResponse(
         output,
@@ -489,50 +420,8 @@ def export_expense_docx(expense_id: str, db: Session = Depends(database.get_db),
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
         
-    # Prepare items, ensuring they are a list of dicts and adding line totals
-    items_data = []
-    raw_items = expense.items
-    if isinstance(raw_items, str):
-        import json
-        try:
-            raw_items = json.loads(raw_items)
-        except:
-            raw_items = []
-            
-    if isinstance(raw_items, list):
-        for idx, item in enumerate(raw_items):
-            if isinstance(item, dict):
-                # We need to be defensive here to avoid 500 errors if some keys are missing
-                try:
-                    qty = float(item.get("quantity", 0))
-                    price = float(item.get("amount", 0))
-                    items_data.append({
-                        "no": idx + 1,
-                        "name": item.get("name", "Без названия"),
-                        "quantity": qty,
-                        "price": price,
-                        "total": qty * price
-                    })
-                except (ValueError, TypeError):
-                    continue
-
-    data = {
-        "sender_name": expense.created_by,
-        "sender_position": expense.created_by_position or "Сотрудник",
-        "purpose": expense.purpose,
-        "items": items_data,
-        "total_amount": float(expense.total_amount),
-        "currency": expense.currency,
-        "request_id": expense.request_id,
-        "date": expense.date
-    }
-    
-    template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "services/docx/template.docx")
-    if not os.path.exists(template_path):
-        raise HTTPException(status_code=500, detail="Template file not found")
-        
     try:
-        file_stream = generate_docx(template_path, data)
+        file_stream = docx_service.generate_expense_docx(expense)
         return StreamingResponse(
             file_stream,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

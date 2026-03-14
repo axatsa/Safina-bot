@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal
 
 _BACK = "◀️ Назад"
 
@@ -26,8 +27,8 @@ def prepare_items_data(raw_items) -> list[dict]:
         for idx, item in enumerate(raw_items):
             if isinstance(item, dict):
                 try:
-                    qty = float(item.get("quantity", 0))
-                    price = float(item.get("amount", 0))
+                    qty = Decimal(str(item.get("quantity", "0")))
+                    price = Decimal(str(item.get("amount", "0")))
                     result.append({
                         "no": idx + 1,
                         "name": item.get("name", ""),
@@ -37,6 +38,6 @@ def prepare_items_data(raw_items) -> list[dict]:
                         "unit_price": price,
                         "total": qty * price,
                     })
-                except (ValueError, TypeError):
+                except (ValueError, TypeError, Exception):
                     continue
     return result

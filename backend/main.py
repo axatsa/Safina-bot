@@ -38,35 +38,10 @@ async def run_bot_with_watchdog():
         await asyncio.sleep(retry_delay)
         retry_delay = min(retry_delay * 2, 60) # Exponential backoff up to 1 min
 
-async def init_db_with_retry(max_retries: int = 5, delay: int = 5):
-    """Attempt to create database tables with retries."""
-    for attempt in range(1, max_retries + 1):
-        try:
-            logger.info(f"DB initialized attempt {attempt}/{max_retries}...")
-            # Metadata.create_all is synchronous, run it in a thread if needed, 
-            # but for startup it's fine to block for a bit
-            Base.metadata.create_all(bind=engine)
-            logger.info("Database tables verified/created successfully.")
-            return True
-        except SQLAlchemyError as e:
-            logger.error(f"Database connection failed (attempt {attempt}): {str(e)}")
-            if attempt < max_retries:
-                logger.info(f"Retrying in {delay} seconds...")
-                await asyncio.sleep(delay)
-            else:
-                logger.critical("Could not connect to database after max retries. Application will likely fail.")
-                return False
-        except Exception as e:
-            logger.error(f"Unexpected error during DB init: {str(e)}", exc_info=True)
-            return False
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Initializing application lifespan...")
-    
-    # 1. Initialize DB
-    await init_db_with_retry()
     
     # 2. Seed initial data (e.g., Senior Financier)
     seed.seed_users()
@@ -147,8 +122,8 @@ app.add_middleware(LoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],

@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
-import { ExpenseRequest, ExpenseStatus, STATUS_LABELS } from "@/lib/types";
+import { ExpenseRequest, ExpenseStatus, STATUS_LABELS, ExpenseStatusHistory } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft, Download, Clock, CheckCircle, XCircle,
-  RotateCcw, Archive, Send, Loader2, FastForward, Crown
+  RotateCcw, Archive, Send, Loader2, FastForward, Crown,
+  FileSpreadsheet
 } from "lucide-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -31,6 +33,41 @@ const statusColorMap: Record<ExpenseStatus, string> = {
   rejected_ceo:    "bg-pink-100 text-pink-800",
 };
 
+const HistoryTimeline = ({ history }: { history: ExpenseStatusHistory[] }) => {
+  if (!history || history.length === 0) return null;
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-semibold flex items-center gap-2">
+        <Clock className="w-4 h-4" /> История изменений
+      </h3>
+      <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-muted">
+        {history.map((item, idx) => (
+          <div key={idx} className="relative">
+            <span className="absolute left-[-21px] top-1 w-[12px] h-[12px] rounded-full bg-primary border-2 border-background ring-4 ring-background" />
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase text-muted-foreground">
+                  {STATUS_LABELS[item.status as ExpenseStatus] || item.status}
+                </span>
+                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                  {format(item.createdAt, "dd.MM.yyyy HH:mm")}
+                </span>
+              </div>
+              <p className="text-sm font-medium mt-0.5">{item.changed_by_name || "Система"}</p>
+              {item.comment && (
+                <p className="text-sm text-muted-foreground mt-1 py-1 px-2 bg-muted/50 rounded italic border-l-2 border-primary/30">
+                  {item.comment}
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const ExpenseDetail = () => {
   const { id = "" } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -41,6 +78,12 @@ const ExpenseDetail = () => {
   const { data: expenses = [] } = useQuery({
     queryKey: ["expenses"],
     queryFn: () => store.getExpenses(),
+  });
+
+  const { data: history = [] } = useQuery({
+    queryKey: ["expense-history", id],
+    queryFn: () => store.getExpenseHistory(id),
+    enabled: !!id,
   });
 
   const expense = expenses.find((e) => e.id === id);
@@ -61,6 +104,7 @@ const ExpenseDetail = () => {
       store.updateExpenseStatus(id, status, comment),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-history", id] });
       toast.success("Статус обновлен");
     },
     onError: () => toast.error("Ошибка при обновлении статуса"),
@@ -70,7 +114,7 @@ const ExpenseDetail = () => {
     mutationFn: (comment: string) => store.updateInternalComment(id, comment),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      toast.info("Для этого статуса требуется комментарий. Откройте детали инвестиции.");
+      toast.info("Комментарий сохранен");
     },
   });
 
@@ -78,6 +122,7 @@ const ExpenseDetail = () => {
     mutationFn: () => store.forwardToSenior(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-history", id] });
       toast.success("Инвестиция отправлена CFO");
     },
     onError: () => toast.error("Ошибка при отправке CFO"),
@@ -87,6 +132,7 @@ const ExpenseDetail = () => {
     mutationFn: () => store.forwardToCeo(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-history", id] });
       toast.success("Инвестиция отправлена CEO");
     },
     onError: (e: Error) => toast.error(e.message || "Ошибка при отправке CEO"),
@@ -132,7 +178,7 @@ const ExpenseDetail = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6 animate-slide-in max-w-4xl">
+    <div className="p-6 space-y-6 animate-slide-in max-w-5xl">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4" />
@@ -146,152 +192,145 @@ const ExpenseDetail = () => {
           </div>
           <p className="text-sm text-muted-foreground mt-1">{expense.purpose}</p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportDocx(expense.id)}>
-          <Download className="w-4 h-4" />
-          Скачать инвестицию (Word)
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportDocx(expense.id)}>
+            <Download className="w-4 h-4" />
+            Word
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportXLSX({ status: expense.status })}>
+            <FileSpreadsheet className="w-4 h-4" />
+            Excel
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "Проект", value: `${expense.projectName} (${expense.projectCode})` },
-          { label: "Ответственный", value: expense.createdBy },
-          { label: "Дата/время", value: format(new Date(expense.date), "yyyy-MM-dd HH:mm", { locale: ru }) },
-          { label: "Сумма", value: `${expense.totalAmount.toLocaleString()} ${expense.currency}` },
-        ].map((item) => (
-          <div key={item.label} className="glass-card rounded-lg p-3">
-            <p className="text-xs text-muted-foreground">{item.label}</p>
-            <p className="font-medium text-sm mt-1">{item.value}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: "Проект", value: `${expense.projectName} (${expense.projectCode})` },
+              { label: "Ответственный", value: expense.createdBy },
+              { label: "Дата/время", value: format(expense.date, "yyyy-MM-dd HH:mm", { locale: ru }) },
+              { label: "Сумма", value: `${expense.totalAmount.toLocaleString()} ${expense.currency}` },
+            ].map((item) => (
+              <div key={item.label} className="glass-card rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">{item.label}</p>
+                <p className="font-medium text-sm mt-1">{item.value}</p>
+              </div>
+            ))}
+            {expense.usdRate && (
+               <div className="glass-card rounded-lg p-3 bg-indigo-50/50 border-indigo-100">
+                  <p className="text-xs text-indigo-600 font-semibold">Курс USD</p>
+                  <p className="font-bold text-sm mt-1 text-indigo-900">{expense.usdRate.toLocaleString()}</p>
+               </div>
+            )}
           </div>
-        ))}
-      </div>
 
-      {expense.statusComment && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-          <p className="text-xs font-medium text-destructive mb-1">Комментарий к статусу:</p>
-          <p className="text-sm">{expense.statusComment}</p>
-        </div>
-      )}
+          {expense.statusComment && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+              <p className="text-xs font-medium text-destructive mb-1">Комментарий к статусу:</p>
+              <p className="text-sm">{expense.statusComment}</p>
+            </div>
+          )}
 
-      <div className="glass-card rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/50 text-left text-muted-foreground">
-              <th className="py-3 px-4 font-medium">Наименование</th>
-              <th className="py-3 px-4 font-medium text-right">Кол-во</th>
-              <th className="py-3 px-4 font-medium text-right">Сумма</th>
-            </tr>
-          </thead>
-          <tbody>
-            {expense.items.map((item, i) => (
-              <tr key={i} className="border-b">
-                <td className="py-3 px-4">{item.name}</td>
-                <td className="py-3 px-4 text-right">{item.quantity}</td>
-                <td className="py-3 px-4 text-right">{item.amount.toLocaleString()} {item.currency}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="bg-muted/30 font-semibold">
-              <td className="py-3 px-4" colSpan={2}>Итого</td>
-              <td className="py-3 px-4 text-right">{expense.totalAmount.toLocaleString()} {expense.currency}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+          <div className="glass-card rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50 text-left text-muted-foreground">
+                  <th className="py-3 px-4 font-medium">Наименование</th>
+                  <th className="py-3 px-4 font-medium text-right">Кол-во</th>
+                  <th className="py-3 px-4 font-medium text-right">Сумма</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expense.items.map((item, i) => (
+                  <tr key={i} className="border-b">
+                    <td className="py-3 px-4">{item.name}</td>
+                    <td className="py-3 px-4 text-right">{item.quantity}</td>
+                    <td className="py-3 px-4 text-right">{item.amount.toLocaleString()} {item.currency}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-muted/30 font-semibold">
+                  <td className="py-3 px-4" colSpan={2}>Итого</td>
+                  <td className="py-3 px-4 text-right">{expense.totalAmount.toLocaleString()} {expense.currency}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
 
-      {!isArchived && (
-        <div className="flex flex-wrap gap-2">
-          {actionButtons
-            .filter((a) => a.status !== expense.status)
-            .map((action) => (
-              <Button
-                key={action.status}
-                variant={action.variant}
-                size="sm"
-                className="gap-2"
-                onClick={() => handleStatusChange(action.status)}
-                disabled={statusMutation.isPending || forwardSeniorMutation.isPending}
-              >
-                {statusMutation.isPending && pendingStatus === action.status ? <Loader2 className="w-4 h-4 animate-spin" /> : action.icon}
-                {action.label}
-              </Button>
-            ))}
+          {!isArchived && (
+            <div className="flex flex-wrap gap-2">
+              {actionButtons
+                .filter((a) => a.status !== expense.status)
+                .map((action) => (
+                  <Button
+                    key={action.status}
+                    variant={action.variant}
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => handleStatusChange(action.status)}
+                    disabled={statusMutation.isPending || forwardSeniorMutation.isPending}
+                  >
+                    {statusMutation.isPending && pendingStatus === action.status ? <Loader2 className="w-4 h-4 animate-spin" /> : action.icon}
+                    {action.label}
+                  </Button>
+                ))}
 
-          {/* Safina/Admin: forward to CFO */}
-          {(store.isAdmin() || store.isSafina()) && expense.status !== "archived" && expense.status !== "pending_senior" && (
-            <Button
-              variant="default"
-              size="sm"
-              className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-              onClick={() => forwardSeniorMutation.mutate()}
-              disabled={forwardSeniorMutation.isPending || statusMutation.isPending}
-            >
-              {forwardSeniorMutation.isPending
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <FastForward className="w-4 h-4" />}
-              На согласование CFO
+              {(store.isAdmin() || store.isSafina()) && expense.status !== "archived" && expense.status !== "pending_senior" && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  onClick={() => forwardSeniorMutation.mutate()}
+                  disabled={forwardSeniorMutation.isPending || statusMutation.isPending}
+                >
+                  {forwardSeniorMutation.isPending
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <FastForward className="w-4 h-4" />}
+                  На согласование CFO
+                </Button>
+              )}
+
+              {(store.isSeniorFinancier() || (store.isAdmin() && !store.isSafina()) || isFarrukh) && 
+                expense.status !== "archived" && 
+                !["pending_ceo", "approved_ceo"].includes(expense.status) && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+                  onClick={() => forwardCeoMutation.mutate()}
+                  disabled={forwardCeoMutation.isPending || statusMutation.isPending}
+                >
+                  {forwardCeoMutation.isPending
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Crown className="w-4 h-4" />}
+                  Отправить CEO
+                </Button>
+              )}
+            </div>
+          )}
+
+          <div className="glass-card rounded-lg p-4 space-y-3">
+            <Label className="text-sm font-medium">Internal comment (видно только в админке)</Label>
+            <Textarea
+              value={internalComment}
+              onChange={(e) => setInternalComment(e.target.value)}
+              placeholder="Добавьте комментарий..."
+              rows={3}
+            />
+            <Button size="sm" onClick={() => internalCommentMutation.mutate(internalComment)} disabled={internalCommentMutation.isPending}>
+              {internalCommentMutation.isPending ? "Сохранение..." : "Сохранить"}
             </Button>
-          )}
-
-          {/* CFO/Admin/Farrukh: forward to CEO */}
-          {(store.isSeniorFinancier() || (store.isAdmin() && !store.isSafina()) || isFarrukh) && 
-            expense.status !== "archived" && 
-            !["pending_ceo", "approved_ceo"].includes(expense.status) && (
-            <Button
-              variant="default"
-              size="sm"
-              className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
-              onClick={() => forwardCeoMutation.mutate()}
-              disabled={forwardCeoMutation.isPending || statusMutation.isPending}
-            >
-              {forwardCeoMutation.isPending
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <Crown className="w-4 h-4" />}
-              Отправить CEO
-            </Button>
-          )}
-
-          {/* Safina: Return from CFO to review */}
-          {store.isSafina() && expense.status === "pending_senior" && (
-             <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 border-orange-200 text-orange-700 hover:bg-orange-50"
-                onClick={() => handleStatusChange("review")}
-                disabled={statusMutation.isPending}
-             >
-                <RotateCcw className="w-4 h-4" />
-                Вернуть на рассмотрение
-             </Button>
-          )}
+          </div>
         </div>
-      )}
 
-      {isArchived && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={() => handleStatusChange("request")}
-          disabled={statusMutation.isPending}
-        >
-          {statusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
-          Вернуть из архива
-        </Button>
-      )}
-
-      <div className="glass-card rounded-lg p-4 space-y-3">
-        <Label className="text-sm font-medium">Internal comment (видно только в админке)</Label>
-        <Textarea
-          value={internalComment}
-          onChange={(e) => setInternalComment(e.target.value)}
-          placeholder="Добавьте комментарий..."
-          rows={3}
-        />
-        <Button size="sm" onClick={() => internalCommentMutation.mutate(internalComment)} disabled={internalCommentMutation.isPending}>
-          {internalCommentMutation.isPending ? "Сохранение..." : "Сохранить"}
-        </Button>
+        <div className="space-y-6">
+          <div className="glass-card rounded-lg p-5">
+            <HistoryTimeline history={history} />
+          </div>
+        </div>
       </div>
 
       <Dialog open={commentDialogOpen} onOpenChange={setCommentDialogOpen}>

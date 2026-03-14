@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, Numeric, JSON, BigInteger
 from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, Numeric, JSON, BigInteger, Text
 from app.core.database import Base
 import datetime
 import uuid
@@ -70,11 +70,27 @@ class ExpenseRequest(Base):
     project_code = Column(String, nullable=True) # Denormalized Project Code
     
     internal_comment = Column(String, nullable=True)
+    usd_rate = Column(Numeric(precision=18, scale=6), nullable=True)
+    # Course USD/UZS at creation time. Null for UZS expenses.
     status_comment = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     project = relationship("Project", back_populates="expenses")
     created_by_user = relationship("TeamMember", back_populates="expenses")
+    status_history = relationship("ExpenseStatusHistory", back_populates="expense", cascade="all, delete-orphan")
+
+class ExpenseStatusHistory(Base):
+    __tablename__ = "expense_status_history"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    expense_id = Column(String, ForeignKey("expense_requests.id", ondelete="CASCADE"), index=True)
+    status = Column(String, nullable=False)
+    comment = Column(Text, nullable=True)
+    changed_by_id = Column(String, ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True)
+    changed_by_name = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    expense = relationship("ExpenseRequest", back_populates="status_history")
 
 class ProjectCounter(Base):
     __tablename__ = "project_counters"

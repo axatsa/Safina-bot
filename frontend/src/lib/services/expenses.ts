@@ -75,13 +75,14 @@ export const expensesService = {
     return await res.json();
   },
 
-  exportXLSX: async (params: { project?: string; user?: string; from?: string; to?: string; allStatuses?: boolean }): Promise<void> => {
+  exportXLSX: async (params: { project?: string; user?: string; from?: string; to?: string; allStatuses?: boolean; status?: string }): Promise<void> => {
     const searchParams = new URLSearchParams();
     if (params.project && params.project !== "all") searchParams.append("project", params.project);
     if (params.user && params.user !== "all") searchParams.append("user_id", params.user);
     if (params.from) searchParams.append("from_date", params.from);
     if (params.to) searchParams.append("to_date", params.to);
     if (params.allStatuses) searchParams.append("allStatuses", "true");
+    if (params.status) searchParams.append("status", params.status);
 
     const res = await apiFetch(`/expenses/export-xlsx?${searchParams.toString()}`);
     const blob = await res.blob();
@@ -117,4 +118,13 @@ export const expensesService = {
     link.click();
     link.remove();
   },
+
+  getExpenseHistory: async (expenseId: string): Promise<any[]> => {
+    const res = await apiFetch(`/expenses/${expenseId}/history`);
+    const data = await res.json();
+    return data.map((h: any) => ({
+      ...h,
+      createdAt: new Date(h.created_at)
+    }));
+  }
 };

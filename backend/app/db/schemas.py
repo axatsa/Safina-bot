@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
+from decimal import Decimal
 
 class ExpenseStatusEnum(str, Enum):
     request = "request"
@@ -24,8 +25,8 @@ class CurrencyEnum(str, Enum):
 
 class ExpenseItemSchema(BaseModel):
     name: str
-    quantity: float
-    amount: float
+    quantity: Decimal
+    amount: Decimal
     currency: CurrencyEnum
 
 # Project Schemas
@@ -89,7 +90,7 @@ class ExpenseRequestCreate(BaseModel):
     purpose: str
     items: List[ExpenseItemSchema]
     project_id: Optional[str] = None
-    total_amount: Optional[float] = None
+    total_amount: Optional[Decimal] = None
     currency: Optional[CurrencyEnum] = None
     date: Optional[datetime] = None
     request_type: str = "expense"
@@ -103,6 +104,15 @@ class ExpenseStatusUpdate(BaseModel):
 class InternalCommentUpdate(BaseModel):
     internal_comment: str
 
+class ExpenseStatusHistorySchema(BaseModel):
+    status: str
+    comment: Optional[str] = None
+    changed_by_name: Optional[str] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
 class ExpenseRequestSchema(ExpenseRequestCreate):
     id: str
     request_id: str
@@ -114,6 +124,7 @@ class ExpenseRequestSchema(ExpenseRequestCreate):
     project_name: Optional[str] = None
     project_code: Optional[str] = None
     internal_comment: Optional[str] = None
+    usd_rate: Optional[Decimal] = None
     status_comment: Optional[str] = None
     created_at: datetime
     

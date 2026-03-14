@@ -12,8 +12,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/login", response_model=schemas.Token)
 def login(request: schemas.LoginRequest, db: Session = Depends(database.get_db)):
     # Use environment variables for admin login for safety
-    admin_login = (os.getenv("ADMIN_LOGIN") or "safina").strip()
-    admin_password = (os.getenv("ADMIN_PASSWORD") or "admin123").strip()
+    admin_login = os.getenv("ADMIN_LOGIN")
+    admin_password = os.getenv("ADMIN_PASSWORD")
     
     # Ensure inputs are strings to avoid attribute errors if pydantic validation is bypassed
     input_login = str(request.login or "").strip()

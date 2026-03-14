@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from . import models, schemas
 from app.core import auth
+from decimal import Decimal
 
 import datetime
 
@@ -121,7 +122,7 @@ def get_expenses(db: Session, project_id: str = None, status: str = None, user_i
         query = query.filter(models.ExpenseRequest.created_by_id == user_id)
     return query.order_by(models.ExpenseRequest.date.desc()).offset(skip).limit(limit).all()
 
-def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, user_id: str):
+def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, user_id: str, usd_rate: Decimal = None):
     if user_id == "admin":
         user_name = "Safina Admin"
         user_position = "Administrator"
@@ -149,15 +150,20 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
     
     request_id = generate_request_id(db, req_prefix)
     
-    total_amount = expense.total_amount
-    if total_amount is None:
-        total_amount = sum(item.amount * item.quantity for item in expense.items)
-    
     currency = expense.currency
     if currency is None and expense.items:
         currency = expense.items[0].currency
     elif currency is None:
         currency = "UZS"
+
+    # Validation: all items must have the same currency as the request
+    for item in expense.items:
+        if item.currency != currency:
+            raise ValueError(f"Item currency mismatch: expected {currency}, got {item.currency}")
+
+    total_amount = expense.total_amount
+    if total_amount is None:
+        total_amount = sum(item.amount * item.quantity for item in expense.items)
 
     db_expense = models.ExpenseRequest(
         request_id=request_id,
@@ -166,6 +172,7 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
         items=[item.dict() for item in expense.items],
         total_amount=total_amount,
         currency=currency,
+        usd_rate=usd_rate,
         created_by_id=user_id if user_id != "admin" else None,
         created_by=user_name,
         created_by_position=user_position,
@@ -179,14 +186,38 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
     db.add(db_expense)
     db.commit()
     db.refresh(db_expense)
+    
+    # Initial status history
+    history = models.ExpenseStatusHistory(
+        expense_id=db_expense.id,
+        status=db_expense.status,
+        changed_by_id=user_id if user_id != "admin" else None,
+        changed_by_name=user_name,
+        comment="Создание заявки"
+    )
+    db.add(history)
+    db.commit()
+    
     return db_expense
 
-def update_expense_status(db: Session, expense_id: str, update: schemas.ExpenseStatusUpdate):
+def update_expense_status(db: Session, expense_id: str, update: schemas.ExpenseStatusUpdate, user_id: str = None, user_name: str = None):
     db_expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
     if db_expense:
+        old_status = db_expense.status
         db_expense.status = update.status
         if update.comment:
             db_expense.status_comment = update.comment
+            
+        # Record history
+        history = models.ExpenseStatusHistory(
+            expense_id=db_expense.id,
+            status=update.status,
+            comment=update.comment or f"Статус изменен с {old_status} на {update.status}",
+            changed_by_id=user_id,
+            changed_by_name=user_name
+        )
+        db.add(history)
+        
         db.commit()
         db.refresh(db_expense)
     return db_expense

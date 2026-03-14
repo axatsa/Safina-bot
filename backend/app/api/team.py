@@ -21,7 +21,10 @@ def create_team_member(member: schemas.TeamMemberCreate, db: Session = Depends(d
     return crud.create_team_member(db=db, member=member)
 
 @router.delete("/{member_id}")
-def delete_team_member(member_id: str, db: Session = Depends(database.get_db)):
+def delete_team_member(member_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
+        raise HTTPException(status_code=403, detail="Only admins can delete team members")
+        
     user = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Member not found")

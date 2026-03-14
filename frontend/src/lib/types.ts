@@ -48,6 +48,13 @@ export type ExpenseStatus =
   | "revision"
   | "archived";
 
+export interface ExpenseStatusHistory {
+  status: string;
+  comment?: string;
+  changed_by_name?: string;
+  createdAt: Date;
+}
+
 export interface ExpenseRequest {
   id: string;
   requestId: string;
@@ -56,6 +63,7 @@ export interface ExpenseRequest {
   items: ExpenseItem[];
   totalAmount: number;
   currency: string;
+  usdRate?: number;
   status: ExpenseStatus;
   requestType?: string;
   createdBy: string;

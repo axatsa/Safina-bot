@@ -32,7 +32,10 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(databas
     return crud.create_project(db=db, project=project)
 
 @router.delete("/{project_id}")
-def delete_project(project_id: str, db: Session = Depends(database.get_db)):
+def delete_project(project_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
+        raise HTTPException(status_code=403, detail="Only admins can delete projects")
+        
     proj = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not proj:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -41,14 +44,20 @@ def delete_project(project_id: str, db: Session = Depends(database.get_db)):
     return {"status": "success"}
 
 @router.post("/{project_id}/members/{member_id}")
-def add_project_member(project_id: str, member_id: str, db: Session = Depends(database.get_db)):
+def add_project_member(project_id: str, member_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
+        raise HTTPException(status_code=403, detail="Only admins can manage project members")
+        
     member = crud.add_project_member(db, project_id, member_id)
     if not member:
         raise HTTPException(status_code=404, detail="Project or Member not found")
     return {"status": "success"}
 
 @router.delete("/{project_id}/members/{member_id}")
-def remove_project_member(project_id: str, member_id: str, db: Session = Depends(database.get_db)):
+def remove_project_member(project_id: str, member_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
+        raise HTTPException(status_code=403, detail="Only admins can manage project members")
+        
     member = crud.remove_project_member(db, project_id, member_id)
     if not member:
         raise HTTPException(status_code=404, detail="Project or Member not found")

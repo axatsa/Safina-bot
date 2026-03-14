@@ -11,6 +11,7 @@ import os
 import uuid
 import shutil
 from typing import Optional, Tuple
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -72,12 +73,12 @@ def save_receipt_photo(upload_file) -> str:
 # Основная бизнес-логика
 # ---------------------------------------------------------------------------
 
-def create_refund(
+async def create_refund(
     db: Session,
     *,
     student_id: str,
     reason: str,
-    amount: float,
+    amount: Decimal,
     card_number: str,
     retention: bool = False,
     receipt_photo_ref: Optional[str] = None,          # Telegram file_id ИЛИ локальный путь
@@ -87,10 +88,9 @@ def create_refund(
 ) -> models.ExpenseRequest:
     """
     Создаёт заявку типа 'refund' в БД.
-
-    Вызывается как из bot-хендлера, так и из API-эндпоинта web-submit.
-    Никаких импортов aiogram / fastapi здесь нет.
     """
+    from app.services.currency.service import currency_service
+    
     ok, cleaned_card = validate_card_number(card_number)
     if not ok:
         raise ValueError(cleaned_card)
@@ -124,7 +124,8 @@ def create_refund(
         refund_data=refund_data,
     )
 
-    db_expense = crud.create_expense_request(db, expense_create, user_id=user_id)
+    usd_rate = await currency_service.get_usd_rate()
+    db_expense = crud.create_expense_request(db, expense_create, user_id=user_id, usd_rate=usd_rate)
     logger.info(
         "Refund created: %s | student=%s | amount=%s | branch=%s",
         db_expense.request_id, student_id, amount, branch,
