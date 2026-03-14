@@ -26,6 +26,9 @@ export const expensesService = {
       internalComment: e.internal_comment,
       createdBy: e.created_by,
       createdById: e.created_by_id,
+      requestType: e.request_type,
+      refundData: e.refund_data,
+      receiptPhotoFileId: e.receipt_photo_file_id,
       date: new Date(e.date),
       createdAt: new Date(e.created_at),
     }));

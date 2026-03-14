@@ -235,7 +235,7 @@ const ExpenseDetail = () => {
           )}
 
           {/* CFO/Admin/Farrukh: forward to CEO */}
-          {(store.isSeniorFinancier() || store.isAdmin() || isFarrukh) && 
+          {(store.isSeniorFinancier() || (store.isAdmin() && !store.isSafina()) || isFarrukh) && 
             expense.status !== "archived" && 
             !["pending_ceo", "approved_ceo"].includes(expense.status) && (
             <Button
@@ -250,6 +250,20 @@ const ExpenseDetail = () => {
                 : <Crown className="w-4 h-4" />}
               Отправить CEO
             </Button>
+          )}
+
+          {/* Safina: Return from CFO to review */}
+          {store.isSafina() && expense.status === "pending_senior" && (
+             <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 border-orange-200 text-orange-700 hover:bg-orange-50"
+                onClick={() => handleStatusChange("review")}
+                disabled={statusMutation.isPending}
+             >
+                <RotateCcw className="w-4 h-4" />
+                Вернуть на рассмотрение
+             </Button>
           )}
         </div>
       )}

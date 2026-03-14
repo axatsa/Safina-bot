@@ -21,12 +21,14 @@ def get_currency_kb():
     b.button(text="USD")
     return b.as_markup(resize_keyboard=True)
 
-def get_main_kb():
+def get_main_kb(is_ceo: bool = False):
     b = ReplyKeyboardBuilder()
     b.button(text="Создать заявку (в боте)")
     b.button(text="Оформить возврат (в боте)")
     b.button(text="Создать заявку (Web-App)")
     b.button(text="Создать возврат (Web-App)")
+    if is_ceo:
+        b.button(text="🔄 Проверить новые заявки")
     b.adjust(1)
     return b.as_markup(resize_keyboard=True)
 
@@ -72,6 +74,6 @@ def get_refund_confirm_markup(expense_id: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="✏️ Карту",       callback_data="refund_edit_card_number"),
         ],
         [
-            InlineKeyboardButton(text="✅ Отправить заявку Сафине", callback_data="refund_submit"),
+            InlineKeyboardButton(text="✅ Отправить заявку", callback_data="refund_submit"),
         ],
     ])

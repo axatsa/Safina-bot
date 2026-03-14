@@ -27,7 +27,7 @@ const AppSidebar = () => {
     { title: "Новая заявка", url: "/submit", icon: Send, show: true },
     { title: "Согласования", url: "/dashboard/approvals", icon: ShieldCheck, show: isAdmin || store.isSeniorFinancier() || store.isCeo() || isSafina },
     { title: "Возвраты", url: "/dashboard/refunds", icon: RotateCcw, show: !isFarrukh },
-    { title: "Статистика", url: "/dashboard/statistics", icon: BarChart, show: isAdmin },
+    { title: "Статистика", url: "/dashboard/statistics", icon: BarChart, show: isAdmin || store.isSeniorFinancier() },
     { title: "Архив", url: "/dashboard/archive", icon: Archive, show: true },
     { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen, show: isAdmin },
     { title: "Команда", url: "/dashboard/team", icon: Users, show: store.canManageTeam() && !isFarrukh },

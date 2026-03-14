@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
 import { ExpenseRequest, STATUS_LABELS } from "@/lib/types";
-import { Loader2, ExternalLink, RefreshCw } from "lucide-react";
+import { Loader2, ExternalLink, RefreshCw, Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -19,7 +19,7 @@ const Refunds = () => {
   });
 
   const refunds = expenses.filter(
-    (e) => e.requestType === "refund" || (e as any).request_type === "refund"
+    (e) => e.requestType === "refund"
   );
 
   const filtered = refunds.filter((e) => {
@@ -46,10 +46,16 @@ const Refunds = () => {
           <h1 className="text-2xl font-display font-bold text-foreground">Возвраты</h1>
           <p className="text-sm text-muted-foreground mt-1">Заявки на возврат средств ученикам</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Обновить
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => store.exportXLSX({ allStatuses: true, project: 'all' })}>
+            <Download className="w-4 h-4 mr-2" />
+            Скачать XLSX
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Обновить
+          </Button>
+        </div>
       </div>
 
       <div className="relative">

@@ -21,10 +21,11 @@ async def start_wizard_selection(message: types.Message, state: FSMContext):
             await message.answer("Сначала авторизуйтесь: /start")
             return
         if len(user.projects) > 1:
+            await state.update_data(user_id=user.id)
             await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
             await state.set_state(ExpenseWizard.project_selection)
         elif len(user.projects) == 1:
-            await state.update_data(project_id=user.projects[0].id)
+            await state.update_data(project_id=user.projects[0].id, user_id=user.id)
             await message.answer("Введите дату или «Сейчас»:", reply_markup=get_date_kb())
             await state.set_state(ExpenseWizard.date)
         else:

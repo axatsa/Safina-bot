@@ -72,6 +72,6 @@ def get_refund_confirm_markup(expense_id: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="✏️ Карту",       callback_data="refund_edit_card_number"),
         ],
         [
-            InlineKeyboardButton(text="✅ Отправить заявку Сафине", callback_data="refund_submit"),
+            InlineKeyboardButton(text="✅ Отправить заявку", callback_data="refund_submit"),
         ],
     ])
