@@ -68,24 +68,31 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Safina API", lifespan=lifespan)
 
-# Allowed origins
-origins = [
-    "https://finance.thompson.uz",
-    "https://api-finance.thompson.uz",
-    "http://finance.thompson.uz",
-    "http://api-finance.thompson.uz",
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:8080",
-    "http://localhost:8000",
-]
+# Allowed origins configuration
+allowed_origins_env = os.getenv("CORS_ORIGINS", "")
+if allowed_origins_env:
+    origins = [o.strip() for o in allowed_origins_env.split(",")]
+else:
+    # Built-in defaults
+    origins = [
+        "https://finance.thompson.uz",
+        "https://api-finance.thompson.uz",
+        "http://finance.thompson.uz",
+        "http://api-finance.thompson.uz",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:8080",
+        "http://localhost:8000",
+    ]
+
+cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX", r"https?://.*\.thompson\.uz")
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle FastAPI HTTPExtensions with a consistent JSON format."""
     logger.error(f"HTTP Error: {exc.status_code} - {exc.detail} | Path: {request.url.path}")
-    response = JSONResponse(
+    return JSONResponse(
         status_code=exc.status_code,
         content={
             "status": "error",
@@ -93,24 +100,12 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "path": request.url.path
         },
     )
-    # CORS headers for exceptions
-    origin = request.headers.get("origin")
-    if origin in origins or not origin:
-        response.headers["Access-Control-Allow-Origin"] = origin or "*"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-    else:
-        response.headers["Access-Control-Allow-Origin"] = origins[0]
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all for any unexpected application errors."""
     logger.critical(f"Uncaught Exception: {str(exc)} | Path: {request.url.path}", exc_info=True)
-    response = JSONResponse(
+    return JSONResponse(
         status_code=500,
         content={
             "status": "critical_error",
@@ -118,19 +113,6 @@ async def global_exception_handler(request: Request, exc: Exception):
             "detail": str(exc) if os.getenv("DEBUG") == "true" else "Contact administrator"
         },
     )
-    
-    # CORS headers for exceptions
-    origin = request.headers.get("origin")
-    if origin in origins or not origin:
-        response.headers["Access-Control-Allow-Origin"] = origin or "*"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-    else:
-        response.headers["Access-Control-Allow-Origin"] = origins[0]
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
 
 # Add structured logging middleware
 app.add_middleware(LoggingMiddleware)
@@ -138,6 +120,7 @@ app.add_middleware(LoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

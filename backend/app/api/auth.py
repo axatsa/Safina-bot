@@ -61,12 +61,13 @@ def login(request: schemas.LoginRequest, db: Session = Depends(database.get_db))
             logger.warning(f"User not found: {input_login}")
             
     except Exception as e:
-        logger.error(f"Database error during login for {input_login}: {str(e)}", exc_info=True)
+        logger.error(f"DATABASE ERROR during login for '{input_login}': {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during authentication"
+            detail=f"Database connectivity error: {str(e)}" if os.getenv('DEBUG') == 'true' else "Internal server error during authentication"
         )
         
+    logger.warning(f"AUTH FAILED: Incorrect login or password for user '{input_login}'")
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Incorrect login or password",

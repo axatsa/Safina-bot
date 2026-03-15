@@ -21,8 +21,10 @@ EXPOSE 8000
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-# Make entrypoint script executable
-RUN chmod +x scripts/entrypoint.sh
+# Make entrypoint script executable and ensure LF line endings
+RUN apt-get update && apt-get install -y sed && \
+    sed -i 's/\r$//' scripts/entrypoint.sh && \
+    chmod +x scripts/entrypoint.sh
 
 # Run the application
-ENTRYPOINT ["scripts/entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "/app/scripts/entrypoint.sh"]
