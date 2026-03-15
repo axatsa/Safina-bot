@@ -18,7 +18,7 @@ class CurrencyService:
         redis_url = os.getenv("REDIS_URL")
         self.redis = redis.from_url(redis_url) if redis_url else None
 
-    async def get_usd_rate(self) -> float:
+    async def get_usd_rate(self) -> Decimal:
         """Get current USD to UZS rate from CBU."""
         if self.redis:
             cached = await self.redis.get(self.CACHE_KEY)

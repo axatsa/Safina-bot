@@ -122,6 +122,24 @@ def get_expenses(db: Session, project_id: str = None, status: str = None, user_i
         query = query.filter(models.ExpenseRequest.created_by_id == user_id)
     return query.order_by(models.ExpenseRequest.date.desc()).offset(skip).limit(limit).all()
 
+def count_expenses(
+    db: Session,
+    project_id: str = None,
+    status: str = None,
+    user_id: str = None
+) -> int:
+    """Считает количество заявок по тем же фильтрам что get_expenses."""
+    query = db.query(models.ExpenseRequest)
+
+    if user_id:
+        query = query.filter(models.ExpenseRequest.created_by_id == user_id)
+    if project_id:
+        query = query.filter(models.ExpenseRequest.project_id == project_id)
+    if status:
+        query = query.filter(models.ExpenseRequest.status == status)
+
+    return query.count()
+
 def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, user_id: str, usd_rate: Decimal = None):
     if user_id == "admin":
         user_name = "Safina Admin"

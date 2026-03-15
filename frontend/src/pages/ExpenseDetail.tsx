@@ -220,8 +220,10 @@ const ExpenseDetail = () => {
             ))}
             {expense.usdRate && (
                <div className="glass-card rounded-lg p-3 bg-indigo-50/50 border-indigo-100">
-                  <p className="text-xs text-indigo-600 font-semibold">Курс USD</p>
-                  <p className="font-bold text-sm mt-1 text-indigo-900">{expense.usdRate.toLocaleString()}</p>
+                  <p className="text-xs text-indigo-600 font-semibold">Курс USD (на дату)</p>
+                  <p className="font-bold text-sm mt-1 text-indigo-900">
+                    {expense.usdRate.toLocaleString()} сум / $
+                  </p>
                </div>
             )}
           </div>
@@ -254,7 +256,14 @@ const ExpenseDetail = () => {
               <tfoot>
                 <tr className="bg-muted/30 font-semibold">
                   <td className="py-3 px-4" colSpan={2}>Итого</td>
-                  <td className="py-3 px-4 text-right">{expense.totalAmount.toLocaleString()} {expense.currency}</td>
+                  <td className="py-3 px-4 text-right">
+                    {expense.totalAmount.toLocaleString()} {expense.currency}
+                    {expense.currency === "USD" && expense.usdRate && (
+                      <div className="text-xs text-muted-foreground font-normal mt-0.5">
+                        ≈ {(expense.totalAmount * expense.usdRate).toLocaleString()} UZS
+                      </div>
+                    )}
+                  </td>
                 </tr>
               </tfoot>
             </table>

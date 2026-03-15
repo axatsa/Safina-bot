@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
 import { ExpenseRequest, ExpenseStatus, KANBAN_STATUSES, APPROVAL_STATUSES, STATUS_LABELS } from "@/lib/types";
@@ -7,7 +7,7 @@ import CompactExpenseCard from "@/components/CompactExpenseCard";
 import FilterBar from "@/components/FilterBar";
 import { ChevronDown, ChevronRight, Loader2, DollarSign, FileText, Clock, CheckCircle, UserCheck, ExternalLink } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const kanbanColors: Record<string, string> = {
@@ -29,12 +29,39 @@ const Applications = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [collapsedColumns, setCollapsedColumns] = useState<Record<string, boolean>>({});
 
+  const [skip, setSkip] = useState(0);
+  const [allExpenses, setAllExpenses] = useState<ExpenseRequest[]>([]);
+  const LIMIT = 50;
+
   // Fecthing expenses via React Query
-  const { data: expenses = [], isLoading } = useQuery({
-    queryKey: ["expenses"],
-    queryFn: () => store.getExpenses(),
-    refetchInterval: 10000, // Refresh every 10 seconds
+  const { data: expensesPage, isLoading, isFetching } = useQuery({
+    queryKey: ["expenses", skip],
+    queryFn: () => store.getExpenses({ skip, limit: LIMIT }),
+    refetchInterval: 10000,
+    placeholderData: keepPreviousData,
   });
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setSkip(0);
+    setAllExpenses([]);
+  }, [selectedProject, selectedUser, searchQuery, dateRange]);
+
+  // Accumulate items when pages are loaded
+  useEffect(() => {
+    if (expensesPage?.items) {
+      if (skip === 0) {
+        setAllExpenses(expensesPage.items);
+      } else {
+        setAllExpenses(prev => {
+          // Prevent duplicates if query refetches
+          const existingIds = new Set(prev.map(e => e.id));
+          const newItems = expensesPage!.items.filter(e => !existingIds.has(e.id));
+          return [...prev, ...newItems];
+        });
+      }
+    }
+  }, [expensesPage, skip]);
 
   // Fetching projects
   const { data: projects = [] } = useQuery({
@@ -61,7 +88,7 @@ const Applications = () => {
   });
 
   const filtered = useMemo(() => {
-    return expenses.filter((e) => {
+    return allExpenses.filter((e) => {
       // Basic Status Filter (Archive is separate)
       if (e.status === "archived") return false;
 
@@ -111,7 +138,7 @@ const Applications = () => {
     if (!destination) return;
 
     const newStatus = destination.droppableId as ExpenseStatus;
-    const item = expenses.find(e => e.id === draggableId);
+    const item = allExpenses.find(e => e.id === draggableId);
 
     if (item && item.status !== newStatus) {
       if (newStatus === "declined" || newStatus === "revision") {
@@ -273,6 +300,30 @@ const Applications = () => {
             </div>
           </DragDropContext>
         </div>
+      </div>
+
+      {/* Pagination Footer */}
+      <div className="flex flex-col items-center gap-4 py-6 border-t mt-6">
+        <p className="text-sm text-muted-foreground">
+          Показано {allExpenses.length} из {expensesPage?.total ?? 0} инвестиций
+        </p>
+        
+        {expensesPage?.has_more && (
+          <button
+            onClick={() => setSkip(prev => prev + LIMIT)}
+            disabled={isFetching}
+            className="flex items-center gap-2 px-8 py-2.5 rounded-lg border bg-background hover:bg-accent transition-colors disabled:opacity-50"
+          >
+            {isFetching ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Загрузка...</span>
+              </>
+            ) : (
+              <span>Загрузить ещё</span>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from typing import List, Optional
 from datetime import datetime
@@ -24,9 +24,9 @@ class CurrencyEnum(str, Enum):
     USD = "USD"
 
 class ExpenseItemSchema(BaseModel):
-    name: str
-    quantity: Decimal
-    amount: Decimal
+    name: str = Field(..., min_length=1, max_length=200, description="Наименование товара или услуги")
+    quantity: Decimal = Field(..., gt=0, description="Количество, должно быть больше нуля")
+    amount: Decimal = Field(..., gt=0, description="Цена за единицу, должна быть больше нуля")
     currency: CurrencyEnum
 
 # Project Schemas
@@ -87,8 +87,8 @@ class RefundDataSchema(BaseModel):
     team: Optional[str] = None     # Команда сотрудника (из TeamMember.team)
 
 class ExpenseRequestCreate(BaseModel):
-    purpose: str
-    items: List[ExpenseItemSchema]
+    purpose: str = Field(..., min_length=1, max_length=500)
+    items: List[ExpenseItemSchema] = Field(..., min_length=1, max_length=50, description="От 1 до 50 позиций")
     project_id: Optional[str] = None
     total_amount: Optional[Decimal] = None
     currency: Optional[CurrencyEnum] = None
@@ -131,6 +131,16 @@ class ExpenseRequestSchema(ExpenseRequestCreate):
     class Config:
         from_attributes = True
 
+class PaginatedExpensesSchema(BaseModel):
+    items: List[ExpenseRequestSchema]
+    total: int        # всего записей в БД по текущим фильтрам
+    skip: int         # с какой записи начали
+    limit: int        # сколько запросили
+    has_more: bool    # есть ли ещё записи после текущей страницы
+
+    class Config:
+        from_attributes = True
+
 # Auth Schemas
 class Token(BaseModel):
     access_token: str
@@ -144,3 +154,6 @@ class TokenData(BaseModel):
 class LoginRequest(BaseModel):
     login: str
     password: str
+
+class TeamMemberStatusUpdate(BaseModel):
+    status: str  # "active" или "blocked"

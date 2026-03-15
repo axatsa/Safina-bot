@@ -37,7 +37,15 @@ SEEDED_USERS = [
 def _seed_user(db: Session, user_data: dict) -> None:
     """Create or update a single seeded user."""
     login = os.getenv(user_data["login_env_key"], user_data["default_login"])
-    password = os.getenv(user_data["password_env_key"], user_data["default_password"])
+    
+    # Check if using default password
+    env_password = os.getenv(user_data["password_env_key"])
+    if not env_password:
+        logger.warning(f"⚠️ {user_data['password_env_key']} not set in environment! Using default password — CHANGE THIS IN PRODUCTION")
+        password = user_data["default_password"]
+    else:
+        password = env_password
+        
     hashed_password = auth.get_password_hash(password)
 
     user = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()

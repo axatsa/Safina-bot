@@ -21,5 +21,8 @@ EXPOSE 8000
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
+# Make entrypoint script executable
+RUN chmod +x scripts/entrypoint.sh
+
 # Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["scripts/entrypoint.sh"]

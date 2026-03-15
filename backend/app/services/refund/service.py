@@ -59,7 +59,7 @@ def validate_card_number(card_number: str) -> Tuple[bool, str]:
 
 def save_receipt_photo(upload_file) -> str:
     """Сохраняет загруженный файл чека и возвращает путь."""
-    upload_dir = "uploads/receipts"
+    upload_dir = os.path.join(os.getenv("UPLOAD_DIR", "/app/uploads"), "receipts")
     os.makedirs(upload_dir, exist_ok=True)
     ext = upload_file.filename.rsplit(".", 1)[-1] if "." in upload_file.filename else "jpg"
     filename = f"{uuid.uuid4()}.{ext}"

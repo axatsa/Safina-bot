@@ -1,37 +1,50 @@
 import { apiFetch } from "../api-client";
-import { ExpenseRequest, ExpenseStatus } from "../types";
+import { ExpenseRequest, ExpenseStatus, PaginatedResponse } from "../types";
 
 export const expensesService = {
-  getExpenses: async (params?: { project?: string; status?: string }): Promise<ExpenseRequest[]> => {
+  getExpenses: async (params?: { 
+    project?: string; 
+    status?: string;
+    skip?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<ExpenseRequest>> => {
     const searchParams = new URLSearchParams();
     if (params?.project) searchParams.append("project", params.project);
     if (params?.status) searchParams.append("status", params.status);
+    searchParams.append("skip", String(params?.skip ?? 0));
+    searchParams.append("limit", String(params?.limit ?? 50));
     
-    const endpoint = `/expenses${searchParams.toString() ? "?" + searchParams.toString() : ""}`;
+    const endpoint = `/expenses?${searchParams.toString()}`;
     const res = await apiFetch(endpoint);
     const data = await res.json();
     
-    return data.map((e: any) => ({
-      id: e.id,
-      requestId: e.request_id,
-      purpose: e.purpose,
-      items: e.items,
-      totalAmount: e.total_amount,
-      currency: e.currency,
-      projectId: e.project_id,
-      projectName: e.project_name,
-      projectCode: e.project_code,
-      status: e.status,
-      statusComment: e.status_comment,
-      internalComment: e.internal_comment,
-      createdBy: e.created_by,
-      createdById: e.created_by_id,
-      requestType: e.request_type,
-      refundData: e.refund_data,
-      receiptPhotoFileId: e.receipt_photo_file_id,
-      date: new Date(e.date),
-      createdAt: new Date(e.created_at),
-    }));
+    return {
+      items: data.items.map((e: any) => ({
+        id: e.id,
+        requestId: e.request_id,
+        purpose: e.purpose,
+        items: e.items,
+        totalAmount: e.total_amount,
+        currency: e.currency,
+        projectId: e.project_id,
+        projectName: e.project_name,
+        projectCode: e.project_code,
+        status: e.status,
+        statusComment: e.status_comment,
+        internalComment: e.internal_comment,
+        createdBy: e.created_by,
+        createdById: e.created_by_id,
+        requestType: e.request_type,
+        refundData: e.refund_data,
+        receiptPhotoFileId: e.receipt_photo_file_id,
+        date: new Date(e.date),
+        createdAt: new Date(e.created_at),
+      })),
+      total: data.total,
+      skip: data.skip,
+      limit: data.limit,
+      has_more: data.has_more,
+    };
   },
 
   updateExpenseStatus: async (expenseId: string, status: ExpenseStatus, comment?: string): Promise<ExpenseRequest> => {

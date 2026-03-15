@@ -3,10 +3,12 @@ import asyncio
 import os
 import contextlib
 from typing import AsyncGenerator
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
 
@@ -15,7 +17,8 @@ load_dotenv()
 from app.core.logging_config import setup_logging, get_logger
 from app.core.logging_middleware import LoggingMiddleware
 from app.core.database import engine, Base
-from app.api import auth, projects, expenses, team, notifications, analytics
+from app.core import database
+from app.api import auth, projects, expenses, team, notifications, analytics, blanks
 from app.db import models, schemas, seed
 from app.services.bot.main import main as bot_main
 
@@ -90,10 +93,15 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "path": request.url.path
         },
     )
-    # Permissive CORS for troubleshooting - returning * is safest for 'removing cross-origin'
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    # Credentials must be false if origin is *
-    response.headers["Access-Control-Allow-Credentials"] = "false"
+    # CORS headers for exceptions
+    origin = request.headers.get("origin")
+    if origin in origins or not origin:
+        response.headers["Access-Control-Allow-Origin"] = origin or "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    else:
+        response.headers["Access-Control-Allow-Origin"] = origins[0]
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        
     response.headers["Access-Control-Allow-Methods"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "*"
     return response
@@ -110,9 +118,16 @@ async def global_exception_handler(request: Request, exc: Exception):
             "detail": str(exc) if os.getenv("DEBUG") == "true" else "Contact administrator"
         },
     )
-    # Permissive CORS for troubleshooting
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Credentials"] = "false"
+    
+    # CORS headers for exceptions
+    origin = request.headers.get("origin")
+    if origin in origins or not origin:
+        response.headers["Access-Control-Allow-Origin"] = origin or "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    else:
+        response.headers["Access-Control-Allow-Origin"] = origins[0]
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+
     response.headers["Access-Control-Allow-Methods"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "*"
     return response
@@ -136,19 +151,31 @@ app.include_router(expenses.router, prefix="/api")
 app.include_router(team.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
+app.include_router(blanks.router, prefix="/api")
 
 @app.get("/ping")
 async def ping():
     return "pong"
 
 @app.get("/api/health")
-async def health_check():
-    return {
+async def health_check(db: Session = Depends(database.get_db)):
+    health_status = {
         "status": "ok", 
         "version": "1.1.4", 
         "database": "connected",
-        "cors": "permissive"
+        "bot": "running" if os.getenv("BOT_TOKEN") else "not_configured"
     }
+    
+    try:
+        # Real database check
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        logger.error(f"Health check failed: Database error: {str(e)}")
+        health_status["database"] = "error"
+        health_status["status"] = "unhealthy"
+        return JSONResponse(status_code=503, content=health_status)
+        
+    return health_status
 
 if __name__ == "__main__":
     import uvicorn

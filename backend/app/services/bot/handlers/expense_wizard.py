@@ -9,8 +9,9 @@ from app.core import database
 from app.db import models, schemas, crud
 from ..states import ExpenseWizard
 from ..keyboards import get_confirm_kb, get_date_kb, get_currency_kb, get_projects_kb, get_main_kb, get_back_kb
-from ..utils import tashkent_now, _BACK
+from .utils import tashkent_now, _BACK
 from decimal import Decimal
+from app.services.currency.service import currency_service
 
 router = Router()
 
@@ -158,9 +159,20 @@ async def process_item_currency(message: types.Message, state: FSMContext):
         "amount": data.get("current_item_amount"),
         "currency": currency
     })
-    await state.update_data(items=items)
-    await message.answer("Позиция добавлена. Еще?", reply_markup=get_confirm_kb())
-    await state.set_state(ExpenseWizard.confirm)
+    MAX_ITEMS = 50
+    if len(items) >= MAX_ITEMS:
+        await message.answer(
+            f"✅ Позиция добавлена. Достигнут максимум ({MAX_ITEMS} позиций).\n"
+            "Переходим к подтверждению.",
+            reply_markup=types.ReplyKeyboardRemove()
+        )
+        await state.set_state(ExpenseWizard.confirm)
+    else:
+        await message.answer(
+            f"✅ Позиция добавлена ({len(items)}/{MAX_ITEMS}). Добавить еще?",
+            reply_markup=get_confirm_kb()
+        )
+        await state.set_state(ExpenseWizard.confirm)
 
 @router.message(ExpenseWizard.confirm, F.text == "Добавить ещё позицию")
 async def process_add_more(message: types.Message, state: FSMContext):
@@ -188,7 +200,8 @@ async def process_finish(message: types.Message, state: FSMContext):
                 project_id=data.get("project_id"),
                 date=datetime.datetime.fromisoformat(data.get("date")),
             )
-            db_expense = crud.create_expense_request(db, expense_create, user_id=data.get("user_id"))
+            usd_rate = await currency_service.get_usd_rate() if currency == "USD" else None
+            db_expense = crud.create_expense_request(db, expense_create, user_id=data.get("user_id"), usd_rate=usd_rate)
             await message.answer(f"✅ Заявка {db_expense.request_id} создана!", reply_markup=get_main_kb())
         except Exception as e:
             logger.error(f"Error creating expense via bot: {e}")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Response, File, Form, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Response, File, Form, UploadFile, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
@@ -34,10 +34,26 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
-@router.get("", response_model=List[schemas.ExpenseRequestSchema])
-def read_expenses(project: str = None, status: str = None, skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+@router.get("", response_model=schemas.PaginatedExpensesSchema)
+def read_expenses(
+    project: str = None,
+    status: str = None,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(database.get_db),
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
     user_id = None if current_user.login == os.getenv("ADMIN_LOGIN", "safina") else current_user.id
-    return crud.get_expenses(db, project_id=project, status=status, user_id=user_id, skip=skip, limit=limit)
+    items = crud.get_expenses(db, project_id=project, status=status, user_id=user_id, skip=skip, limit=limit)
+    total = crud.count_expenses(db, project_id=project, status=status, user_id=user_id)
+    
+    return {
+        "items": items,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "has_more": (skip + limit) < total
+    }
 
 @router.post("", response_model=schemas.ExpenseRequestSchema)
 async def create_expense(expense: schemas.ExpenseRequestCreate, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
@@ -315,7 +331,7 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Request ID", "Date", "Project Code", "Project Name", "Responsible", "Status", "Item Name", "Qty", "Amount", "Currency", "USD Rate", "Amount in USD", "Total Amount"])
+    writer.writerow(["Request ID", "Date", "Project Code", "Project Name", "Responsible", "Status", "Item Name", "Qty", "Amount", "Currency", "USD Rate", "Amount in UZS"])
     
     status_map = {
         "request": "Запрос",
@@ -331,17 +347,17 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
     }
 
     for e in expenses:
-        usd_rate = Decimal(str(e.usd_rate)) if e.usd_rate else Decimal("1.0")
+        usd_rate = Decimal(str(e.usd_rate)) if e.usd_rate else None
         items = e.items if isinstance(e.items, list) else []
         for item in items:
             item_currency = item.get("currency", e.currency)
-            item_amount = Decimal(str(item.get("amount", 0))) * Decimal(str(item.get("quantity", 0)))
+            item_amount_native = Decimal(str(item.get("amount", 0))) * Decimal(str(item.get("quantity", 0)))
             
-            amount_in_usd = item_amount
-            if item_currency == "UZS" and usd_rate > 0:
-                amount_in_usd = item_amount / usd_rate
-            elif item_currency == "RUB": # Fallback if RUB appears
-                amount_in_usd = item_amount / Decimal("100") 
+            amount_uzs = item_amount_native
+            if item_currency == "USD" and usd_rate:
+                amount_uzs = item_amount_native * usd_rate
+            elif item_currency == "RUB" and usd_rate: # Assuming RUB to UZS conversion via USD rate if available
+                amount_uzs = item_amount_native / Decimal("100") * usd_rate # Example conversion, adjust as needed
 
             writer.writerow([
                 e.request_id,
@@ -354,9 +370,8 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
                 item.get("quantity", 0),
                 item.get("amount", 0),
                 item_currency,
-                usd_rate,
-                round(amount_in_usd, 2),
-                e.total_amount
+                float(usd_rate) if usd_rate else "",
+                float(round(amount_uzs, 2))
             ])
     
     content = output.getvalue()

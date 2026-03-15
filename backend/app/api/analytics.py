@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from app.db import models
 from app.core import database, auth
+from decimal import Decimal
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -64,7 +65,9 @@ def get_analytics(
         if expense.status not in ["confirmed", "approved_senior"]:
             continue
             
-        amount = float(expense.total_amount) if expense.total_amount else 0
+        amount = Decimal(str(expense.total_amount)) if expense.total_amount else Decimal("0")
+        if expense.currency == "USD" and expense.usd_rate:
+            amount *= Decimal(str(expense.usd_rate))
         req_type = expense.request_type # 'expense' or 'refund'
         
         if date_str not in timeline_data:

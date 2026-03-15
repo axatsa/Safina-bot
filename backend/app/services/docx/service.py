@@ -6,7 +6,7 @@ from .generator import generate_docx
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
 class DocxService:
-    DEFAULT_TEMPLATE = "Managment.docx"
+    DEFAULT_TEMPLATE = "Management.docx"
     REFUND_TEMPLATE = "Заявление_на_возврат_денег.docx"
     
     BRANCH_MAPPING = {
@@ -59,7 +59,7 @@ class DocxService:
             "sender_position": expense.created_by_position or "Сотрудник",
             "purpose": expense.purpose,
             "items": items_data,
-            "total_amount": float(expense.total_amount),
+            "total_amount": Decimal(str(expense.total_amount)),
             "currency": expense.currency,
             "request_id": expense.request_id,
             "date": expense.date,

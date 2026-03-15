@@ -36,7 +36,20 @@ def get_main_kb(is_ceo: bool = False):
         b.button(text="Оформить возврат (в боте)")
         b.button(text="Создать инвестицию (Web-App)")
         b.button(text="Создать возврат (Web-App)")
+        b.button(text="📋 Заполнить бланк LAND")
+        b.button(text="📋 Заполнить бланк ЛС")
+        b.button(text="📋 Заполнить бланк Management")
+        b.button(text="📋 Заполнить бланк School")
+        b.button(text="🧾 Заявление на возврат")
     b.adjust(1)
+    return b.as_markup(resize_keyboard=True)
+
+def get_fill_method_kb():
+    b = ReplyKeyboardBuilder()
+    b.button(text="📱 Заполнить в боте")
+    b.button(text="🌐 Открыть Web форму")
+    b.button(text=_BACK)
+    b.adjust(2, 1)
     return b.as_markup(resize_keyboard=True)
 
 def get_projects_kb(projects):

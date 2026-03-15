@@ -39,19 +39,19 @@ def generate_expenses_xlsx(expenses: list[models.ExpenseRequest]) -> io.BytesIO:
             item_currency = item.get("currency", e.currency)
             item_amount_native = Decimal(str(item.get("amount", 0))) * Decimal(str(item.get("quantity", 0)))
             
-            amount_usd = item_amount_native
-            if item_currency == "UZS" and usd_rate:
-                amount_usd = item_amount_native / usd_rate
+            amount_uzs = item_amount_native
+            if item_currency == "USD" and usd_rate:
+                amount_uzs = item_amount_native * usd_rate
             
             data.append({
                 "ID Запроса": e.request_id,
                 "Дата": e.date.strftime("%d.%m.%Y %H:%M"),
                 "Проект": f"{e.project_name} ({e.project_code})",
                 "Цель расхода": e.purpose,
-                "Сумма (Native)": float(item_amount_native),
+                "Сумма": float(item_amount_native),
                 "Валюта": item_currency,
                 "Курс USD": float(usd_rate) if usd_rate else None,
-                "Сумма (USD)": float(round(amount_usd, 2)),
+                "Сумма в UZS": float(round(amount_uzs, 2)),
                 "Ответственный": e.created_by,
                 "Статус": STATUS_MAP.get(e.status, e.status)
             })
@@ -91,20 +91,14 @@ def generate_expenses_xlsx(expenses: list[models.ExpenseRequest]) -> io.BytesIO:
         # Add SUM formulas if not empty
         if not df.empty:
             total_row = len(df) + 2
-            worksheet.cell(row=total_row, column=4, value="ИТОГО:").font = bold_font
-            worksheet.cell(row=total_row, column=4).border = thin_border
+            worksheet.cell(row=total_row, column=7, value="ИТОГО:").font = bold_font
+            worksheet.cell(row=total_row, column=7).border = thin_border
             
-            # Native Sum (col 5)
-            sum_cell_native = worksheet.cell(row=total_row, column=5)
-            sum_cell_native.value = f"=SUM(E2:E{total_row-1})"
-            sum_cell_native.font = bold_font
-            sum_cell_native.border = thin_border
-            
-            # USD Sum (col 8)
-            sum_cell_usd = worksheet.cell(row=total_row, column=8)
-            sum_cell_usd.value = f"=SUM(H2:H{total_row-1})"
-            sum_cell_usd.font = bold_font
-            sum_cell_usd.border = thin_border
+            # UZS Sum (col 8)
+            sum_cell_uzs = worksheet.cell(row=total_row, column=8)
+            sum_cell_uzs.value = f"=SUM(H2:H{total_row-1})"
+            sum_cell_uzs.font = bold_font
+            sum_cell_uzs.border = thin_border
 
     output.seek(0)
     return output

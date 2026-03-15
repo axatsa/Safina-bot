@@ -14,6 +14,8 @@ import SubmitExpense from "./pages/SubmitExpense";
 import Statistics from "./pages/Statistics";
 import Refunds from "./pages/Refunds";
 import Approvals from "./pages/Approvals";
+import AdminApprovals from "./pages/AdminApprovals";
+import BlankForm from "./pages/BlankForm";
 import NotFound from "./pages/NotFound";
 import { SSEProvider } from "./lib/contexts/SSEContext";
 
@@ -53,9 +55,11 @@ const App = () => (
               <Route path="team" element={<Team />} />
               <Route path="statistics" element={<Statistics />} />
               <Route path="approvals" element={<Approvals />} />
+              <Route path="admin-approvals" element={<AdminApprovals />} />
               <Route path="expense/:id" element={<ExpenseDetail />} />
             </Route>
             <Route path="/submit" element={<SubmitExpense />} />
+            <Route path="/blank" element={<BlankForm />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

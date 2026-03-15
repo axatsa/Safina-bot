@@ -37,3 +37,7 @@ backend/safina.db
 # Misc
 _obsolete
 node_modules/
+
+# Uploads
+uploads/*
+!uploads/.gitkeep

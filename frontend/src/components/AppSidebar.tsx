@@ -23,14 +23,19 @@ const AppSidebar = () => {
   };
 
   const menuItems = [
-    { title: "Инвестиции", url: "/dashboard", icon: ClipboardList, show: !isFarrukh },
-    { title: "Новая инвестиция", url: "/submit", icon: Send, show: true },
-    { title: "Согласования", url: "/dashboard/approvals", icon: ShieldCheck, show: isAdmin || store.isSeniorFinancier() || store.isCeo() || isSafina },
-    { title: "Возвраты", url: "/dashboard/refunds", icon: RotateCcw, show: !isFarrukh },
-    { title: "Статистика", url: "/dashboard/statistics", icon: BarChart, show: isAdmin || store.isSeniorFinancier() },
+    { title: "Заявки", url: "/dashboard", icon: ClipboardList, show: true },
+    { title: "Новая заявка", url: "/submit", icon: Send, show: true },
+    { 
+      title: isAdmin ? "Очередь обработки" : "Согласования", 
+      url: isAdmin ? "/dashboard/admin-approvals" : "/dashboard/approvals", 
+      icon: ShieldCheck, 
+      show: isAdmin || store.isSeniorFinancier() || store.isCeo() 
+    },
+    { title: "Возвраты", url: "/dashboard/refunds", icon: RotateCcw, show: true },
+    { title: "Статистика", url: "/dashboard/statistics", icon: BarChart, show: isAdmin },
     { title: "Архив", url: "/dashboard/archive", icon: Archive, show: true },
     { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen, show: isAdmin },
-    { title: "Команда", url: "/dashboard/team", icon: Users, show: store.canManageTeam() && !isFarrukh },
+    { title: "Команда", url: "/dashboard/team", icon: Users, show: store.canManageTeam() },
   ].filter(item => item.show);
 
   return (
