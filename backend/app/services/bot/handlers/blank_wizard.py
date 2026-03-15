@@ -1,5 +1,5 @@
 from aiogram import Router, types, F
-from aiogram.fsm.context import FContext
+from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 from app.core import database
@@ -21,14 +21,14 @@ BLANK_TYPES = {
 }
 
 @router.message(F.text.in_(BLANK_TYPES.keys()))
-async def start_blank_wizard(message: types.Message, state: FContext):
+async def start_blank_wizard(message: types.Message, state: FSMContext):
     template = BLANK_TYPES[message.text]
     await state.update_data(template=template, items=[])
     await state.set_state(BlankWizard.filling_method)
     await message.answer("Как хотите заполнить бланк?", reply_markup=get_fill_method_kb())
 
 @router.message(BlankWizard.filling_method)
-async def handle_filling_method(message: types.Message, state: FContext):
+async def handle_filling_method(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.clear()
         await message.answer("Главное меню", reply_markup=get_main_kb())
@@ -51,7 +51,7 @@ async def handle_filling_method(message: types.Message, state: FContext):
         await message.answer("Введите цель расхода:", reply_markup=get_back_kb())
 
 @router.message(BlankWizard.purpose)
-async def handle_purpose(message: types.Message, state: FContext):
+async def handle_purpose(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(BlankWizard.filling_method)
         await message.answer("Как хотите заполнить бланк?", reply_markup=get_fill_method_kb())
@@ -64,7 +64,7 @@ async def handle_purpose(message: types.Message, state: FContext):
     await message.answer(f"Позиция {item_num}. Наименование:", reply_markup=get_back_kb())
 
 @router.message(BlankWizard.item_name)
-async def handle_item_name(message: types.Message, state: FContext):
+async def handle_item_name(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(BlankWizard.purpose)
         await message.answer("Введите цель расхода:", reply_markup=get_back_kb())
@@ -75,7 +75,7 @@ async def handle_item_name(message: types.Message, state: FContext):
     await message.answer("Количество:", reply_markup=get_back_kb())
 
 @router.message(BlankWizard.item_qty)
-async def handle_item_qty(message: types.Message, state: FContext):
+async def handle_item_qty(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(BlankWizard.item_name)
         data = await state.get_data()
@@ -92,7 +92,7 @@ async def handle_item_qty(message: types.Message, state: FContext):
         await message.answer("Пожалуйста, введите число.")
 
 @router.message(BlankWizard.item_amount)
-async def handle_item_amount(message: types.Message, state: FContext):
+async def handle_item_amount(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(BlankWizard.item_qty)
         await message.answer("Количество:", reply_markup=get_back_kb())
@@ -107,7 +107,7 @@ async def handle_item_amount(message: types.Message, state: FContext):
         await message.answer("Пожалуйста, введите число.")
 
 @router.message(BlankWizard.item_currency)
-async def handle_item_currency(message: types.Message, state: FContext):
+async def handle_item_currency(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(BlankWizard.item_amount)
         await message.answer("Сумма за 1 ед.:", reply_markup=get_back_kb())
@@ -135,7 +135,7 @@ async def handle_item_currency(message: types.Message, state: FContext):
         await message.answer("Позиция сохранена. Добавить ещё или завершить?", reply_markup=get_confirm_kb())
 
 @router.message(BlankWizard.confirm)
-async def handle_confirm_items(message: types.Message, state: FContext):
+async def handle_confirm_items(message: types.Message, state: FSMContext):
     if message.text == "Добавить ещё позицию":
         await state.set_state(BlankWizard.item_name)
         data = await state.get_data()
@@ -153,7 +153,7 @@ async def handle_confirm_items(message: types.Message, state: FContext):
         await state.set_state(BlankWizard.item_currency)
         await message.answer("Валюта:", reply_markup=get_currency_kb())
 
-async def finish_items(message: types.Message, state: FContext):
+async def finish_items(message: types.Message, state: FSMContext):
     data = await state.get_data()
     items = data.get("items", [])
     total = sum(i["qty"] * i["amount"] for i in items)
@@ -180,7 +180,7 @@ async def finish_items(message: types.Message, state: FContext):
     await message.answer(summary, parse_mode="Markdown", reply_markup=builder.as_markup(resize_keyboard=True))
 
 @router.message(F.text == "📥 Скачать бланк", BlankWizard.confirm)
-async def download_blank(message: types.Message, state: FContext):
+async def download_blank(message: types.Message, state: FSMContext):
     data = await state.get_data()
     
     # Call our new API internally or via HTTP

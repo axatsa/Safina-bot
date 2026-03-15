@@ -1,5 +1,5 @@
 from aiogram import Router, types, F
-from aiogram.fsm.context import FContext
+from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 from app.core import database
@@ -13,12 +13,12 @@ import datetime
 router = Router()
 
 @router.message(F.text == "🧾 Заявление на возврат")
-async def start_refund_blank_wizard(message: types.Message, state: FContext):
+async def start_refund_blank_wizard(message: types.Message, state: FSMContext):
     await state.set_state(RefundBlankWizard.filling_method)
     await message.answer("Как хотите заполнить заявление?", reply_markup=get_fill_method_kb())
 
 @router.message(RefundBlankWizard.filling_method)
-async def handle_filling_method(message: types.Message, state: FContext):
+async def handle_filling_method(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.clear()
         await message.answer("Главное меню", reply_markup=get_main_kb())
@@ -39,7 +39,7 @@ async def handle_filling_method(message: types.Message, state: FContext):
         await message.answer("ФИО клиента (родителя):", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.client_name)
-async def handle_client_name(message: types.Message, state: FContext):
+async def handle_client_name(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.filling_method)
         await message.answer("Как хотите заполнить заявление?", reply_markup=get_fill_method_kb())
@@ -49,7 +49,7 @@ async def handle_client_name(message: types.Message, state: FContext):
     await message.answer("Серия паспорта:", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.passport_series)
-async def handle_passport_series(message: types.Message, state: FContext):
+async def handle_passport_series(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.client_name)
         await message.answer("ФИО клиента (родителя):", reply_markup=get_back_kb())
@@ -59,7 +59,7 @@ async def handle_passport_series(message: types.Message, state: FContext):
     await message.answer("Номер паспорта:", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.passport_number)
-async def handle_passport_number(message: types.Message, state: FContext):
+async def handle_passport_number(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.passport_series)
         await message.answer("Серия паспорта:", reply_markup=get_back_kb())
@@ -69,7 +69,7 @@ async def handle_passport_number(message: types.Message, state: FContext):
     await message.answer("Кем выдан паспорт:", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.passport_issued_by)
-async def handle_passport_issued_by(message: types.Message, state: FContext):
+async def handle_passport_issued_by(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.passport_number)
         await message.answer("Номер паспорта:", reply_markup=get_back_kb())
@@ -79,7 +79,7 @@ async def handle_passport_issued_by(message: types.Message, state: FContext):
     await message.answer("Дата выдачи паспорта:", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.passport_date)
-async def handle_passport_date(message: types.Message, state: FContext):
+async def handle_passport_date(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.passport_issued_by)
         await message.answer("Кем выдан паспорт:", reply_markup=get_back_kb())
@@ -89,7 +89,7 @@ async def handle_passport_date(message: types.Message, state: FContext):
     await message.answer("Номер телефона:", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.phone)
-async def handle_phone(message: types.Message, state: FContext):
+async def handle_phone(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.passport_date)
         await message.answer("Дата выдачи паспорта:", reply_markup=get_back_kb())
@@ -99,7 +99,7 @@ async def handle_phone(message: types.Message, state: FContext):
     await message.answer("Номер оферты/договора:", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.contract_number)
-async def handle_contract_number(message: types.Message, state: FContext):
+async def handle_contract_number(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.phone)
         await message.answer("Номер телефона:", reply_markup=get_back_kb())
@@ -109,7 +109,7 @@ async def handle_contract_number(message: types.Message, state: FContext):
     await message.answer("Дата оферты/договора:", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.contract_date)
-async def handle_contract_date(message: types.Message, state: FContext):
+async def handle_contract_date(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.contract_number)
         await message.answer("Номер оферты/договора:", reply_markup=get_back_kb())
@@ -125,7 +125,7 @@ async def handle_contract_date(message: types.Message, state: FContext):
     await message.answer("Причина возврата:", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @router.message(RefundBlankWizard.reason)
-async def handle_reason(message: types.Message, state: FContext):
+async def handle_reason(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.contract_date)
         await message.answer("Дата оферты/договора:", reply_markup=get_back_kb())
@@ -140,7 +140,7 @@ async def handle_reason(message: types.Message, state: FContext):
         await message.answer("Сумма возврата (числом):", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.reason_other)
-async def handle_reason_other(message: types.Message, state: FContext):
+async def handle_reason_other(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.reason)
         reasons = ["Переезд", "Изменение графика", "Несоответствие", "Материальные трудности", "По личным причинам", "Другое"]
@@ -156,7 +156,7 @@ async def handle_reason_other(message: types.Message, state: FContext):
     await message.answer("Сумма возврата (числом):", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.amount)
-async def handle_amount(message: types.Message, state: FContext):
+async def handle_amount(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         data = await state.get_data()
         if data.get("reason") == "Другое":
@@ -181,7 +181,7 @@ async def handle_amount(message: types.Message, state: FContext):
         await message.answer("Введите число.")
 
 @router.message(RefundBlankWizard.amount_words)
-async def handle_amount_words(message: types.Message, state: FContext):
+async def handle_amount_words(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.amount)
         await message.answer("Сумма возврата (числом):", reply_markup=get_back_kb())
@@ -191,7 +191,7 @@ async def handle_amount_words(message: types.Message, state: FContext):
     await message.answer("ФИО владельца карты:", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.card_holder)
-async def handle_card_holder(message: types.Message, state: FContext):
+async def handle_card_holder(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.amount_words)
         await message.answer("Сумма прописью:", reply_markup=get_back_kb())
@@ -201,7 +201,7 @@ async def handle_card_holder(message: types.Message, state: FContext):
     await message.answer("Номер карты:", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.card_number)
-async def handle_card_number(message: types.Message, state: FContext):
+async def handle_card_number(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.card_holder)
         await message.answer("ФИО владельца карты:", reply_markup=get_back_kb())
@@ -211,7 +211,7 @@ async def handle_card_number(message: types.Message, state: FContext):
     await message.answer("Транзитный счет банка (если есть):", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.transit_account)
-async def handle_transit(message: types.Message, state: FContext):
+async def handle_transit(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.card_number)
         await message.answer("Номер карты:", reply_markup=get_back_kb())
@@ -221,7 +221,7 @@ async def handle_transit(message: types.Message, state: FContext):
     await message.answer("Название банка и филиал:", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.bank_name)
-async def handle_bank(message: types.Message, state: FContext):
+async def handle_bank(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         await state.set_state(RefundBlankWizard.transit_account)
         await message.answer("Транзитный счет банка (если есть):", reply_markup=get_back_kb())
@@ -246,7 +246,7 @@ async def handle_bank(message: types.Message, state: FContext):
     await message.answer(summary, parse_mode="Markdown", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @router.message(F.text == "📥 Скачать заявление", RefundBlankWizard.confirm)
-async def download_refund_blank(message: types.Message, state: FContext):
+async def download_refund_blank(message: types.Message, state: FSMContext):
     data = await state.get_data()
     
     # Internal logic to generate DOCX
