@@ -1,0 +1,56 @@
+include:
+  - project: base/ci-cd
+    file: python.yml
+    ref: main
+
+variables:
+  PROJECT_DISPLAY_NAME: Thompson Finance Backend
+  DEPLOY_BASE_PATH: backend
+
+docker-build:
+  extends: .docker_build_template
+
+deploy:
+  extends: .deploy_template
+
+migrate:
+  stage: .post
+  image: alpine:latest
+  only:
+    - main
+  needs:
+    - deploy
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - echo "StrictHostKeyChecking no" >> ~/.ssh/config
+  script:
+    - |
+      ssh -p $SSH_PORT $SSH_USER@$SSH_HOST 'bash -s' << 'ENDSSH'
+        set -e
+        cd ~/backend/main
+
+        echo "Pulling new image..."
+        docker compose pull app
+
+        echo "Restarting only backend container..."
+        docker compose up -d --no-recreate app
+
+        echo "Forcing recreate if image changed..."
+        docker compose up -d app
+
+        echo "Running migrations..."
+        sleep 10
+        docker compose exec -T finance-backend-main alembic upgrade head
+
+        echo "Done! Backend status:"
+        docker ps | grep finance-backend
+      ENDSSH
+
+success:
+  extends: .notify_success_template
+
+failure:
+  extends: .notify_failure_template
