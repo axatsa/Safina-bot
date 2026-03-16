@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { store } from "@/lib/store";
-import { Project } from "@/lib/types";
+import { Project, AVAILABLE_TEMPLATES } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +17,7 @@ const Projects = () => {
     const [formData, setFormData] = useState({
         name: "",
         code: "",
+        templates: [] as string[],
     });
 
     const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
@@ -24,10 +26,10 @@ const Projects = () => {
     });
 
     const mutation = useMutation({
-        mutationFn: (newProject: { name: string; code: string }) => store.createProject(newProject),
+        mutationFn: (newProject: { name: string; code: string; templates: string[] }) => store.createProject(newProject),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
-            setFormData({ name: "", code: "" });
+            setFormData({ name: "", code: "", templates: [] });
             toast.success("Проект успешно создан");
         },
         onError: () => toast.error("Ошибка при создании проекта")
@@ -136,6 +138,44 @@ const Projects = () => {
                                 maxLength={10}
                             />
                         </div>
+
+                        <div className="space-y-2">
+                            <Label>Шаблоны бланков</Label>
+                            <p className="text-[10px] text-muted-foreground">
+                                Какие бланки доступны сотрудникам этого проекта
+                            </p>
+                            <div className="flex flex-wrap gap-2 pt-1">
+                                {AVAILABLE_TEMPLATES.map((tpl) => {
+                                    const selected = formData.templates.includes(tpl.key);
+                                    return (
+                                        <button
+                                            key={tpl.key}
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({
+                                                ...prev,
+                                                templates: selected
+                                                    ? prev.templates.filter(t => t !== tpl.key)
+                                                    : [...prev.templates, tpl.key]
+                                            }))}
+                                            className={cn(
+                                                "px-2 py-1 rounded-md text-[10px] border transition-colors",
+                                                selected
+                                                    ? "bg-primary text-primary-foreground border-primary"
+                                                    : "bg-background border-border hover:bg-muted"
+                                            )}
+                                        >
+                                            {tpl.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {formData.templates.length === 0 && (
+                                <p className="text-[10px] text-amber-500 italic">
+                                    ⚠️ Не выбрано — будут видны все
+                                </p>
+                            )}
+                        </div>
+
                         <Button type="submit" className="w-full" disabled={mutation.isPending}>
                             {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                             Создать
@@ -174,6 +214,21 @@ const Projects = () => {
                                                     <p className="font-display font-semibold text-sm">
                                                         {project.name}
                                                     </p>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {project.templates?.length > 0
+                                                            ? project.templates.map(key => {
+                                                                const tpl = AVAILABLE_TEMPLATES.find(t => t.key === key);
+                                                                return (
+                                                                    <span key={key} className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">
+                                                                        {tpl?.label ?? key}
+                                                                    </span>
+                                                                );
+                                                            })
+                                                            : <span className="text-[10px] text-muted-foreground italic">
+                                                                Шаблоны не настроены
+                                                            </span>
+                                                        }
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>

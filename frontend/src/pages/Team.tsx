@@ -11,7 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2, KeyRound } from "lucide-react";
+import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2, KeyRound, FileText } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AVAILABLE_TEMPLATES } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -85,6 +88,19 @@ const Team = () => {
         : [...prev.projectIds, id]
     }));
   };
+
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [activeMember, setActiveMember] = useState<TeamMember | null>(null);
+
+  const updateTemplatesMutation = useMutation({
+    mutationFn: ({ memberId, templates }: { memberId: string; templates: string[] }) =>
+      store.updateMemberTemplates(memberId, templates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team"] });
+      toast.success("Шаблоны обновлены");
+    },
+    onError: () => toast.error("Ошибка обновления шаблонов")
+  });
 
   return (
     <div className="p-6 space-y-8 animate-slide-in">
@@ -276,7 +292,19 @@ const Team = () => {
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-6 py-4 text-right space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              onClick={() => {
+                                setActiveMember(member);
+                                setTemplateDialogOpen(true);
+                              }}
+                              title="Личные шаблоны"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -296,6 +324,65 @@ const Team = () => {
           </div>
         </>
       )}
+
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Личные шаблоны: {activeMember?.lastName} {activeMember?.firstName}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Дополнительные шаблоны</Label>
+              <p className="text-xs text-muted-foreground">
+                Бланки сверх тех, что уже доступны через проекты
+              </p>
+              <div className="flex flex-wrap gap-2 pt-2">
+                {AVAILABLE_TEMPLATES.map((tpl) => {
+                  const fromProject = activeMember?.projects
+                    ?.flatMap(p => p.templates ?? [])
+                    .includes(tpl.key) ?? false;
+                  
+                  const isPersonal = activeMember?.templates?.includes(tpl.key) ?? false;
+
+                  return (
+                    <button
+                      key={tpl.key}
+                      type="button"
+                      disabled={fromProject}
+                      title={fromProject ? "Уже доступен через проект" : ""}
+                      onClick={() => {
+                        if (fromProject || !activeMember) return;
+                        const next = isPersonal
+                          ? (activeMember.templates ?? []).filter(t => t !== tpl.key)
+                          : [...(activeMember.templates ?? []), tpl.key];
+                        
+                        updateTemplatesMutation.mutate({
+                          memberId: activeMember.id,
+                          templates: next
+                        });
+                        // Optimistic update for local state
+                        setActiveMember({ ...activeMember, templates: next });
+                      }}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-sm border transition-colors",
+                        fromProject
+                          ? "bg-muted text-muted-foreground border-muted cursor-default opacity-60"
+                          : isPersonal
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background border-border hover:bg-muted"
+                      )}
+                    >
+                      {tpl.label}
+                      {fromProject && " (проект)"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

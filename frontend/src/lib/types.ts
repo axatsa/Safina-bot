@@ -2,6 +2,7 @@ export interface Project {
   id: string;
   name: string;
   code: string;
+  templates: string[];
   createdAt: Date;
   members: Array<{
     id: string;
@@ -30,6 +31,7 @@ export interface TeamMember {
   password?: string;
   branch?: string;
   team?: string;
+  templates: string[];
   status: "active" | "blocked";
   telegramChatId?: number;
   createdAt: Date;
@@ -121,3 +123,10 @@ export const APPROVAL_STATUSES: ExpenseStatus[] = [
 
 /** User roles used in localStorage */
 export type UserRole = "admin" | "senior_financier" | "ceo" | "user";
+
+export const AVAILABLE_TEMPLATES = [
+  { key: "land",       label: "📋 LAND"        },
+  { key: "drujba",     label: "📋 ЛС (Дружба)" },
+  { key: "management", label: "📋 Management"   },
+  { key: "school",     label: "📋 School"       },
+] as const;

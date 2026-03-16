@@ -21,6 +21,7 @@ export const teamService = {
       login: m.login,
       position: m.position,
       status: m.status,
+      templates: m.templates || [],
       telegramChatId: m.telegram_chat_id,
       createdAt: m.created_at
     }));
@@ -43,6 +44,7 @@ export const teamService = {
       id: data.id,
       lastName: data.last_name,
       firstName: data.first_name,
+      templates: data.templates || [],
       projectIds: (data.projects || []).map((p: any) => p.id),
       projects: (data.projects || []).map((p: any) => ({
         ...p,
@@ -58,5 +60,32 @@ export const teamService = {
 
   deleteTeamMember: async (id: string) => {
     await apiFetch(`/team/${id}`, { method: "DELETE" });
+  },
+
+  updateMemberTemplates: async (
+    memberId: string,
+    templates: string[]
+  ): Promise<TeamMember> => {
+    const res = await apiFetch(`/team/${memberId}/templates`, {
+      method: "PATCH",
+      body: JSON.stringify({ templates }),
+    });
+    const data = await res.json();
+    return {
+      id: data.id,
+      lastName: data.last_name,
+      firstName: data.first_name,
+      templates: data.templates || [],
+      projectIds: (data.projects || []).map((p: any) => p.id),
+      projects: (data.projects || []).map((p: any) => ({
+        ...p,
+        createdAt: new Date(p.created_at)
+      })),
+      login: data.login,
+      position: data.position,
+      status: data.status,
+      telegramChatId: data.telegram_chat_id,
+      createdAt: data.created_at
+    };
   },
 };

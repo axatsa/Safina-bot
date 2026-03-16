@@ -17,10 +17,25 @@ export const projectsService = {
     }));
   },
 
-  createProject: async (project: { name: string; code: string }): Promise<Project> => {
+  createProject: async (project: { name: string; code: string; templates: string[] }): Promise<Project> => {
     const res = await apiFetch("/projects", {
       method: "POST",
       body: JSON.stringify(project),
+    });
+    const data = await res.json();
+    return {
+      ...data,
+      createdAt: data.created_at
+    };
+  },
+
+  updateProjectTemplates: async (
+    projectId: string,
+    templates: string[]
+  ): Promise<Project> => {
+    const res = await apiFetch(`/projects/${projectId}/templates`, {
+      method: "PATCH",
+      body: JSON.stringify({ templates }),
     });
     const data = await res.json();
     return {
