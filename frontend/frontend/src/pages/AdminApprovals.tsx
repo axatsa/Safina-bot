@@ -77,7 +77,7 @@ const AdminApprovals = () => {
                       <p className="text-sm font-medium text-foreground mb-1 line-clamp-2">{e.purpose}</p>
                       <div className="flex items-center justify-between mt-3 pt-3 border-t">
                         <p className="text-sm font-bold">
-                          {Number(e.totalAmount).toLocaleString()} {e.currency}
+                          {Number(e.totalAmount || 0).toLocaleString()} {e.currency}
                         </p>
                         <p className="text-[10px] text-muted-foreground italic">{e.createdBy}</p>
                       </div>
