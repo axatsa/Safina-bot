@@ -127,7 +127,7 @@ const Applications = () => {
 
       return true;
     });
-  }, [expenses, selectedProject, selectedUser, dateRange, searchQuery]);
+  }, [allExpenses, selectedProject, selectedUser, dateRange, searchQuery]);
 
   const toggleColumn = (status: string) => {
     setCollapsedColumns((prev) => ({ ...prev, [status]: !prev[status] }));
