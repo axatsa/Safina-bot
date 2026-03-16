@@ -29,10 +29,24 @@ migrate:
   script:
     - |
       ssh -p $SSH_PORT $SSH_USER@$SSH_HOST 'bash -s' << 'ENDSSH'
+        set -e
         cd ~/backend/main
+
+        echo "Pulling new image..."
+        docker compose pull app
+
+        echo "Restarting only backend container..."
+        docker compose up -d --no-recreate app
+
+        echo "Forcing recreate if image changed..."
+        docker compose up -d app
+
         echo "Running migrations..."
-        docker-compose exec -T finance-backend-main alembic upgrade head
-        echo "Migrations done!"
+        sleep 10
+        docker compose exec -T finance-backend-main alembic upgrade head
+
+        echo "Done! Backend status:"
+        docker ps | grep finance-backend
       ENDSSH
 
 success:
