@@ -14,7 +14,7 @@ export const SSEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     useEffect(() => {
         // We only connect if we have a token (user is logged in)
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('safina_token');
         if (!token) return;
 
         // Use EventSource to connect to our new backend endpoint
