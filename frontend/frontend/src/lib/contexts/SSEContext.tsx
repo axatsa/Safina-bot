@@ -21,7 +21,8 @@ export const SSEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Add token to URL query param or rely on cookie if set
         // Here we'll pass it in URL since EventSource doesn't support custom headers easily natively
         // We assume backend auth middleware can check query params if needed, or we adapt as needed.
-        const url = new URL(`${import.meta.env.VITE_API_BASE_URL || ''}/api/notifications/stream`);
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+        const url = new URL('/api/notifications/stream', baseUrl);
         url.searchParams.append('token', token);
 
         const eventSource = new EventSource(url.toString());
