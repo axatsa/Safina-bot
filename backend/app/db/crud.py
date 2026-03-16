@@ -126,6 +126,10 @@ def get_expenses(db: Session, project_id: str = None, status: str = None, user_i
         query = query.filter(models.ExpenseRequest.created_by_id == user_id)
     return query.order_by(models.ExpenseRequest.date.desc()).offset(skip).limit(limit).all()
 
+def get_expense(db: Session, expense_id: str):
+    return db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+
+
 def count_expenses(
     db: Session,
     project_id: str = None,

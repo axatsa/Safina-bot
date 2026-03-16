@@ -84,6 +84,8 @@ export interface ExpenseRequest {
   projectCode: string;
   internalComment?: string;
   statusComment?: string;
+  refundData?: any;
+  receiptPhotoFileId?: string;
   createdAt: Date;
 }
 

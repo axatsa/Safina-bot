@@ -55,6 +55,25 @@ def read_expenses(
         "has_more": (skip + limit) < total
     }
 
+@router.get("/{expense_id}", response_model=schemas.ExpenseRequestSchema)
+def read_expense(
+    expense_id: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
+    expense = crud.get_expense(db, expense_id=expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+        
+    # Security: check if user has access to this expense
+    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
+    is_cfo = current_user.position == "senior_financier"
+    
+    if not (is_admin or is_cfo or expense.created_by_id == current_user.id):
+        raise HTTPException(status_code=403, detail="Not enough permissions to view this expense")
+        
+    return expense
+
 @router.post("", response_model=schemas.ExpenseRequestSchema)
 async def create_expense(expense: schemas.ExpenseRequestCreate, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     user_id = getattr(current_user, "id", None)

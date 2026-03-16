@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 import os
 from app.db import models, schemas
@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login", response_model=schemas.Token)
-def login(request: schemas.LoginRequest, db: Session = Depends(database.get_db)):
+def login(request: schemas.LoginRequest, response: Response, db: Session = Depends(database.get_db)):
     # Use environment variables for admin login for safety
     admin_login = os.getenv("ADMIN_LOGIN")
     admin_password = os.getenv("ADMIN_PASSWORD")
@@ -48,12 +48,25 @@ def login(request: schemas.LoginRequest, db: Session = Depends(database.get_db))
                 
             # Return the real position so the frontend can tailor its UI
             role = user.position if user.position in ("senior_financier", "ceo") else "user"
-            return {
+            
+            response_data = {
                 "access_token": access_token,
                 "token_type": "bearer",
                 "role": role,
                 "projectId": project_id,
             }
+            
+            # Set cookie for SSE security (Task 2)
+            response.set_cookie(
+                key="safina_token",
+                value=access_token,
+                httponly=True,
+                secure=os.getenv("ENVIRONMENT", "development") == "production",
+                samesite="lax",
+                max_age=365 * 24 * 60 * 60, # 1 year like the token
+            )
+            
+            return response_data
         
         if user:
             logger.warning(f"Invalid password for user: {input_login}")

@@ -37,7 +37,7 @@ const Applications = () => {
   const { data: expensesPage, isLoading, isFetching } = useQuery({
     queryKey: ["expenses", skip],
     queryFn: () => store.getExpenses({ skip, limit: LIMIT }),
-    refetchInterval: 10000,
+    refetchInterval: false, // Task 6: Disable polling, rely on SSE
     placeholderData: keepPreviousData,
   });
 
@@ -56,7 +56,7 @@ const Applications = () => {
         setAllExpenses(prev => {
           // Prevent duplicates if query refetches
           const existingIds = new Set(prev.map(e => e.id));
-          const newItems = expensesPage!.items.filter(e => !existingIds.has(e.id));
+          const newItems = (expensesPage?.items ?? []).filter(e => !existingIds.has(e.id));
           return [...prev, ...newItems];
         });
       }

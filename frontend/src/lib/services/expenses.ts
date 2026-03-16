@@ -1,6 +1,28 @@
 import { apiFetch } from "../api-client";
 import { ExpenseRequest, ExpenseStatus, PaginatedResponse } from "../types";
 
+const mapExpense = (e: any): ExpenseRequest => ({
+  id: e.id,
+  requestId: e.request_id,
+  purpose: e.purpose,
+  items: e.items,
+  totalAmount: e.total_amount,
+  currency: e.currency,
+  projectId: e.project_id,
+  projectName: e.project_name,
+  projectCode: e.project_code,
+  status: e.status,
+  statusComment: e.status_comment,
+  internalComment: e.internal_comment,
+  createdBy: e.created_by,
+  createdById: e.created_by_id,
+  requestType: e.request_type,
+  refundData: e.refund_data,
+  receiptPhotoFileId: e.receipt_photo_file_id,
+  date: new Date(e.date),
+  createdAt: new Date(e.created_at),
+});
+
 export const expensesService = {
   getExpenses: async (params?: { 
     project?: string; 
@@ -19,32 +41,18 @@ export const expensesService = {
     const data = await res.json();
     
     return {
-      items: data.items.map((e: any) => ({
-        id: e.id,
-        requestId: e.request_id,
-        purpose: e.purpose,
-        items: e.items,
-        totalAmount: e.total_amount,
-        currency: e.currency,
-        projectId: e.project_id,
-        projectName: e.project_name,
-        projectCode: e.project_code,
-        status: e.status,
-        statusComment: e.status_comment,
-        internalComment: e.internal_comment,
-        createdBy: e.created_by,
-        createdById: e.created_by_id,
-        requestType: e.request_type,
-        refundData: e.refund_data,
-        receiptPhotoFileId: e.receipt_photo_file_id,
-        date: new Date(e.date),
-        createdAt: new Date(e.created_at),
-      })),
+      items: data.items.map(mapExpense),
       total: data.total,
       skip: data.skip,
       limit: data.limit,
       has_more: data.has_more,
     };
+  },
+
+  getExpenseById: async (id: string): Promise<ExpenseRequest> => {
+    const res = await apiFetch(`/expenses/${id}`);
+    const e = await res.json();
+    return mapExpense(e);
   },
 
   updateExpenseStatus: async (expenseId: string, status: ExpenseStatus, comment?: string): Promise<ExpenseRequest> => {
