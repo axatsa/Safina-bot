@@ -35,7 +35,7 @@ const Approvals = () => {
 
   const { data: expensesPage, isLoading } = useQuery({
     queryKey: ["expenses"],
-    queryFn: () => store.getExpenses(),
+    queryFn: () => store.getExpenses({ limit: 1000 }),
   });
   
   const expenses = expensesPage?.items ?? [];
