@@ -116,7 +116,7 @@ const Archive = () => {
                   {expense.createdBy}
                 </td>
                 <td className="px-6 py-4 text-right font-display font-bold text-sm">
-                  {expense.totalAmount.toLocaleString()} {expense.currency}
+                  {Number(expense.totalAmount || 0).toLocaleString()} {expense.currency}
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-end gap-2">

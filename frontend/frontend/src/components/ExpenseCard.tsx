@@ -13,6 +13,12 @@ interface ExpenseCardProps {
 const statusColorMap: Record<ExpenseStatus, string> = {
   request: "bg-amber-100 text-amber-800",
   review: "bg-blue-100 text-blue-800",
+  pending_senior: "bg-amber-100/60 text-amber-800",
+  approved_senior: "bg-emerald-100/60 text-emerald-800",
+  rejected_senior: "bg-red-100/60 text-red-800",
+  pending_ceo: "bg-amber-100/60 text-amber-800",
+  approved_ceo: "bg-emerald-100/60 text-emerald-800",
+  rejected_ceo: "bg-red-100/60 text-red-800",
   confirmed: "bg-emerald-100 text-emerald-800",
   declined: "bg-red-100 text-red-800",
   revision: "bg-orange-100 text-orange-800",
@@ -55,7 +61,7 @@ const ExpenseCard = ({ expense }: ExpenseCardProps) => {
       <div className="pt-2 border-t space-y-1">
         <div className="flex items-center justify-between">
           <span className="font-display font-semibold text-sm text-foreground">
-            {expense.totalAmount.toLocaleString()}
+            {Number(expense.totalAmount || 0).toLocaleString()}
           </span>
           <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={handleDownload}>
             <Download className="w-3 h-3" />

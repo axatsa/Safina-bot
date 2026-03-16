@@ -1,99 +1,143 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface SSEContextType {
     isConnected: boolean;
+    reconnectCount: number;
 }
 
-const SSEContext = createContext<SSEContextType>({ isConnected: false });
+const SSEContext = createContext<SSEContextType>({ isConnected: false, reconnectCount: 0 });
 
 export const useSSE = () => useContext(SSEContext);
 
 export const SSEProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isConnected, setIsConnected] = useState(false);
+    const [reconnectCount, setReconnectCount] = useState(0);
+    const queryClient = useQueryClient();
+    const eventSourceRef = useRef<EventSource | null>(null);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    
+    // We track the token to handle login/logout
+    const [token, setToken] = useState<string | null>(localStorage.getItem('safina_token'));
 
-    const [token, setToken] = useState<string | null>(localStorage.getItem("safina_token"));
-
+    // Listen for storage changes (logout in other tabs)
     useEffect(() => {
-        const handleStorageChange = () => {
-            setToken(localStorage.getItem("safina_token"));
+        const handleStorage = () => {
+            const currentToken = localStorage.getItem('safina_token');
+            if (currentToken !== token) {
+                setToken(currentToken);
+            }
         };
-
-        window.addEventListener("storage", handleStorageChange);
-        // Also check periodically or on focus as 'storage' event only fires from other tabs
-        const interval = setInterval(handleStorageChange, 2000);
-
+        window.addEventListener('storage', handleStorage);
+        
+        // Also check periodically or via custom event if needed
+        const interval = setInterval(handleStorage, 2000);
+        
         return () => {
-            window.removeEventListener("storage", handleStorageChange);
+            window.removeEventListener('storage', handleStorage);
             clearInterval(interval);
         };
-    }, []);
+    }, [token]);
 
     useEffect(() => {
         if (!token) {
-            setIsConnected(false);
+            if (eventSourceRef.current) {
+                console.log('Closing SSE due to logout');
+                eventSourceRef.current.close();
+                eventSourceRef.current = null;
+                setIsConnected(false);
+            }
             return;
         }
 
-        const baseUrl = import.meta.env.VITE_APP_API_URL || 
-                        import.meta.env.VITE_API_URL || 
-                        import.meta.env.VITE_API_BASE_URL || 
-                        window.location.origin;
-        // Ensure baseUrl is a valid URL string
-        let validBaseUrl = baseUrl;
-        if (!baseUrl.startsWith('http')) {
-            validBaseUrl = window.location.origin;
-        }
-        
-        try {
-            const url = new URL('/api/notifications/stream', validBaseUrl);
-            url.searchParams.append('token', token);
+        const connect = () => {
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+            }
 
-            const eventSource = new EventSource(url.toString());
+            console.log(`Connecting to SSE (Attempt ${reconnectCount + 1})...`);
+            
+            // Handle cross-platform API URL
+            const baseUrl = import.meta.env.VITE_APP_API_URL || 
+                            import.meta.env.VITE_API_URL || 
+                            import.meta.env.VITE_API_BASE_URL || 
+                            window.location.origin;
 
-            eventSource.onopen = () => {
-                console.log('SSE connection opened.');
-                setIsConnected(true);
-            };
+            let validBaseUrl = baseUrl;
+            if (!baseUrl.startsWith('http')) {
+                validBaseUrl = window.location.origin;
+            }
 
-            eventSource.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    console.log('SSE message received:', data);
+            try {
+                const url = new URL('/api/notifications/stream', validBaseUrl);
+                // We pass token as query param since EventSource doesn't support headers natively
+                url.searchParams.append('token', token);
+                
+                const es = new EventSource(url.toString(), { withCredentials: true });
+                eventSourceRef.current = es;
 
-                    // Show a UI toast map
-                    if (data.title && data.message) {
-                        toast(data.title, { description: data.message });
-                    } else {
-                        toast('Новое уведомление', { description: JSON.stringify(data) });
+                es.onopen = () => {
+                    console.log('SSE connection established');
+                    setIsConnected(true);
+                    setReconnectCount(0);
+                };
+
+                es.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('SSE message received:', data);
+
+                        // Invalidate queries to keep data fresh
+                        queryClient.invalidateQueries();
+
+                        if (data.title && data.message) {
+                            toast(data.title, { description: data.message });
+                        }
+                    } catch (err) {
+                        console.error('Error parsing SSE message:', err);
                     }
-                } catch (err) {
-                    console.error('Error parsing SSE message:', err);
-                }
-            };
+                };
 
-            eventSource.onerror = (err) => {
-                console.error('SSE connection error:', err);
-                setIsConnected(false);
-                eventSource.close();
+                es.onerror = (err) => {
+                    console.error('SSE connection error:', err);
+                    setIsConnected(false);
+                    es.close();
+                    eventSourceRef.current = null;
 
-                // Attempt to reconnect after a delay
-                setTimeout(() => {
-                    // Simple reconnect logic, in production you'd want exponential backoff
-                }, 5000);
-            };
+                    // Exponential backoff
+                    const delay = Math.min(Math.pow(2, reconnectCount) * 1000, 30000);
+                    console.log(`Reconnecting in ${delay}ms...`);
+                    
+                    if (reconnectCount < 10) {
+                        reconnectTimeoutRef.current = setTimeout(() => {
+                            setReconnectCount(prev => prev + 1);
+                            connect();
+                        }, delay);
+                    } else {
+                        toast.error('Не удалось восстановить связь с сервером. Пожалуйста, обновите страницу.');
+                    }
+                };
+            } catch (err) {
+                console.error('Failed to create EventSource:', err);
+            }
+        };
 
-            return () => {
-                eventSource.close();
-                setIsConnected(false);
-            };
-        } catch (err) {
-            console.error('Failed to create EventSource:', err);
-        }
-    }, [token]);
+        connect();
+
+        return () => {
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+                eventSourceRef.current = null;
+            }
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+        };
+    }, [token, queryClient]); // Re-connect if token changes
 
     return (
-        <SSEContext.Provider value={{ isConnected }}>
+        <SSEContext.Provider value={{ isConnected, reconnectCount }}>
             {children}
         </SSEContext.Provider>
     );

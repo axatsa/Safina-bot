@@ -212,7 +212,7 @@ const ExpenseDetail = () => {
               { label: "Проект", value: `${expense.projectName} (${expense.projectCode})` },
               { label: "Ответственный", value: expense.createdBy },
               { label: "Дата/время", value: format(expense.date, "yyyy-MM-dd HH:mm", { locale: ru }) },
-              { label: "Сумма", value: `${expense.totalAmount.toLocaleString()} ${expense.currency}` },
+              { label: "Сумма", value: `${Number(expense.totalAmount || 0).toLocaleString()} ${expense.currency}` },
             ].map((item) => (
               <div key={item.label} className="glass-card rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">{item.label}</p>

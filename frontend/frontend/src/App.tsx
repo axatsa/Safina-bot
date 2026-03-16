@@ -35,7 +35,10 @@ const DashboardIndex = () => {
   if (store.isFarrukh()) {
     return <Navigate to="/dashboard/approvals" replace />;
   }
-  return <Applications />;
+  if (store.isSafina()) {
+    return <Navigate to="/dashboard/admin-approvals" replace />;
+  }
+  return <Navigate to="/dashboard/applications" replace />;
 };
 
 const App = () => (
