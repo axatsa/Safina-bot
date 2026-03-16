@@ -3,9 +3,16 @@ import AppSidebar from "./AppSidebar";
 import { store } from "@/lib/store";
 
 const AppLayout = () => {
-  const isValidUser = store.hasWebAccess();
+  const token = localStorage.getItem("safina_token");
+  const hasAccess = store.hasWebAccess();
 
-  if (!isValidUser) {
+  if (!token || !hasAccess) {
+    if (!token) {
+      localStorage.removeItem("safina_token");
+      localStorage.removeItem("safina_role");
+      localStorage.removeItem("safina_user");
+      localStorage.removeItem("safina_projectId");
+    }
     return <Navigate to="/" replace />;
   }
 

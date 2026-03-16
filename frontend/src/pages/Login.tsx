@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,25 @@ const Login = () => {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("safina_token");
+    if (token && store.hasWebAccess()) {
+      navigate("/dashboard", { replace: true });
+    } else {
+      setIsCheckingAuth(false);
+    }
+  }, [navigate]);
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
