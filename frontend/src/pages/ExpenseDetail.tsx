@@ -75,10 +75,11 @@ const ExpenseDetail = () => {
   const isFarrukh = store.isFarrukh();
   const queryClient = useQueryClient();
 
-  const { data: expenses = [] } = useQuery({
+  const { data: expensesPage } = useQuery({
     queryKey: ["expenses"],
-    queryFn: () => store.getExpenses(),
+    queryFn: () => store.getExpenses({ limit: 1000 }),
   });
+  const expenses = expensesPage?.items ?? [];
 
   const { data: history = [] } = useQuery({
     queryKey: ["expense-history", id],

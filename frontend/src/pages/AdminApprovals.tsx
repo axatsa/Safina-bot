@@ -26,10 +26,11 @@ const AdminApprovals = () => {
   const navigate = useNavigate();
   const isAdmin = store.isAdmin();
 
-  const { data: expenses = [], isLoading } = useQuery({
+  const { data: expensesPage, isLoading } = useQuery({
     queryKey: ["expenses"],
-    queryFn: () => store.getExpenses(),
+    queryFn: () => store.getExpenses({ limit: 1000 }),
   });
+  const expenses = expensesPage?.items ?? [];
 
   if (isLoading) {
     return (

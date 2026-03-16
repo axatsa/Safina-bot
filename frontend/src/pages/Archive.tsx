@@ -17,11 +17,12 @@ const Archive = () => {
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: expenses = [], isLoading } = useQuery({
+  const { data: expensesPage, isLoading } = useQuery({
     queryKey: ["expenses"],
-    queryFn: () => store.getExpenses(),
+    queryFn: () => store.getExpenses({ limit: 1000 }),
     refetchInterval: 60000, // Refresh every minute
   });
+  const expenses = expensesPage?.items ?? [];
 
   const { data: projects = [] } = useQuery({
     queryKey: ["projects"],

@@ -12,11 +12,12 @@ const Refunds = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
 
-  const { data: expenses = [], isLoading, refetch } = useQuery({
+  const { data: expensesPage, isLoading, refetch } = useQuery({
     queryKey: ["expenses-refunds"],
-    queryFn: () => store.getExpenses(),
+    queryFn: () => store.getExpenses({ limit: 1000 }),
     refetchInterval: 15000,
   });
+  const expenses = expensesPage?.items ?? [];
 
   const refunds = expenses.filter(
     (e) => e.requestType === "refund"
