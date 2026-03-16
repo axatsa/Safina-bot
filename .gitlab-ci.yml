@@ -13,7 +13,7 @@ backend-build:
 frontend-build:
   stage: build
   trigger:
-    include: frontend/.gitlab-ci.yml
+    include: frontend/frontend/.gitlab-ci.yml
     strategy: depend
   only:
     - main
