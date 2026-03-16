@@ -33,10 +33,11 @@ const Approvals = () => {
   const isCFO = store.isSeniorFinancier();
   const isCEO = store.isCeo();
 
-  const { data: expenses = [], isLoading } = useQuery({
+  const { data: expensesPage, isLoading } = useQuery({
     queryKey: ["expenses"],
     queryFn: () => store.getExpenses(),
   });
+  const expenses = expensesPage?.items ?? []; 
 
   if (isLoading) {
     return (
