@@ -37,7 +37,8 @@ const Approvals = () => {
     queryKey: ["expenses"],
     queryFn: () => store.getExpenses(),
   });
-  const expenses = expensesPage?.items ?? []; 
+  
+  const expenses = expensesPage?.items ?? [];
 
   if (isLoading) {
     return (
