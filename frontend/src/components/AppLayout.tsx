@@ -3,10 +3,9 @@ import AppSidebar from "./AppSidebar";
 import { store } from "@/lib/store";
 
 const AppLayout = () => {
-  const role = localStorage.getItem("safina_role");
-  const isValidRole = role && ["admin", "user", "senior_financier", "ceo"].includes(role);
+  const isValidUser = store.hasWebAccess();
 
-  if (!isValidRole) {
+  if (!isValidUser) {
     return <Navigate to="/" replace />;
   }
 

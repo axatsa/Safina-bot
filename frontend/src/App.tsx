@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import AppLayout from "./components/AppLayout";
 import Applications from "./pages/Applications";
@@ -18,6 +18,7 @@ import AdminApprovals from "./pages/AdminApprovals";
 import BlankForm from "./pages/BlankForm";
 import NotFound from "./pages/NotFound";
 import { SSEProvider } from "./lib/contexts/SSEContext";
+import { store } from "./lib/store";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,14 +29,14 @@ const queryClient = new QueryClient({
   },
 });
 
-import { store } from "./lib/store";
-import { Navigate } from "react-router-dom";
-
 const DashboardIndex = () => {
   if (store.isFarrukh()) {
     return <Navigate to="/dashboard/approvals" replace />;
   }
-  return <Applications />;
+  if (store.isSafina()) {
+    return <Navigate to="/dashboard/admin-approvals" replace />;
+  }
+  return <Navigate to="/dashboard/applications" replace />;
 };
 
 const App = () => (
@@ -49,6 +50,7 @@ const App = () => (
             <Route path="/" element={<Login />} />
             <Route path="/dashboard" element={<AppLayout />}>
               <Route index element={<DashboardIndex />} />
+              <Route path="applications" element={<Applications />} />
               <Route path="archive" element={<ArchivePage />} />
               <Route path="refunds" element={<Refunds />} />
               <Route path="projects" element={<Projects />} />

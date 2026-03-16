@@ -7,12 +7,12 @@ export const getUser = (): string =>
   localStorage.getItem("safina_user") ?? "";
 
 export const rbac = {
-  isAdmin: () => getRole() === "admin",
+  isAdmin: () => getRole() === "admin" || getUser().toLowerCase() === "safina",
   isSeniorFinancier: () => getRole() === "senior_financier",
   isCeo: () => getRole() === "ceo",
   getUser,
   isSafina: () => getUser().toLowerCase() === "safina",
   isFarrukh: () => getUser().toLowerCase() === "farrukh",
-  hasWebAccess: () => ["admin", "senior_financier"].includes(getRole()) || getUser().toLowerCase() === "safina",
-  canManageTeam: () => ["admin", "senior_financier", "ceo"].includes(getRole()),
+  hasWebAccess: () => ["admin", "senior_financier", "ceo"].includes(getRole()) || getUser().toLowerCase() === "safina",
+  canManageTeam: () => ["admin", "senior_financier", "ceo"].includes(getRole()) || getUser().toLowerCase() === "safina",
 };
