@@ -1,0 +1,17 @@
+alembic
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pydantic
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.0.1
+python-multipart
+aiogram
+redis
+python-dotenv
+docxtpl
+pandas
+sse-starlette
+openpyxl

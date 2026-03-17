@@ -1,0 +1,14 @@
+services:
+  app:
+    container_name: finance-frontend-main
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    networks:
+      - finance-network
+
+networks:
+  finance-network:
+    external: true

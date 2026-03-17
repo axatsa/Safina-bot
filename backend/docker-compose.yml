@@ -1,0 +1,49 @@
+services:
+  app:
+    container_name: finance-backend-main
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - uploads_data:/app/uploads
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - REDIS_URL=redis://redis:6379
+      - UPLOAD_DIR=/app/uploads
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "8000:8000"
+    networks:
+      - finance-network
+
+  db:
+    container_name: finance-db
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - "5432:5432"
+    networks:
+      - finance-network
+
+  redis:
+    container_name: finance-redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - finance-network
+
+networks:
+  finance-network:
+    external: true
+
+volumes:
+  uploads_data:
+  postgres_data:
