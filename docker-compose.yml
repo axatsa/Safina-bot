@@ -1,8 +1,9 @@
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: gitlab.thompson.uz:5050/finance/backend:main  # ✅ Pull from registry
+    # build:
+    #   context: ./backend
+    #   dockerfile: Dockerfile
     volumes:
       - uploads_data:/app/uploads
     environment:
@@ -16,9 +17,10 @@ services:
       - "8000:8000"
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: gitlab.thompson.uz:5050/finance/frontend:main  # ✅ Pull from registry
+    # build:
+    #   context: ./frontend
+    #   dockerfile: Dockerfile
     ports:
       - "3000:3000"
     depends_on:
