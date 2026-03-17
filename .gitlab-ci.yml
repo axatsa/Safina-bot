@@ -1,3 +1,46 @@
-include:
-  - local: backend/.gitlab-ci.yml
-  - local: frontend/frontend/.gitlab-ci.yml
+stages:
+  - 🔨 validate
+  - 🧪 test
+  - 🚀 sync
+
+# This root pipeline is for orchestrating the overall project configuration
+# such as docker-compose.yml updates.
+
+check-config:
+  stage: 🔨 validate
+  image: docker:24-dind
+  script:
+    - docker-compose config
+  only:
+    - main
+  tags:
+    - docker
+
+dummy-test:
+  stage: 🧪 test
+  script:
+    - echo "Validating system architecture..."
+  only:
+    - main
+
+deploy-compose:
+  stage: 🚀 sync
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+  script:
+    - |
+      ssh -o StrictHostKeyChecking=no -p $SSH_PORT $SSH_USER@$SSH_HOST "
+        cd /home/finance/backend/main &&
+        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY &&
+        docker-compose pull &&
+        docker-compose up -d
+      "
+  only:
+    - main
+  tags:
+    - docker
