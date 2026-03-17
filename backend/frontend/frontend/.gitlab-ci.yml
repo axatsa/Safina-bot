@@ -7,14 +7,14 @@ variables:
   PROJECT_DISPLAY_NAME: Thompson Finance React Frontend
   DEPLOY_BASE_PATH: frontend/frontend
 
-frontend-docker:
+docker:
   extends: .docker_build_template
 
-frontend-deploy:
+deploy:
   extends: .deploy_template
 
-frontend-success:
+success:
   extends: .notify_success_template
 
-frontend-failure:
+failure:
   extends: .notify_failure_template
