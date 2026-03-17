@@ -3,9 +3,12 @@ stages:
   - 🧪 test
   - 🚀 sync
 
+variables:
+  DOCKER_TLS_CERTDIR: ""
+
 check-config:
   stage: 🔨 validate
-  image: docker:24-dind
+  image: docker:latest
   script:
     - docker-compose config
   only:
