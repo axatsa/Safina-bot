@@ -15,7 +15,7 @@ build-frontend:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - echo "Building frontend image..."
-    - docker build -t $FRONTEND_IMAGE ./frontend/frontend
+    - docker build -t $FRONTEND_IMAGE ./frontend
     - echo "Pushing frontend image to registry..."
     - docker push $FRONTEND_IMAGE
   only:
@@ -37,8 +37,8 @@ deploy-frontend:
       ssh -o StrictHostKeyChecking=no -p $SSH_PORT $SSH_USER@$SSH_HOST "
         cd /home/finance/frontend/main &&
         docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY &&
-        docker-compose pull frontend &&
-        docker-compose up -d frontend
+        docker-compose pull app &&
+        docker-compose up -d app
       "
   only:
     - main
