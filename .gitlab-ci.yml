@@ -3,9 +3,6 @@ stages:
   - 🧪 test
   - 🚀 sync
 
-# This root pipeline is for orchestrating the overall project configuration
-# such as docker-compose.yml updates.
-
 check-config:
   stage: 🔨 validate
   image: docker:24-dind
@@ -13,8 +10,6 @@ check-config:
     - docker-compose config
   only:
     - main
-  tags:
-    - docker
 
 dummy-test:
   stage: 🧪 test
@@ -42,5 +37,3 @@ deploy-compose:
       "
   only:
     - main
-  tags:
-    - docker
