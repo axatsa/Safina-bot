@@ -1,33 +1,27 @@
 stages:
   - 🔨 build
-  - 🧪 test
   - 🚀 deploy
 
 variables:
   FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_REF_NAME
   DOCKER_DRIVER: overlay2
-  DOCKER_TLS_CERTDIR: ""
 
 build-frontend:
   stage: 🔨 build
-  image: docker:latest
+  image: docker:24-dind
   services:
-    - docker:dind
+    - docker:24-dind
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
-    - docker build -t $FRONTEND_IMAGE ./frontend
+    - echo "Building frontend image..."
+    - docker build -t $FRONTEND_IMAGE .
+    - echo "Pushing frontend image to registry..."
     - docker push $FRONTEND_IMAGE
   only:
     - main
-
-test-frontend:
-  stage: 🧪 test
-  image: node:20-slim
-  script:
-    - echo "Validating frontend..."
-  only:
-    - main
+  tags:
+    - docker
 
 deploy-frontend:
   stage: 🚀 deploy
@@ -43,14 +37,12 @@ deploy-frontend:
       ssh -o StrictHostKeyChecking=no -p $SSH_PORT $SSH_USER@$SSH_HOST "
         cd /home/finance/frontend/main &&
         docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY &&
-        echo 'Pulling...' &&
-        docker-compose pull app &&
-        echo 'Restarting specific container with --no-deps to bypass server bug...' &&
-        docker stop finance-frontend-main || true &&
-        docker rm finance-frontend-main || true &&
-        docker-compose up -d --no-deps app
+        docker-compose pull frontend &&
+        docker-compose up -d frontend
       "
   only:
     - main
   dependencies:
     - build-frontend
+  tags:
+    - docker
