@@ -9,9 +9,9 @@ variables:
 
 build-backend:
   stage: 🔨 build
-  image: docker:24-dind
+  image: docker:latest
   services:
-    - docker:24-dind
+    - docker:dind
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
@@ -21,8 +21,6 @@ build-backend:
     - docker push $BACKEND_IMAGE
   only:
     - main
-  tags:
-    - docker
 
 deploy-backend:
   stage: 🚀 deploy
@@ -39,11 +37,9 @@ deploy-backend:
         cd /home/finance/backend/main &&
         docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY &&
         docker-compose pull app &&
-        docker-compose up -d app
+        docker-compose up -d --no-deps app
       "
   only:
     - main
   dependencies:
     - build-backend
-  tags:
-    - docker
