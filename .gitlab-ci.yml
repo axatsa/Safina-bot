@@ -1,19 +1,6 @@
-stages:
-  - build
-  - deploy
+# Main GitLab CI/CD configuration for Safina-Bot
+# Backend and Frontend pipelines with unique job names
 
-backend-build:
-  stage: build
-  trigger:
-    include: backend/backend-gitlab-ci.yml
-    strategy: depend
-  only:
-    - main
-
-frontend-build:
-  stage: build
-  trigger:
-    include: frontend/frontend/.gitlab-ci.yml
-    strategy: depend
-  only:
-    - main
+include:
+  - local: backend/backend-gitlab-ci.yml
+  - local: frontend/frontend/.gitlab-ci.yml
