@@ -1,0 +1,6 @@
+# Main GitLab CI/CD configuration for Safina-Bot
+# Backend and Frontend pipelines with unique job names
+
+include:
+  - local: backend/backend-gitlab-ci.yml
+  - local: frontend/frontend/.gitlab-ci.yml

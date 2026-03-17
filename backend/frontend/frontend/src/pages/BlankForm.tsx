@@ -1,0 +1,261 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Trash2, Download, Loader2, ArrowLeft } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { generateBlank, BlankItem } from "@/lib/services/blanks";
+
+const BlankForm = () => {
+  const [searchParams] = useSearchParams();
+  const template = searchParams.get("type") || "ls";
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+
+  // Common fields (Service Notes)
+  const [purpose, setPurpose] = useState("");
+  const [items, setItems] = useState<BlankItem[]>([
+    { name: "", qty: 1, amount: 0, currency: "UZS" },
+  ]);
+
+  // Refund application fields
+  const [refundData, setRefundData] = useState({
+    client_name: "",
+    passport_series: "",
+    passport_number: "",
+    passport_issued_by: "",
+    passport_date: "",
+    phone: "",
+    contract_number: "",
+    contract_date: "",
+    reason: "",
+    reason_other: "",
+    amount: 0,
+    amount_words: "",
+    card_holder: "",
+    card_number: "",
+    transit_account: "",
+    bank_name: "",
+  });
+
+  const addItem = () => {
+    setItems([...items, { name: "", qty: 1, amount: 0, currency: "UZS" }]);
+  };
+
+  const removeItem = (index: number) => {
+    if (items.length > 1) {
+      setItems(items.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateItem = (index: number, field: keyof BlankItem, value: any) => {
+    const newItems = [...items];
+    (newItems[index] as any)[field] = value;
+    setItems(newItems);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      let data: any = { template };
+      if (template === "refund") {
+        data = { ...data, ...refundData };
+      } else {
+        data = {
+          ...data,
+          purpose,
+          items,
+          total_amount: items.reduce((sum, item) => sum + (item.qty * item.amount), 0),
+          currency: items[0]?.currency || "UZS",
+        };
+      }
+
+      const blob = await generateBlank(data);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `blank_${template}_${new Date().getTime()}.docx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Бланк успешно создан!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Ошибка при создании бланка");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background p-4 md:p-8 animate-fade-in">
+      <div className="max-w-2xl mx-auto space-y-8">
+        <Button
+          variant="ghost"
+          className="absolute top-4 left-4 gap-2 text-muted-foreground hover:text-foreground"
+          onClick={() => navigate(-1)}
+        >
+          <ArrowLeft className="w-4 h-4" /> Назад
+        </Button>
+
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">
+            {template === "refund" ? "Заявление на возврат" : "Служебная записка / Бланк"}
+          </h1>
+          <p className="text-muted-foreground">Заполните данные для генерации документа</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="glass-card p-6 md:p-8 rounded-2xl border space-y-6">
+          {template !== "refund" ? (
+            <>
+              {/* Service Note Form */}
+              <div className="space-y-2">
+                <Label htmlFor="purpose">Цель расхода</Label>
+                <Input
+                  id="purpose"
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                  placeholder="Напр. Закупка офисной техники"
+                  required
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label>Позиции</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addItem} className="rounded-full gap-2">
+                    <Plus className="w-4 h-4" /> Добавить
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {items.map((item, index) => (
+                    <div key={index} className="flex gap-3 items-end p-4 bg-muted/30 rounded-xl border relative group">
+                      <div className="flex-1 space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Наименование</Label>
+                            <Input
+                              value={item.name}
+                              onChange={(e) => updateItem(index, "name", e.target.value)}
+                              placeholder="Название"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Кол-во</Label>
+                            <Input
+                              type="number"
+                              value={item.qty}
+                              onChange={(e) => updateItem(index, "qty", Number(e.target.value))}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Сумма</Label>
+                            <Input
+                              type="number"
+                              value={item.amount}
+                              onChange={(e) => updateItem(index, "amount", Number(e.target.value))}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Валюта</Label>
+                            <Select value={item.currency} onValueChange={(val) => updateItem(index, "currency", val)}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="UZS">UZS</SelectItem>
+                                <SelectItem value="USD">USD</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeItem(index)}
+                        className="h-10 w-10 text-muted-foreground hover:text-red-500"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Refund Application Form - Multi-column/compact */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>ФИО Клиента</Label>
+                  <Input value={refundData.client_name} onChange={(e) => setRefundData({...refundData, client_name: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Телефон</Label>
+                  <Input value={refundData.phone} onChange={(e) => setRefundData({...refundData, phone: e.target.value})} />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <Label>Серия паспорта</Label>
+                    <Input value={refundData.passport_series} onChange={(e) => setRefundData({...refundData, passport_series: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Номер паспорта</Label>
+                    <Input value={refundData.passport_number} onChange={(e) => setRefundData({...refundData, passport_number: e.target.value})} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Дата договора</Label>
+                  <Input type="date" value={refundData.contract_date} onChange={(e) => setRefundData({...refundData, contract_date: e.target.value})} />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Причина</Label>
+                  <Select value={refundData.reason} onValueChange={(val) => setRefundData({...refundData, reason: val})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Переезд">Переезд</SelectItem>
+                      <SelectItem value="Изменение графика">Изменение графика</SelectItem>
+                      <SelectItem value="Несоответствие">Несоответствие ожиданиям</SelectItem>
+                      <SelectItem value="Материальные трудности">Материальные трудности</SelectItem>
+                      <SelectItem value="Другое">Другое</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Сумма</Label>
+                  <Input type="number" value={refundData.amount} onChange={(e) => setRefundData({...refundData, amount: Number(e.target.value)})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Номер карты</Label>
+                  <Input value={refundData.card_number} onChange={(e) => setRefundData({...refundData, card_number: e.target.value})} />
+                </div>
+              </div>
+            </>
+          )}
+
+          <Button type="submit" className="w-full rounded-xl py-6" disabled={loading}>
+            {loading ? <Loader2 className="animate-spin mr-2" /> : <Download className="mr-2" />}
+            Скачать DOCX
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default BlankForm;

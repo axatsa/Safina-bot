@@ -28,9 +28,12 @@ backend-migrate:
     - echo "StrictHostKeyChecking no" >> ~/.ssh/config
   script:
     - |
-      ssh -p $SSH_PORT $SSH_USER@$SSH_HOST 'bash -s' << 'ENDSSH'
+      ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "CI_REGISTRY_USER=$CI_REGISTRY_USER CI_REGISTRY_PASSWORD=$CI_REGISTRY_PASSWORD CI_REGISTRY=$CI_REGISTRY bash -s" << 'ENDSSH'
         set -e
         cd ~/backend/main
+
+        echo "Logging in to GitLab Registry..."
+        echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
 
         echo "Pulling new image..."
         docker compose pull app
