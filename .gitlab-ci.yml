@@ -1,7 +1,7 @@
 stages:
-  - build
-  - test
-  - deploy
+  - 🔨 build
+  - 🧪 test
+  - 🚀 deploy
 
 variables:
   DOCKER_DRIVER: overlay2
@@ -14,10 +14,10 @@ variables:
 # ========================================
 
 build-backend:
-  stage: build
-  image: docker:latest
+  stage: 🔨 build
+  image: docker:24-dind
   services:
-    - docker:dind
+    - docker:24-dind
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
@@ -29,10 +29,10 @@ build-backend:
     - main
 
 build-frontend:
-  stage: build
-  image: docker:latest
+  stage: 🔨 build
+  image: docker:24-dind
   services:
-    - docker:dind
+    - docker:24-dind
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
@@ -48,7 +48,7 @@ build-frontend:
 # ========================================
 
 test-frontend:
-  stage: test
+  stage: 🧪 test
   image: node:20-slim
   script:
     - echo "Validating frontend environment..."
@@ -61,7 +61,7 @@ test-frontend:
 # ========================================
 
 deploy-backend:
-  stage: deploy
+  stage: 🚀 deploy
   image: alpine:3.20
   before_script:
     - apk add --no-cache openssh-client
@@ -71,7 +71,7 @@ deploy-backend:
     - ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
   script:
     - |
-      ssh -o StrictHostKeyChecking=no -p $SSH_PORT $SSH_USER@$SSH_HOST "
+      ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "
         cd /home/finance/backend/main &&
         docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY &&
         docker-compose pull app &&
@@ -83,7 +83,7 @@ deploy-backend:
     - build-backend
 
 deploy-frontend:
-  stage: deploy
+  stage: 🚀 deploy
   image: alpine:3.20
   before_script:
     - apk add --no-cache openssh-client
@@ -93,7 +93,7 @@ deploy-frontend:
     - ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
   script:
     - |
-      ssh -o StrictHostKeyChecking=no -p $SSH_PORT $SSH_USER@$SSH_HOST "
+      ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "
         cd /home/finance/frontend/main &&
         docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY &&
         docker-compose pull app &&
