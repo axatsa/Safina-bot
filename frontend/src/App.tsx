@@ -41,34 +41,38 @@ const DashboardIndex = () => {
   return <Navigate to="/dashboard/applications" replace />;
 };
 
+import ErrorBoundary from "./components/ErrorBoundary";
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <SSEProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Login />} />
-            <Route path="/dashboard" element={<AppLayout />}>
-              <Route index element={<DashboardIndex />} />
-              <Route path="archive" element={<ArchivePage />} />
-              <Route path="refunds" element={<Refunds />} />
-              <Route path="projects" element={<Projects />} />
-              <Route path="team" element={<Team />} />
-              <Route path="statistics" element={<Statistics />} />
-              <Route path="approvals" element={<Approvals />} />
-              <Route path="admin-approvals" element={<AdminApprovals />} />
-              <Route path="expense/:id" element={<ExpenseDetail />} />
-            </Route>
-            <Route path="/submit" element={<SubmitExpense />} />
-            <Route path="/blank" element={<BlankForm />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </SSEProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <SSEProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Login />} />
+              <Route path="/dashboard" element={<AppLayout />}>
+                <Route index element={<DashboardIndex />} />
+                <Route path="archive" element={<ArchivePage />} />
+                <Route path="refunds" element={<Refunds />} />
+                <Route path="projects" element={<Projects />} />
+                <Route path="team" element={<Team />} />
+                <Route path="statistics" element={<Statistics />} />
+                <Route path="approvals" element={<Approvals />} />
+                <Route path="admin-approvals" element={<AdminApprovals />} />
+                <Route path="expense/:id" element={<ExpenseDetail />} />
+              </Route>
+              <Route path="/submit" element={<SubmitExpense />} />
+              <Route path="/blank" element={<BlankForm />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </SSEProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

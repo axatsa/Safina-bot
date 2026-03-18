@@ -18,6 +18,15 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     },
   });
 
+  if (response.status === 401) {
+    localStorage.removeItem("safina_token");
+    localStorage.removeItem("safina_role");
+    localStorage.removeItem("safina_user");
+    localStorage.removeItem("safina_projectId");
+    window.location.href = "/";
+    return response;
+  }
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || response.statusText || "API Request failed");
