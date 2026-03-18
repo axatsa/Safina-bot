@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider, QueryCache } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import AppLayout from "./components/AppLayout";
@@ -29,6 +29,14 @@ const queryClient = new QueryClient({
       console.error('Query error:', error);
     },
   }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      if (error instanceof Error && error.message === 'Unauthorized') {
+        return;
+      }
+      console.error('Mutation error:', error);
+    },
+  }),
   defaultOptions: {
     queries: {
       retry: false,
@@ -52,36 +60,46 @@ const DashboardIndex = () => {
 
 import ErrorBoundary from "./components/ErrorBoundary";
 
-const App = () => (
-  <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <SSEProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Login />} />
-              <Route path="/dashboard" element={<AppLayout />}>
-                <Route index element={<DashboardIndex />} />
-                <Route path="archive" element={<ArchivePage />} />
-                <Route path="refunds" element={<Refunds />} />
-                <Route path="projects" element={<Projects />} />
-                <Route path="team" element={<Team />} />
-                <Route path="statistics" element={<Statistics />} />
-                <Route path="approvals" element={<Approvals />} />
-                <Route path="admin-approvals" element={<AdminApprovals />} />
-                <Route path="expense/:id" element={<ExpenseDetail />} />
-              </Route>
-              <Route path="/submit" element={<SubmitExpense />} />
-              <Route path="/blank" element={<BlankForm />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </SSEProvider>
-    </QueryClientProvider>
-  </ErrorBoundary>
-);
+const App = () => {
+  // Fix stuck redirecting state allowing users to refresh the admin panel successfully
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("safina_token");
+    if (token) {
+      sessionStorage.removeItem("redirecting");
+    }
+  }
+
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <SSEProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Login />} />
+                <Route path="/dashboard" element={<AppLayout />}>
+                  <Route index element={<DashboardIndex />} />
+                  <Route path="archive" element={<ArchivePage />} />
+                  <Route path="refunds" element={<Refunds />} />
+                  <Route path="projects" element={<Projects />} />
+                  <Route path="team" element={<Team />} />
+                  <Route path="statistics" element={<Statistics />} />
+                  <Route path="approvals" element={<Approvals />} />
+                  <Route path="admin-approvals" element={<AdminApprovals />} />
+                  <Route path="expense/:id" element={<ExpenseDetail />} />
+                </Route>
+                <Route path="/submit" element={<SubmitExpense />} />
+                <Route path="/blank" element={<BlankForm />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </SSEProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+};
 
 export default App;
