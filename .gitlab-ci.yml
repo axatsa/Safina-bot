@@ -15,9 +15,9 @@ variables:
 
 build-backend:
   stage: 🔨 build
-  image: docker:24-dind
+  image: docker:latest
   services:
-    - docker:24-dind
+    - docker:dind
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
@@ -30,9 +30,9 @@ build-backend:
 
 build-frontend:
   stage: 🔨 build
-  image: docker:24-dind
+  image: docker:latest
   services:
-    - docker:24-dind
+    - docker:dind
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
