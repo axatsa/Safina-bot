@@ -79,3 +79,20 @@ def update_member_status(
     user.status = update.status
     db.commit()
     return {"status": "success", "member_status": update.status}
+
+@router.patch("/{member_id}/templates", response_model=schemas.TeamMemberSchema)
+def update_member_templates(
+    member_id: str,
+    update: schemas.TeamMemberTemplatesUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
+    if not auth.is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can update member templates")
+    member = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    member.templates = update.templates
+    db.commit()
+    db.refresh(member)
+    return member

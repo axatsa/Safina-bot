@@ -45,4 +45,12 @@ export const projectsService = {
     const res = await apiFetch(`/projects/by-chat-id/${chatId}`);
     return await res.json();
   },
+  
+  updateProjectTemplates: async (projectId: string, templates: string[]) => {
+    const res = await apiFetch(`/projects/${projectId}/templates`, {
+      method: "PATCH",
+      body: JSON.stringify({ templates }),
+    });
+    return await res.json();
+  },
 };

@@ -27,6 +27,8 @@ class RefundWizard(StatesGroup):
     confirm = State()
 
 class BlankWizard(StatesGroup):
+    project_selection = State()  # если 2+ проекта — выбор проекта
+    template_selection = State()  # если 2+ шаблона — выбор шаблона
     template = State()
     filling_method = State() # Bot or Web
     purpose = State()

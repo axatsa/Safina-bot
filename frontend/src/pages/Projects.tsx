@@ -4,12 +4,21 @@ import { Project } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FolderKanban, Loader2, Trash2, Calendar, Users, UserPlus, X } from "lucide-react";
+import { Plus, FolderKanban, Loader2, Trash2, Calendar, Users, UserPlus, X, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const AVAILABLE_TEMPLATES = [
+    { id: "land", label: "Thompson Land" },
+    { id: "ls", label: "Learning Center (LS)" },
+    { id: "management", label: "Management" },
+    { id: "school", label: "School" },
+    { id: "refund", label: "Заявление на возврат" },
+];
 
 const Projects = () => {
     const queryClient = useQueryClient();
@@ -49,6 +58,7 @@ const Projects = () => {
     };
 
     const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+    const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
     const [activeProject, setActiveProject] = useState<Project | null>(null);
 
     const { data: team = [] } = useQuery({
@@ -75,6 +85,31 @@ const Projects = () => {
             toast.success("Участник исключен");
         }
     });
+
+    const updateTemplatesMutation = useMutation({
+        mutationFn: ({ projectId, templates }: { projectId: string; templates: string[] }) =>
+            store.updateProjectTemplates(projectId, templates),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            toast.success("Шаблоны обновлены");
+        }
+    });
+
+    const handleTemplateToggle = (templateId: string) => {
+        if (!activeProject) return;
+        const currentTemplates = activeProject.templates || [];
+        const newTemplates = currentTemplates.includes(templateId)
+            ? currentTemplates.filter(id => id !== templateId)
+            : [...currentTemplates, templateId];
+        
+        updateTemplatesMutation.mutate({ 
+            projectId: activeProject.id, 
+            templates: newTemplates 
+        });
+        
+        // Update local state for immediate feedback
+        setActiveProject({ ...activeProject, templates: newTemplates });
+    };
 
     const projectMembers = activeProject
         ? projects.find((p: Project) => p.id === activeProject.id)?.members || []
@@ -204,6 +239,18 @@ const Projects = () => {
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
+                                                className="text-muted-foreground hover:text-indigo-600 transition-colors"
+                                                onClick={() => {
+                                                    setActiveProject(project);
+                                                    setTemplateDialogOpen(true);
+                                                }}
+                                                title="Шаблоны бланков"
+                                            >
+                                                <FileText className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
                                                 className="text-muted-foreground hover:text-red-600 transition-colors"
                                                 onClick={() => handleDeleteProject(project.id)}
                                                 title="Удалить проект"
@@ -293,6 +340,37 @@ const Projects = () => {
                                 </Select>
                             </div>
                         </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Шаблоны для: {activeProject?.name}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                        <Label className="text-sm font-medium">Выберите доступные шаблоны бланков:</Label>
+                        <div className="grid grid-cols-1 gap-3">
+                            {AVAILABLE_TEMPLATES.map((tpl: any) => (
+                                <div key={tpl.id} className="flex items-center space-x-3 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors">
+                                    <Checkbox 
+                                        id={`tpl-${tpl.id}`}
+                                        checked={(activeProject?.templates || []).includes(tpl.id)}
+                                        onCheckedChange={() => handleTemplateToggle(tpl.id)}
+                                    />
+                                    <Label 
+                                        htmlFor={`tpl-${tpl.id}`}
+                                        className="text-sm font-medium cursor-pointer flex-1"
+                                    >
+                                        {tpl.label}
+                                        <span className="block text-[10px] text-muted-foreground mt-0.5">{tpl.id}</span>
+                                    </Label>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground italic mt-2">
+                            * Выбранные шаблоны будут доступны всем участникам этого проекта в Telegram боте.
+                        </p>
                     </div>
                 </DialogContent>
             </Dialog>

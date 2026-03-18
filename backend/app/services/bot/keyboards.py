@@ -36,11 +36,7 @@ def get_main_kb(is_ceo: bool = False):
         b.button(text="Оформить возврат (в боте)")
         b.button(text="Создать инвестицию (Web-App)")
         b.button(text="Создать возврат (Web-App)")
-        b.button(text="📋 Заполнить бланк LAND")
-        b.button(text="📋 Заполнить бланк ЛС")
-        b.button(text="📋 Заполнить бланк Management")
-        b.button(text="📋 Заполнить бланк School")
-        b.button(text="🧾 Заявление на возврат")
+        b.button(text="📋 Заполнить бланк")
     b.adjust(1)
     return b.as_markup(resize_keyboard=True)
 
@@ -55,9 +51,29 @@ def get_fill_method_kb():
 def get_projects_kb(projects):
     b = ReplyKeyboardBuilder()
     for p in projects:
-        b.button(text=f"{p.name} ({p.code})")
+        # p can be a Project object or a name string depending on context
+        name = p.name if hasattr(p, 'name') else str(p)
+        code = p.code if hasattr(p, 'code') else ""
+        label = f"{name} ({code})" if code else name
+        b.button(text=label)
     b.button(text=_BACK)
     b.adjust(1)
+    return b.as_markup(resize_keyboard=True)
+
+def get_template_select_kb(template_keys: list):
+    """Клавиатура выбора типа бланка."""
+    names = {
+        "land": "LAND",
+        "drujba": "ЛС (Дружба)",
+        "management": "Management",
+        "school": "School",
+        "refund": "Заявление на возврат"
+    }
+    b = ReplyKeyboardBuilder()
+    for key in template_keys:
+        b.button(text=names.get(key, key.upper()))
+    b.button(text=_BACK)
+    b.adjust(2, 1)
     return b.as_markup(resize_keyboard=True)
 
 def get_retention_kb():

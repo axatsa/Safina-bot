@@ -15,32 +15,21 @@
 
 ## 🔧 ИСПРАВЛЕНИЕ ФАЙЛОВ
 
-### backend/.gitlab-ci.yml
+### Файлы CI/CD (Корень)
 
-- [ ] Открыл файл: `nano backend/.gitlab-ci.yml`
-- [ ] Удалил ВСЕ строки с `<<<<<<< HEAD`
-- [ ] Удалил ВСЕ строки с `=======`
-- [ ] Удалил ВСЕ строки с `>>>>>>> f665100`
-- [ ] Проверил: путь сборки `./backend` (НЕ `./`)
-- [ ] Проверил: deploy команда использует `app` (НЕ `backend`)
-- [ ] Сохранил: Ctrl+O, Enter, Ctrl+X
-
-### frontend/frontend/.gitlab-ci.yml
-
-- [ ] Открыл файл: `nano frontend/frontend/.gitlab-ci.yml`
-- [ ] Строка 18: изменил `./frontend/frontend` на `./frontend`
-- [ ] Строки 40-41: изменил `frontend` на `app` (2 места)
-- [ ] Сохранил: Ctrl+O, Enter, Ctrl+X
+- [x] Открыл файл: `.gitlab-ci.yml`
+- [x] Удалил все строки с конфликтами Git
+- [x] Проверил: путь сборки `./backend` (НЕ `./`)
+- [x] Проверил: путь сборки `./frontend` (НЕ `./frontend/frontend`)
+- [x] Проверил: deploy команды используют `app`
 
 ---
 
 ## 📤 КОММИТ И ПУШ
 
-- [ ] Проверил изменения: `git diff`
-- [ ] Добавил файлы: `git add backend/.gitlab-ci.yml frontend/frontend/.gitlab-ci.yml`
-- [ ] Проверил статус: `git status` (должны быть 2 измененных файла)
-- [ ] Создал коммит: `git commit -m "Fix: Resolve git conflicts and correct GitLab CI paths"`
-- [ ] Запушил: `git push origin main`
+- [x] Проверил изменения: `git diff`
+- [x] Добавил и закоммитил файлы
+- [x] Запушил: `git push origin main`
 - [ ] Ввел credentials если попросили
 
 ---

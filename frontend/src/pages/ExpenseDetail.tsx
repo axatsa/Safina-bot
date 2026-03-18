@@ -194,7 +194,7 @@ const ExpenseDetail = () => {
           <p className="text-sm text-muted-foreground mt-1">{expense.purpose}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportDocx(expense.id)}>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportDocx(expense.id, expense.requestType === "blank" || expense.requestType === "blank_refund")}>
             <Download className="w-4 h-4" />
             Word
           </Button>
@@ -233,6 +233,33 @@ const ExpenseDetail = () => {
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
               <p className="text-xs font-medium text-destructive mb-1">Комментарий к статусу:</p>
               <p className="text-sm">{expense.statusComment}</p>
+            </div>
+          )}
+
+          {(expense.requestType === "blank_refund" || expense.requestType === "refund") && expense.refundData && (
+            <div className="glass-card rounded-lg p-4 space-y-4 border-rose-100 bg-rose-50/30">
+              <h3 className="text-sm font-bold text-rose-800 flex items-center gap-2 uppercase tracking-wider">
+                🧾 Данные для возврата
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+                {[
+                  { label: "ФИО Клиента", value: expense.refundData.client_name },
+                  { label: "Паспорт", value: `${expense.refundData.passport_series} ${expense.refundData.passport_number}` },
+                  { label: "Кем выдан", value: expense.refundData.passport_issued_by },
+                  { label: "Дата выдачи", value: expense.refundData.passport_date },
+                  { label: "Телефон", value: expense.refundData.phone },
+                  { label: "Договор/Оферта", value: `${expense.refundData.contract_number} от ${expense.refundData.contract_date}` },
+                  { label: "Причина", value: expense.refundData.reason },
+                  { label: "Сумма возврата", value: `${Number(expense.refundData.amount || 0).toLocaleString()} UZS` },
+                  { label: "Номер карты", value: expense.refundData.card_number },
+                  { label: "Банк", value: expense.refundData.bank_name },
+                ].map((row, i) => (
+                  <div key={i} className="flex flex-col">
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">{row.label}</span>
+                    <span className="text-sm font-medium">{row.value || "—"}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

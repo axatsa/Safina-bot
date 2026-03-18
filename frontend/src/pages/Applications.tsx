@@ -92,10 +92,8 @@ const Applications = () => {
       // Basic Status Filter (Archive is separate)
       if (e.status === "archived") return false;
 
-      // Filter out refunds from main dashboard
-      const isRefund = e.requestType === "refund" || 
-                       (e as any).request_type === "refund" || 
-                       (e.purpose && e.purpose.toLowerCase().includes("возврат"));
+      // Filter out refunds from main dashboard (they have their own page)
+      const isRefund = e.requestType === "refund" || e.requestType === "blank_refund";
       
       if (isRefund) return false;
 

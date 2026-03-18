@@ -148,6 +148,95 @@ async def web_submit_refund(
         background_tasks.add_task(send_admin_notification, expense_req.id, admin_chat_id)
     return expense_req
 
+@router.post("/blank-submit", response_model=schemas.ExpenseRequestSchema)
+async def web_submit_blank(
+    data: dict, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
+    """Web-App endpoint: создаёт заявку-бланк (служебную записку)."""
+    # Validation
+    tpl = data.get("template")
+    if not tpl:
+        raise HTTPException(status_code=400, detail="Template is required")
+        
+    items_data = []
+    for item in data.get("items", []):
+        items_data.append(schemas.ExpenseItemSchema(
+            name=item.get("name"),
+            quantity=item.get("qty", 1),
+            amount=item.get("amount", 0),
+            currency=item.get("currency", "UZS")
+        ))
+    
+    purpose = data.get("purpose", f"Бланк: {tpl}")
+    
+    expense_create = schemas.ExpenseRequestCreate(
+        project_id=data.get("project_id"),
+        purpose=purpose,
+        items=items_data,
+        currency=items_data[0].currency if items_data else "UZS"
+    )
+    
+    usd_rate = await currency_service.get_usd_rate()
+    expense_req = crud.create_expense_request(
+        db=db, 
+        expense=expense_create, 
+        user_id=current_user.id, 
+        usd_rate=usd_rate
+    )
+    
+    expense_req.request_type = "blank"
+    expense_req.template_key = tpl
+    db.commit()
+    
+    admin_chat_id = get_admin_chat_id()
+    if admin_chat_id:
+        background_tasks.add_task(send_admin_notification, expense_req.id, admin_chat_id)
+        
+    return expense_req
+
+@router.post("/refund-application-submit", response_model=schemas.ExpenseRequestSchema)
+async def web_submit_refund_application(
+    data: dict, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
+    """Web-App endpoint: создаёт заявку на возврат клиента (blank_refund)."""
+    purpose = f"Возврат: {data.get('client_name')} ({data.get('contract_number', 'б/н')})"
+    amount = float(data.get("amount", 0))
+    
+    expense_create = schemas.ExpenseRequestCreate(
+        project_id=data.get("project_id"),
+        purpose=purpose,
+        items=[],
+        currency="UZS"
+    )
+    
+    usd_rate = await currency_service.get_usd_rate()
+    expense_req = crud.create_expense_request(
+        db=db, 
+        expense=expense_create, 
+        user_id=current_user.id, 
+        usd_rate=usd_rate
+    )
+    
+    expense_req.request_type = "blank_refund"
+    expense_req.template_key = "refund"
+    expense_req.total_amount = amount
+    expense_req.refund_data = data
+    db.commit()
+    
+    admin_chat_id = get_admin_chat_id()
+    if admin_chat_id:
+        background_tasks.add_task(send_admin_notification, expense_req.id, admin_chat_id)
+        
+    return expense_req
+
+
+
 
 @router.get("/refund/{expense_id}/export-application-docx")
 def export_refund_application(
@@ -444,5 +533,39 @@ def export_expense_docx(expense_id: str, db: Session = Depends(database.get_db),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{expense_id}/export-blank-docx")
+def export_blank_docx(
+    expense_id: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
+    """Экспорт бланка в DOCX. Доступ только для админов, CFO и CEO."""
+    # RBAC Check
+    if not auth.is_admin(current_user) and current_user.position not in ["senior_financier", "ceo"]:
+        raise HTTPException(status_code=403, detail="У вас нет прав для скачивания этого документа")
+
+    expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Заявка не найдена")
+    
+    # Check if it's a blank or refund
+    if expense.request_type not in ["blank", "blank_refund", "refund"]:
+        raise HTTPException(status_code=400, detail="Этот документ не является бланком")
+
+    try:
+        file_stream = docx_service.generate_expense_docx(expense)
+        # Choose filename based on template or request_id
+        tpl_label = expense.template_key.upper() if expense.template_key else "BLANK"
+        filename = f"{tpl_label}_{expense.request_id}.docx"
+        
+        return StreamingResponse(
+            file_stream,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Error generating blank DOCX: {e}")
+        raise HTTPException(status_code=500, detail="Ошибка при генерации документа")
 
 

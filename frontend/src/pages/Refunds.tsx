@@ -20,7 +20,7 @@ const Refunds = () => {
   const expenses = expensesPage?.items ?? [];
 
   const refunds = expenses.filter(
-    (e) => e.requestType === "refund"
+    (e) => e.requestType === "refund" || e.requestType === "blank_refund"
   );
 
   const filtered = refunds.filter((e) => {

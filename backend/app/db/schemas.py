@@ -1,9 +1,11 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
 from decimal import Decimal
+ 
+AVAILABLE_TEMPLATE_KEYS = {"land", "drujba", "management", "school"}
 
 class ExpenseStatusEnum(str, Enum):
     request = "request"
@@ -33,6 +35,7 @@ class ExpenseItemSchema(BaseModel):
 class ProjectBase(BaseModel):
     name: str
     code: str
+    templates: List[str] = []
 
 class ProjectCreate(ProjectBase):
     pass
@@ -63,6 +66,7 @@ class TeamMemberBase(BaseModel):
     status: str = "active"
     branch: Optional[str] = None
     team: Optional[str] = None
+    templates: List[str] = []
 
 class TeamMemberCreate(TeamMemberBase):
     password: str
@@ -78,22 +82,30 @@ class TeamMemberSchema(TeamMemberBase):
         from_attributes = True
 
 # Expense Request Schemas
-class RefundDataSchema(BaseModel):
-    student_id: str
-    reason: str
-    card_number: str
-    retention: bool
-    branch: Optional[str] = None   # Филиал сотрудника (из TeamMember.branch)
-    team: Optional[str] = None     # Команда сотрудника (из TeamMember.team)
+    branch: Optional[str] = None
+    team: Optional[str] = None
+    client_name: Optional[str] = None
+    passport_series: Optional[str] = None
+    passport_number: Optional[str] = None
+    passport_issued_by: Optional[str] = None
+    passport_date: Optional[str] = None
+    phone: Optional[str] = None
+    contract_number: Optional[str] = None
+    contract_date: Optional[str] = None
+    reason: Optional[str] = None
+    amount: Optional[float] = None
+    card_number: Optional[str] = None
+    bank_name: Optional[str] = None
 
 class ExpenseRequestCreate(BaseModel):
     purpose: str = Field(..., min_length=1, max_length=500)
-    items: List[ExpenseItemSchema] = Field(..., min_length=1, max_length=50, description="От 1 до 50 позиций")
+    items: List[ExpenseItemSchema] = Field(default_factory=list, description="Список позиций (от 0 до 50)")
     project_id: Optional[str] = None
     total_amount: Optional[Decimal] = None
     currency: Optional[CurrencyEnum] = None
     date: Optional[datetime] = None
     request_type: str = "expense"
+    template_key: Optional[str] = None
     receipt_photo_file_id: Optional[str] = None
     refund_data: Optional[RefundDataSchema] = None
 
@@ -157,3 +169,24 @@ class LoginRequest(BaseModel):
 
 class TeamMemberStatusUpdate(BaseModel):
     status: str  # "active" или "blocked"
+
+# New schemas for template updates
+class ProjectTemplatesUpdate(BaseModel):
+    templates: List[str]
+
+    @validator("templates")
+    def validate_keys(cls, v):
+        invalid = set(v) - AVAILABLE_TEMPLATE_KEYS
+        if invalid:
+            raise ValueError(f"Неизвестные ключи: {invalid}")
+        return list(dict.fromkeys(v))  # remove duplicates
+
+class TeamMemberTemplatesUpdate(BaseModel):
+    templates: List[str]
+
+    @validator("templates")
+    def validate_keys(cls, v):
+        invalid = set(v) - AVAILABLE_TEMPLATE_KEYS
+        if invalid:
+            raise ValueError(f"Неизвестные ключи: {invalid}")
+        return list(dict.fromkeys(v))

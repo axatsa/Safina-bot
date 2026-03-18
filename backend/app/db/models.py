@@ -23,6 +23,7 @@ class Project(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     name = Column(String, nullable=False)
     code = Column(String, unique=True, nullable=False, index=True)
+    templates = Column(JSON, nullable=False, default=list) # Шаблоны назначенные Сафиной
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     members = relationship("TeamMember", secondary=member_projects, back_populates="projects")
@@ -41,6 +42,7 @@ class TeamMember(Base):
     status = Column(String, default="active", index=True) # active, blocked
     branch = Column(String, nullable=True) # Branch Name (e.g. "School", "Kindergarten")
     team = Column(String, nullable=True) # Team Name (e.g. "Admins")
+    templates = Column(JSON, nullable=False, default=list) # Сверх тех что даёт проект
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     projects = relationship("Project", secondary=member_projects, back_populates="members")
@@ -57,7 +59,8 @@ class ExpenseRequest(Base):
     total_amount = Column(Numeric(precision=18, scale=2), nullable=False)
     currency = Column(String, nullable=False) # UZS, USD, RUB
     status = Column(String, default="request", index=True) # request, review, pending_senior, approved_senior, rejected_senior, confirmed, declined, revision, archived
-    request_type = Column(String, default="expense", index=True) # expense, refund
+    request_type = Column(String, default="expense", index=True) # expense, refund, blank, blank_refund
+    template_key = Column(String, nullable=True) # land, drujba, management, school, refund
     receipt_photo_file_id = Column(String, nullable=True) # Telegram file_id or local path
     refund_data = Column(JSON, nullable=True) # Additonal Refund specific fields
     

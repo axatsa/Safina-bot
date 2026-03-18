@@ -122,11 +122,11 @@ GitLab CI собирает образ из ./frontend/frontend/
                 ТУТ ВЕСЬ КОД!
 ```
 
-### Что нужно исправить:
+### Что было исправлено:
 ```
-1. backend/.gitlab-ci.yml - убрать git конфликты
-2. frontend/frontend/.gitlab-ci.yml - исправить путь сборки
-3. Изменить имена сервисов с 'frontend'/'backend' на 'app'
+1. .gitlab-ci.yml - объединены конфигурации, исправлены пути и конфликты
+2. Текущая структура (код в ./frontend) - полностью корректна
+3. Все имена сервисов обновлены на 'app' для деплоя
 ```
 
 ### Результат:
@@ -176,12 +176,12 @@ GitLab CI собирает образ из ./frontend/frontend/
 
 Считай задачу выполненной когда:
 
-- [ ] GitLab CI pipeline зеленый 🟢
-- [ ] `docker-compose ps` показывает "Up" (не "Restarting")
-- [ ] В логах видно "nginx" (не "uvicorn")
-- [ ] https://finance.thompson.uz открывается
-- [ ] Нет 404 ошибки
-- [ ] Страница логина видна
+- [x] GitLab CI pipeline зеленый 🟢
+- [x] `docker-compose ps` показывает "Up" (не "Restarting")
+- [x] В логах видно "nginx" (не "uvicorn")
+- [x] https://finance.thompson.uz открывается
+- [x] Нет 404 ошибки
+- [x] Страница логина видна
 
 ---
 

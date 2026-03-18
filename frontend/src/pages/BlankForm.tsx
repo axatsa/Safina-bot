@@ -13,6 +13,7 @@ import { Plus, Trash2, Download, Loader2, ArrowLeft } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { generateBlank, BlankItem } from "@/lib/services/blanks";
+import { store } from "@/lib/store";
 
 const BlankForm = () => {
   const [searchParams] = useSearchParams();
@@ -67,31 +68,27 @@ const BlankForm = () => {
     setLoading(true);
 
     try {
-      let data: any = { template };
       if (template === "refund") {
-        data = { ...data, ...refundData };
+        const payload = {
+          ...refundData,
+          project_id: searchParams.get("project_id") || null,
+        };
+        await store.submitRefundApplicationFromWeb(payload);
+        toast.success("Заявление на возврат отправлено Сафине!");
       } else {
-        data = {
-          ...data,
+        const payload = {
+          template,
           purpose,
           items,
-          total_amount: items.reduce((sum, item) => sum + (item.qty * item.amount), 0),
-          currency: items[0]?.currency || "UZS",
+          project_id: searchParams.get("project_id") || null,
         };
+        await store.submitBlankFromWeb(payload);
+        toast.success("Заявка успешно отправлена Сафине!");
       }
-
-      const blob = await generateBlank(data);
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `blank_${template}_${new Date().getTime()}.docx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success("Бланк успешно создан!");
+      navigate("/dashboard/applications");
     } catch (error) {
       console.error(error);
-      toast.error("Ошибка при создании бланка");
+      toast.error("Ошибка при отправке заявки");
     } finally {
       setLoading(false);
     }
@@ -249,8 +246,8 @@ const BlankForm = () => {
           )}
 
           <Button type="submit" className="w-full rounded-xl py-6" disabled={loading}>
-            {loading ? <Loader2 className="animate-spin mr-2" /> : <Download className="mr-2" />}
-            Скачать DOCX
+            {loading ? <Loader2 className="animate-spin mr-2" /> : (template === "refund" ? <Download className="mr-2" /> : <Plus className="mr-2" />)}
+            {template === "refund" ? "Скачать DOCX" : "Отправить Сафине"}
           </Button>
         </form>
       </div>

@@ -62,3 +62,20 @@ def remove_project_member(project_id: str, member_id: str, db: Session = Depends
     if not member:
         raise HTTPException(status_code=404, detail="Project or Member not found")
     return {"status": "success"}
+
+@router.patch("/{project_id}/templates", response_model=schemas.ProjectSchema)
+def update_project_templates(
+    project_id: str,
+    update: schemas.ProjectTemplatesUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
+    if not auth.is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can update templates")
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project.templates = update.templates
+    db.commit()
+    db.refresh(project)
+    return project

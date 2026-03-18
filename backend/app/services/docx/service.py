@@ -1,5 +1,6 @@
 import os
 from sqlalchemy.orm import Session
+from decimal import Decimal
 from app.db import models
 from .generator import generate_docx
 
@@ -18,10 +19,18 @@ class DocxService:
     }
 
     def get_template_path(self, expense: models.ExpenseRequest) -> str:
-        """Select the correct template based on expense type and branch."""
-        if expense.request_type == "refund":
+        """Select the correct template based on expense type, template_key, and branch."""
+        # 1. Если это refund (старый тип или новый)
+        if expense.request_type in ["refund", "blank_refund"] or expense.template_key == "refund":
             return os.path.join(TEMPLATES_DIR, self.REFUND_TEMPLATE)
             
+        # 2. Если есть явный ключ шаблона (новый выбор в боте)
+        if expense.template_key:
+            tpl_name = self.BRANCH_MAPPING.get(expense.template_key)
+            if tpl_name:
+                return os.path.join(TEMPLATES_DIR, tpl_name)
+
+        # 3. Fallback: по филиалу сотрудника (старая логика)
         branch = None
         if expense.created_by_user and expense.created_by_user.branch:
             branch = expense.created_by_user.branch.lower()

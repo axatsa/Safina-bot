@@ -11,7 +11,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2, KeyRound } from "lucide-react";
+import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2, KeyRound, FileText, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+const AVAILABLE_TEMPLATES = [
+    { id: "land", label: "Thompson Land" },
+    { id: "ls", label: "Learning Center (LS)" },
+    { id: "management", label: "Management" },
+    { id: "school", label: "School" },
+    { id: "refund", label: "Заявление на возврат" },
+];
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -57,10 +67,37 @@ const Team = () => {
     onError: () => toast.error("Ошибка при удалении")
   });
 
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [activeMember, setActiveMember] = useState<TeamMember | null>(null);
+
   const handleDeleteMember = (id: string) => {
     if (confirm("Вы уверены, что хотите удалить этого участника?")) {
       deleteMutation.mutate(id);
     }
+  };
+
+  const updateTemplatesMutation = useMutation({
+    mutationFn: ({ memberId, templates }: { memberId: string; templates: string[] }) =>
+      store.updateTeamMemberTemplates(memberId, templates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team"] });
+      toast.success("Личные шаблоны обновлены");
+    }
+  });
+
+  const handleTemplateToggle = (templateId: string) => {
+    if (!activeMember) return;
+    const currentTemplates = activeMember.templates || [];
+    const newTemplates = currentTemplates.includes(templateId)
+      ? currentTemplates.filter(id => id !== templateId)
+      : [...currentTemplates, templateId];
+    
+    updateTemplatesMutation.mutate({ 
+      memberId: activeMember.id, 
+      templates: newTemplates 
+    });
+    
+    setActiveMember({ ...activeMember, templates: newTemplates });
   };
 
   const generatePassword = () => {
@@ -276,7 +313,19 @@ const Team = () => {
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-6 py-4 text-right space-x-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-indigo-600 transition-colors"
+                              onClick={() => {
+                                setActiveMember(member);
+                                setTemplateDialogOpen(true);
+                              }}
+                              title="Личные шаблоны"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -296,6 +345,38 @@ const Team = () => {
           </div>
         </>
       )}
+
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Личные шаблоны: {activeMember?.lastName} {activeMember?.firstName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <Label className="text-sm font-medium">Выберите дополнительные шаблоны для этого сотрудника:</Label>
+            <div className="grid grid-cols-1 gap-3">
+              {AVAILABLE_TEMPLATES.map((tpl) => (
+                <div key={tpl.id} className="flex items-center space-x-3 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors">
+                  <Checkbox 
+                    id={`mtpl-${tpl.id}`}
+                    checked={(activeMember?.templates || []).includes(tpl.id)}
+                    onCheckedChange={() => handleTemplateToggle(tpl.id)}
+                  />
+                  <Label 
+                    htmlFor={`mtpl-${tpl.id}`}
+                    className="text-sm font-medium cursor-pointer flex-1"
+                  >
+                    {tpl.label}
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">{tpl.id}</span>
+                  </Label>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground italic mt-2">
+              * Эти шаблоны будут доступны сотруднику в Telegram боте ПОМИМО шаблонов его проектов.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

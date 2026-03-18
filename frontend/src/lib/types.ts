@@ -9,6 +9,7 @@ export interface Project {
     firstName: string;
     position?: string;
   }>;
+  templates?: string[];
 }
 
 export interface PaginatedResponse<T> {
@@ -32,6 +33,7 @@ export interface TeamMember {
   team?: string;
   status: "active" | "blocked";
   telegramChatId?: number;
+  templates?: string[];
   createdAt: Date;
 }
 
@@ -82,6 +84,8 @@ export interface ExpenseRequest {
   projectCode: string;
   internalComment?: string;
   statusComment?: string;
+  templateKey?: string;
+  refundData?: any;
   createdAt: Date;
 }
 

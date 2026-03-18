@@ -59,4 +59,12 @@ export const teamService = {
   deleteTeamMember: async (id: string) => {
     await apiFetch(`/team/${id}`, { method: "DELETE" });
   },
+
+  updateTeamMemberTemplates: async (memberId: string, templates: string[]) => {
+    const res = await apiFetch(`/team/${memberId}/templates`, {
+      method: "PATCH",
+      body: JSON.stringify({ templates }),
+    });
+    return await res.json();
+  },
 };

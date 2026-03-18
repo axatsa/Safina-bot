@@ -104,10 +104,22 @@ async def send_admin_notification(expense_id: str, admin_chat_id: int) -> None:
         base_url = os.getenv("WEB_FORM_BASE_URL", "https://finance.thompson.uz")
         dt_str = _format_expense_dt(expense.date)
 
+        header = "🔴 *Safina Expense Tracker*"
+        type_label = "Инвестиция"
+        if expense.request_type == "blank":
+            header = "📋 *Safina: Новая заявка на БЛАНК*"
+            type_label = "Бланк"
+        elif expense.request_type == "blank_refund":
+            header = "🧾 *Safina: Заявление на ВОЗВРАТ*"
+            type_label = "Возврат"
+        elif expense.request_type == "refund":
+            header = "🧾 *Safina: Заявление на ВОЗВРАТ*"
+            type_label = "Возврат"
+
         text = (
-            f"🔴 *Safina Expense Tracker*\n"
+            f"{header}\n"
             f"🟢 {expense.project_name} ({expense.project_code})\n"
-            f"➡️ Параметры инвестиции:\n"
+            f"➡️ Параметры {type_label.lower()}а:\n"
             f"🔸 {expense.created_by}\n"
             f"🔸 {expense.purpose}\n"
             f"🆔 {expense.request_id}\n"

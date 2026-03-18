@@ -12,10 +12,7 @@ import datetime
 
 router = Router()
 
-@router.message(F.text == "🧾 Заявление на возврат")
-async def start_refund_blank_wizard(message: types.Message, state: FSMContext):
-    await state.set_state(RefundBlankWizard.filling_method)
-    await message.answer("Как хотите заполнить заявление?", reply_markup=get_fill_method_kb())
+# Removed manual start, now started from BlankWizard
 
 @router.message(RefundBlankWizard.filling_method)
 async def handle_filling_method(message: types.Message, state: FSMContext):
@@ -240,60 +237,50 @@ async def handle_bank(message: types.Message, state: FSMContext):
     )
     
     kb = ReplyKeyboardBuilder()
-    kb.button(text="📥 Скачать заявление")
+    kb.button(text="✅ Отправить Сафине")
     kb.button(text=_BACK)
     kb.adjust(1)
     await message.answer(summary, parse_mode="Markdown", reply_markup=kb.as_markup(resize_keyboard=True))
 
-@router.message(F.text == "📥 Скачать заявление", RefundBlankWizard.confirm)
-async def download_refund_blank(message: types.Message, state: FSMContext):
+from app.core import database, auth
+from app.db import models, schemas, crud
+from ..notifications import send_admin_notification, get_admin_chat_id
+from ...currency.service import currency_service
+
+@router.message(F.text == "✅ Отправить Сафине", RefundBlankWizard.confirm)
+async def handle_refund_final_submit(message: types.Message, state: FSMContext):
     data = await state.get_data()
-    
-    # Internal logic to generate DOCX
-    from app.services.docx.generator import generate_docx
-    from app.core import database
-    from app.db import models
     
     with next(database.get_db()) as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
-        if not user:
-            await message.answer("Пользователь не найден")
-            return
+        
+        # 1. Создаем ExpenseRequest в базе
+        # Для возврата сохраняем все доп. поля в поле refund_data (JSON)
+        # Но в ExpenseRequest мы можем сохранить как общие поля
+        
+        expense_create = schemas.ExpenseRequestCreate(
+            project_id=data.get("project_id"),
+            purpose=f"Возврат: {data['client_name']}",
+            items=[], # Пусто для возврата, используем refund_data
+            currency="UZS",
+            request_type="blank_refund",
+            template_key="refund",
+            refund_data=data # Сохраняем все собранные данные (client_name, passport, и т.д.)
+        )
+        
+        usd_rate = await currency_service.get_usd_rate()
+        expense_req = crud.create_expense_request(db=db, expense=expense_create, user_id=user.id, usd_rate=usd_rate)
+        
+        # 2. Уведомляем админа
+        admin_chat_id = get_admin_chat_id()
+        if admin_chat_id:
+            await send_admin_notification(expense_req.id, admin_chat_id)
             
-        templates_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "docx", "templates")
-        template_path = os.path.join(templates_dir, "Заявление_на_возврат_денег.docx")
-        
-        payload = {
-            "template": "refund",
-            "sender_name": f"{user.last_name} {user.first_name}",
-            "sender_position": user.position or "Сотрудник",
-            "date": datetime.datetime.now().strftime("%d.%m.%Y"),
-            **data
-        }
-        
-        # Checkboxes for refund reason
-        reasons = {
-            "Переезд": "reason_pereezd",
-            "Изменение графика": "reason_grafik",
-            "Несоответствие": "reason_ozhidaniy",
-            "Материальные трудности": "reason_trudnosti",
-            "По личным причинам": "reason_lichnye",
-            "Другое": "reason_drugoe"
-        }
-        for res_text, res_key in reasons.items():
-            payload[res_key] = "☑" if data["reason"] == res_text else "□"
-        
-        if data["reason"] == "Другое":
-            payload["reason_drugoe_text"] = data["reason_other"]
-        else:
-            payload["reason_drugoe_text"] = ""
+        await state.clear()
+        await message.answer(
+            f"✅ Заявление на возврат ({expense_req.request_id}) отправлено Сафине.\n\n"
+            f"Когда бланк будет утвержден, вы получите уведомление.",
+            reply_markup=get_main_kb()
+        )
 
-        try:
-            stream = generate_docx(template_path, payload)
-            fname = f"refund_{data['client_name']}_{datetime.datetime.now().strftime('%d%m%Y')}.docx"
-            input_file = types.BufferedInputFile(stream.getvalue(), filename=fname)
-            await message.answer_document(input_file)
-            await state.clear()
-            await message.answer("Заявление готово!", reply_markup=get_main_kb())
-        except Exception as e:
-            await message.answer(f"Ошибка генерации: {e}")
+# Manual download removed from bot flow, handled via Safina export

@@ -36,7 +36,7 @@ def get_projects(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Project).offset(skip).limit(limit).all()
 
 def create_project(db: Session, project: schemas.ProjectCreate):
-    db_project = models.Project(name=project.name, code=project.code)
+    db_project = models.Project(name=project.name, code=project.code, templates=project.templates)
     db.add(db_project)
     db.commit()
     db.refresh(db_project)
@@ -90,7 +90,8 @@ def create_team_member(db: Session, member: schemas.TeamMemberCreate):
         position=member.position,
         status=member.status,
         branch=member.branch,
-        team=member.team
+        team=member.team,
+        templates=member.templates
     )
     
     # Add projects
@@ -198,6 +199,7 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
         project_name=project_name,
         project_code=project_code,
         request_type=expense.request_type,
+        template_key=expense.template_key,
         receipt_photo_file_id=expense.receipt_photo_file_id,
         refund_data=expense.refund_data.dict() if expense.refund_data else None
     )

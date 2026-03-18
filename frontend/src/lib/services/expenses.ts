@@ -80,6 +80,22 @@ export const expensesService = {
     return await res.json();
   },
 
+  submitBlankFromWeb: async (data: any) => {
+    const res = await apiFetch("/expenses/blank-submit", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return await res.json();
+  },
+
+  submitRefundApplicationFromWeb: async (data: any) => {
+    const res = await apiFetch("/expenses/refund-application-submit", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return await res.json();
+  },
+
   createExpenseRequest: async (data: any) => {
     const res = await apiFetch("/expenses", {
       method: "POST",
@@ -108,13 +124,14 @@ export const expensesService = {
     link.remove();
   },
 
-  exportDocx: async (expenseId: string) => {
-    const res = await apiFetch(`/expenses/${expenseId}/export-docx`);
+  exportDocx: async (expenseId: string, isBlank: boolean = false) => {
+    const endpoint = isBlank ? `/expenses/${expenseId}/export-blank-docx` : `/expenses/${expenseId}/export-docx`;
+    const res = await apiFetch(endpoint);
     const blob = await res.blob();
     const downloadUrl = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.setAttribute('download', `smeta_${expenseId}.docx`);
+    link.setAttribute('download', isBlank ? `blank_${expenseId}.docx` : `smeta_${expenseId}.docx`);
     document.body.appendChild(link);
     link.click();
     link.remove();
