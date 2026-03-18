@@ -104,30 +104,39 @@ async def proceed_to_templates(message: types.Message, state: FSMContext, user_t
         await message.answer("Для этого проекта не назначены шаблоны. Обратитесь к Сафине.")
         return
 
-        await state.update_data(project_id=project_id, available_templates=list(template_keys))
-        
-        if len(template_keys) > 1:
-            await state.set_state(BlankWizard.template_selection)
-            await message.answer("Выберите тип бланка:", reply_markup=get_template_select_kb(list(template_keys)))
-        else:
-            # 1 шаблон — переходим сразу
-            template = list(template_keys)[0]
-            await proceed_to_filling_method(message, state, template)
+    await state.update_data(project_id=project_id, available_templates=list(template_keys))
+    
+    if len(template_keys) > 1:
+        await state.set_state(BlankWizard.template_selection)
+        await message.answer("Выберите тип бланка:", reply_markup=get_template_select_kb(list(template_keys)))
+    else:
+        # 1 шаблон — переходим сразу
+        template = list(template_keys)[0]
+        await proceed_to_filling_method(message, state, template)
 
 # Позиция 2. Выбор шаблона (если 2+)
 @router.message(BlankWizard.template_selection)
 async def handle_template_selection(message: types.Message, state: FSMContext):
     if message.text == _BACK:
-        # Возврат либо к выбору проекта, либо выход
         data = await state.get_data()
+        projects_data = []
         with next(database.get_db()) as db:
             user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
-            if len(user.projects) > 1:
-                await state.set_state(BlankWizard.project_selection)
-                await message.answer("Для какого проекта бланк?", reply_markup=get_projects_kb(user.projects))
-            else:
-                await state.clear()
-                await message.answer("Главное меню", reply_markup=get_main_kb())
+            if user:
+                for p in user.projects:
+                    projects_data.append({
+                        "id": p.id,
+                        "name": p.name,
+                        "code": p.code,
+                        "templates": list(p.templates or [])
+                    })
+
+        if len(projects_data) > 1:
+            await state.set_state(BlankWizard.project_selection)
+            await message.answer("Для какого проекта бланк?", reply_markup=get_projects_kb(projects_data))
+        else:
+            await state.clear()
+            await message.answer("Возврат в главное меню.", reply_markup=get_main_kb())
         return
 
     # Маппинг имен обратно в ключи (упрощенно)

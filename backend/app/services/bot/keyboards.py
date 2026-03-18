@@ -51,9 +51,14 @@ def get_fill_method_kb():
 def get_projects_kb(projects):
     b = ReplyKeyboardBuilder()
     for p in projects:
-        # p can be a Project object or a name string depending on context
-        name = p.name if hasattr(p, 'name') else str(p)
-        code = p.code if hasattr(p, 'code') else ""
+        # p can be a Project ORM object or a dictionary from projects_data
+        if isinstance(p, dict):
+            name = p.get("name", str(p))
+            code = p.get("code", "")
+        else:
+            name = getattr(p, "name", str(p))
+            code = getattr(p, "code", "")
+            
         label = f"{name} ({code})" if code else name
         b.button(text=label)
     b.button(text=_BACK)
