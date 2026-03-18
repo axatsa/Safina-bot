@@ -9,7 +9,7 @@ router = Router()
 async def handle_ceo_update(message: types.Message):
     tg_id = message.from_user.id
     
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == tg_id).first()
         if not user or user.position != "ceo":
             return

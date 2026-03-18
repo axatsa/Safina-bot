@@ -35,8 +35,16 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_expense_status_history_expense_id'), 'expense_status_history', ['expense_id'], unique=False)
     op.add_column('expense_requests', sa.Column('usd_rate', sa.Numeric(precision=18, scale=6), nullable=True))
-    op.add_column('projects', sa.Column('templates', sa.JSON(), nullable=False))
-    op.add_column('team_members', sa.Column('templates', sa.JSON(), nullable=False))
+    
+    # Safe column addition for projects
+    op.add_column('projects', sa.Column('templates', sa.JSON(), nullable=True))
+    op.execute("UPDATE projects SET templates = '[]'")
+    op.alter_column('projects', 'templates', nullable=False)
+    
+    # Safe column addition for team_members
+    op.add_column('team_members', sa.Column('templates', sa.JSON(), nullable=True))
+    op.execute("UPDATE team_members SET templates = '[]'")
+    op.alter_column('team_members', 'templates', nullable=False)
     # ### end Alembic commands ###
 
 

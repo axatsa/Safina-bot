@@ -11,7 +11,7 @@ router = Router()
 @router.callback_query(F.data.startswith("approve_senior_"))
 async def handle_approve_senior(callback: types.CallbackQuery):
     expense_id = callback.data.removeprefix("approve_senior_")
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == callback.from_user.id).first()
         if not user or user.position not in ["senior_financier", "admin"]:
             await callback.answer("У вас нет прав для этого действия", show_alert=True)
@@ -26,7 +26,7 @@ async def handle_approve_senior(callback: types.CallbackQuery):
 @router.callback_query(F.data.startswith("reject_senior_"))
 async def handle_reject_senior(callback: types.CallbackQuery):
     expense_id = callback.data.removeprefix("reject_senior_")
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == callback.from_user.id).first()
         if not user or user.position not in ["senior_financier", "admin"]:
             await callback.answer("У вас нет прав для этого действия", show_alert=True)
@@ -41,7 +41,7 @@ async def handle_reject_senior(callback: types.CallbackQuery):
 @router.callback_query(F.data.startswith("approve_ceo_"))
 async def handle_approve_ceo(callback: types.CallbackQuery):
     expense_id = callback.data.removeprefix("approve_ceo_")
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == callback.from_user.id).first()
         if not user or user.position != "ceo":
             await callback.answer("У вас нет прав для этого действия (Только CEO)", show_alert=True)
@@ -81,7 +81,7 @@ async def handle_approve_ceo(callback: types.CallbackQuery):
 @router.callback_query(F.data.startswith("reject_ceo_"))
 async def handle_reject_ceo(callback: types.CallbackQuery):
     expense_id = callback.data.removeprefix("reject_ceo_")
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == callback.from_user.id).first()
         if not user or user.position != "ceo":
             await callback.answer("У вас нет прав для этого действия (Только CEO)", show_alert=True)
@@ -122,7 +122,7 @@ async def handle_download_smeta(callback: types.CallbackQuery):
     expense_id = callback.data.removeprefix("download_smeta_")
     from app.services.docx.service import docx_service
     
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
             await callback.answer("Заявка не найдена")
@@ -142,7 +142,7 @@ async def handle_download_excel(callback: types.CallbackQuery):
     expense_id = callback.data.removeprefix("download_excel_")
     from app.services.analytics import export as export_service
     
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
             await callback.answer("Заявка не найдена")

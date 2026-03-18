@@ -251,7 +251,7 @@ from ...currency.service import currency_service
 async def handle_refund_final_submit(message: types.Message, state: FSMContext):
     data = await state.get_data()
     
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
         
         # 1. Создаем ExpenseRequest в базе

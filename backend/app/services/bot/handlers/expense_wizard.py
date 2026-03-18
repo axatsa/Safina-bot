@@ -17,7 +17,7 @@ router = Router()
 
 @router.message(F.text == "Создать инвестицию (в боте)")
 async def start_wizard_selection(message: types.Message, state: FSMContext):
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
         if not user:
             await message.answer("Сначала авторизуйтесь: /start")
@@ -40,7 +40,7 @@ async def process_project_selection(message: types.Message, state: FSMContext):
         await message.answer("Отменено.", reply_markup=get_main_kb())
         return
         
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         projects = db.query(models.Project).all()
         selected = next((p for p in projects if f"{p.name} ({p.code})" == message.text), None)
         if selected:
@@ -55,7 +55,7 @@ async def process_date(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         data = await state.get_data()
         user_id = data.get("user_id")
-        with next(database.get_db()) as db:
+        with database.database_session() as db:
             user = db.query(models.TeamMember).filter(models.TeamMember.id == user_id).first()
             if user and len(user.projects) > 1:
                 await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
@@ -188,7 +188,7 @@ async def process_finish(message: types.Message, state: FSMContext):
         await state.clear()
         return
 
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         try:
             total = sum(Decimal(str(i["amount"])) * Decimal(str(i["quantity"])) for i in items)
             currency = items[0]["currency"]

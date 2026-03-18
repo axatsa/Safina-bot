@@ -12,7 +12,7 @@ router = Router()
 
 @router.message(F.text == "Оформить возврат (в боте)")
 async def start_refund_wizard(message: types.Message, state: FSMContext):
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         from app.db import models
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
         if not user:
@@ -77,7 +77,7 @@ async def process_refund_card(message: types.Message, state: FSMContext):
 @router.callback_query(RefundWizard.confirm, F.data == "refund_submit")
 async def handle_refund_submit(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         try:
             from app.services.refund.service import create_refund
             create_refund(db, student_id=data["student_id"], reason=data["reason"], amount=data["amount"], card_number=data["card_number"], user_id=data["user_id"])

@@ -94,8 +94,7 @@ async def send_admin_notification(expense_id: str, admin_chat_id: int) -> None:
     from app.core import database
     from app.db import models
 
-    db = next(database.get_db())
-    try:
+    with database.database_session() as db:
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
             print(f"[TG] Expense {expense_id} not found for admin notification")
@@ -139,8 +138,6 @@ async def send_admin_notification(expense_id: str, admin_chat_id: int) -> None:
         builder.adjust(1)
 
         await _send_message(admin_chat_id, text, reply_markup=builder.as_markup())
-    finally:
-        db.close()
 
 
 # ---------------------------------------------------------------------------
@@ -152,8 +149,7 @@ async def send_senior_notification(expense_id: str, senior_chat_id: int) -> None
     from app.core import database
     from app.db import models
 
-    db = next(database.get_db())
-    try:
+    with database.database_session() as db:
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
             print(f"[TG] Expense {expense_id} not found for senior notification")
@@ -176,8 +172,6 @@ async def send_senior_notification(expense_id: str, senior_chat_id: int) -> None
         builder.adjust(2, 1)
 
         await _send_message(senior_chat_id, text, reply_markup=builder.as_markup())
-    finally:
-        db.close()
 
 
 # ---------------------------------------------------------------------------
@@ -189,8 +183,7 @@ async def send_ceo_notification(expense_id: str, ceo_chat_id: int) -> None:
     from app.core import database
     from app.db import models
 
-    db = next(database.get_db())
-    try:
+    with database.database_session() as db:
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
             print(f"[TG] Expense {expense_id} not found for CEO notification")
@@ -213,8 +206,6 @@ async def send_ceo_notification(expense_id: str, ceo_chat_id: int) -> None:
         builder.adjust(2, 1)
 
         await _send_message(ceo_chat_id, text, reply_markup=builder.as_markup())
-    finally:
-        db.close()
 
 
 async def send_ceo_decision_notification(

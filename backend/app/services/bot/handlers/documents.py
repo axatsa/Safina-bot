@@ -12,7 +12,7 @@ router = Router()
 @router.callback_query(F.data.startswith("download_smeta_"))
 async def handle_download_smeta(callback: types.CallbackQuery):
     expense_id = callback.data.removeprefix("download_smeta_")
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
             await callback.answer("Не найдено")
@@ -37,7 +37,7 @@ async def handle_download_smeta(callback: types.CallbackQuery):
 @router.callback_query(F.data.startswith("download_excel_"))
 async def handle_download_excel(callback: types.CallbackQuery):
     expense_id = callback.data.removeprefix("download_excel_")
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
             await callback.answer("Не найдено")

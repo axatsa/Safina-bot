@@ -24,7 +24,7 @@ router = Router()
 async def start_blank_wizard(message: types.Message, state: FSMContext):
     await state.clear()
     
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
         if not user:
             await message.answer("Ошибка: вы не зарегистрированы в системе.")
@@ -63,7 +63,7 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
         await message.answer("Главное меню", reply_markup=get_main_kb())
         return
 
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
         if not user:
             await message.answer("Пользователь не найден.")
@@ -120,7 +120,7 @@ async def handle_template_selection(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         data = await state.get_data()
         projects_data = []
-        with next(database.get_db()) as db:
+        with database.database_session() as db:
             user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
             if user:
                 for p in user.projects:
@@ -314,7 +314,7 @@ async def handle_final_submit(message: types.Message, state: FSMContext):
     expense_req_id = None
     request_id = None
     
-    with next(database.get_db()) as db:
+    with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
         if not user:
             await message.answer("Ошибка: пользователь не найден.")
