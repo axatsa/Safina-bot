@@ -14,5 +14,5 @@ export const rbac = {
   isSafina: () => getUser().toLowerCase() === "safina",
   isFarrukh: () => getUser().toLowerCase() === "farrukh",
   hasWebAccess: () => ["admin", "senior_financier", "ceo"].includes(getRole()) || getUser().toLowerCase() === "safina",
-  canManageTeam: () => ["admin", "senior_financier", "ceo"].includes(getRole()) || getUser().toLowerCase() === "safina",
+  canDownload: () => ["admin", "senior_financier", "ceo"].includes(getRole()) || getUser().toLowerCase() === "safina",
 };

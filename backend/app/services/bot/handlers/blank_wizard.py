@@ -15,6 +15,7 @@ from ...currency.service import currency_service
 import os
 import datetime
 from sqlalchemy.orm import Session
+from typing import Optional, List, Dict, Any
 
 router = Router()
 
@@ -29,21 +30,30 @@ async def start_blank_wizard(message: types.Message, state: FSMContext):
             await message.answer("Ошибка: вы не зарегистрированы в системе.")
             return
 
-        # 1. Собираем проекты
-        projects = user.projects
+        # Extract data while session is open
+        user_templates = list(user.templates or [])
+        projects_data = []
+        for p in user.projects:
+            projects_data.append({
+                "id": p.id,
+                "name": p.name,
+                "code": p.code,
+                "templates": list(p.templates or [])
+            })
         
-        if not projects and not user.templates:
+        if not projects_data and not user_templates:
             await message.answer("У вас нет назначенных проектов и личных шаблонов. Обратитесь к Сафине.")
             return
 
         # 2. Логика по количеству проектов
-        if len(projects) > 1:
+        if len(projects_data) > 1:
             await state.set_state(BlankWizard.project_selection)
-            await message.answer("Для какого проекта бланк?", reply_markup=get_projects_kb(projects))
+            # Create a simplified project list for the keyboard
+            await message.answer("Для какого проекта бланк?", reply_markup=get_projects_kb(projects_data))
         else:
             # 1 проект или вообще нет проектов (но есть личные шаблоны)
-            project_id = projects[0].id if projects else None
-            await proceed_to_templates(message, state, user, project_id)
+            project_id = projects_data[0]["id"] if projects_data else None
+            await proceed_to_templates(message, state, user_templates, projects_data, project_id)
 
 # Позиция 1. Выбор проекта (если 2+)
 @router.message(BlankWizard.project_selection)
@@ -55,31 +65,44 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
 
     with next(database.get_db()) as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
-        # Ищем проект по имени и коду из текста кнопки "Name (CODE)"
-        project = None
+        if not user:
+            await message.answer("Пользователь не найден.")
+            return
+
+        # Extract data while session is open
+        user_templates = list(user.templates or [])
+        projects_data = []
+        project_id = None
         for p in user.projects:
+            p_data = {
+                "id": p.id,
+                "name": p.name,
+                "code": p.code,
+                "templates": list(p.templates or [])
+            }
+            projects_data.append(p_data)
             if f"{p.name} ({p.code})" == message.text:
-                project = p
-                break
+                project_id = p.id
         
-        if not project:
+        if not project_id:
             await message.answer("Выберите проект из списка кнопок.")
             return
 
-        await proceed_to_templates(message, state, user, project.id)
+        await proceed_to_templates(message, state, user_templates, projects_data, project_id)
 
-async def proceed_to_templates(message: types.Message, state: FSMContext, user: models.TeamMember, project_id: str):
-    with next(database.get_db()) as db:
-        # Собираем доступные шаблоны: личные + этого проекта
-        template_keys = set(user.templates or [])
-        if project_id:
-            project = db.query(models.Project).filter(models.Project.id == project_id).first()
-            if project and project.templates:
-                template_keys.update(project.templates)
-        
-        if not template_keys:
-            await message.answer("Для этого проекта не назначены шаблоны. Обратитесь к Сафине.")
-            return
+async def proceed_to_templates(message: types.Message, state: FSMContext, user_templates: list, projects_data: list, project_id: Optional[str]):
+    # Собираем доступные шаблоны: личные + этого проекта
+    template_keys = set(user_templates)
+    
+    if project_id:
+        # Find project in our pre-loaded data
+        project = next((p for p in projects_data if p["id"] == project_id), None)
+        if project and project.get("templates"):
+            template_keys.update(project["templates"])
+    
+    if not template_keys:
+        await message.answer("Для этого проекта не назначены шаблоны. Обратитесь к Сафине.")
+        return
 
         await state.update_data(project_id=project_id, available_templates=list(template_keys))
         
@@ -278,12 +301,17 @@ async def show_summary(message: types.Message, state: FSMContext):
 @router.message(F.text == "✅ Отправить Сафине", BlankWizard.confirm)
 async def handle_final_submit(message: types.Message, state: FSMContext):
     data = await state.get_data()
+    usd_rate = await currency_service.get_usd_rate()
+    expense_req_id = None
+    request_id = None
     
     with next(database.get_db()) as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
-        
+        if not user:
+            await message.answer("Ошибка: пользователь не найден.")
+            return
+
         # 1. Создаем ExpenseRequest в базе
-        # Преобразуем items в формат схем
         items_objs = [schemas.ExpenseItemSchema(**i) for i in data["items"]]
         
         expense_create = schemas.ExpenseRequestCreate(
@@ -295,17 +323,18 @@ async def handle_final_submit(message: types.Message, state: FSMContext):
             template_key=data["template"]
         )
         
-        usd_rate = await currency_service.get_usd_rate()
         expense_req = crud.create_expense_request(db=db, expense=expense_create, user_id=user.id, usd_rate=usd_rate)
+        expense_req_id = expense_req.id
+        request_id = expense_req.request_id
+
+    # 2. Уведомляем админа (вне сессии)
+    admin_chat_id = get_admin_chat_id()
+    if admin_chat_id:
+        await send_admin_notification(expense_req_id, admin_chat_id)
         
-        # 2. Уведомляем админа
-        admin_chat_id = get_admin_chat_id()
-        if admin_chat_id:
-            await send_admin_notification(expense_req.id, admin_chat_id)
-            
-        await state.clear()
-        await message.answer(
-            f"✅ Заявка {expense_req.request_id} отправлена Сафине.\n\n"
-            f"Когда бланк будет утвержден, вы получите уведомление.",
-            reply_markup=get_main_kb()
-        )
+    await state.clear()
+    await message.answer(
+        f"✅ Заявка {request_id} отправлена Сафине.\n\n"
+        f"Когда бланк будет утвержден, вы получите уведомление.",
+        reply_markup=get_main_kb()
+    )

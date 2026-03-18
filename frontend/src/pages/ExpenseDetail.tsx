@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
+import { rbac } from "@/lib/rbac";
 import { ExpenseRequest, ExpenseStatus, STATUS_LABELS, ExpenseStatusHistory } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -194,14 +195,18 @@ const ExpenseDetail = () => {
           <p className="text-sm text-muted-foreground mt-1">{expense.purpose}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportDocx(expense.id, expense.requestType === "blank" || expense.requestType === "blank_refund")}>
-            <Download className="w-4 h-4" />
-            Word
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportXLSX({ status: expense.status })}>
-            <FileSpreadsheet className="w-4 h-4" />
-            Excel
-          </Button>
+          {rbac.canDownload() && (
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportDocx(expense.id, expense.requestType === "blank" || expense.requestType === "blank_refund")}>
+              <Download className="w-4 h-4" />
+              Word
+            </Button>
+          )}
+          {rbac.canDownload() && (
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportXLSX({ status: expense.status })}>
+              <FileSpreadsheet className="w-4 h-4" />
+              Excel
+            </Button>
+          )}
         </div>
       </div>
 
