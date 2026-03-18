@@ -21,6 +21,7 @@ const Login = () => {
 
     setIsLoading(false);
     if (success) {
+      sessionStorage.removeItem('redirecting');
       toast.success("Вход выполнен");
       navigate("/dashboard");
     } else {

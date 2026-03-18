@@ -19,12 +19,16 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   });
 
   if (response.status === 401) {
-    localStorage.removeItem("safina_token");
-    localStorage.removeItem("safina_role");
-    localStorage.removeItem("safina_user");
-    localStorage.removeItem("safina_projectId");
-    window.location.href = "/";
-    return response;
+    const isAlreadyRedirecting = sessionStorage.getItem('redirecting');
+    if (!isAlreadyRedirecting) {
+      sessionStorage.setItem('redirecting', 'true');
+      localStorage.removeItem("safina_token");
+      localStorage.removeItem("safina_role");
+      localStorage.removeItem("safina_user");
+      localStorage.removeItem("safina_projectId");
+      window.location.href = "/";
+    }
+    throw new Error("Unauthorized");
   }
 
   if (!response.ok) {

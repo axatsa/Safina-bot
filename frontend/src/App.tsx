@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import AppLayout from "./components/AppLayout";
@@ -20,6 +20,15 @@ import NotFound from "./pages/NotFound";
 import { SSEProvider } from "./lib/contexts/SSEContext";
 
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (error instanceof Error && error.message === 'Unauthorized') {
+        // Уже обработано в api-client
+        return;
+      }
+      console.error('Query error:', error);
+    },
+  }),
   defaultOptions: {
     queries: {
       retry: false,
