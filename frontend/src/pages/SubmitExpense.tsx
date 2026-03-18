@@ -49,6 +49,7 @@ const SubmitExpense = () => {
     const [purpose, setPurpose] = useState("");
     const [items, setItems] = useState<ItemWithDisplay[]>([emptyItem()]);
     const [submitted, setSubmitted] = useState(false);
+    const [errors, setErrors] = useState<{ purpose?: boolean; items?: number[]; project?: boolean }>({});
 
     const { data: projects = [] } = useQuery({
         queryKey: ["projects", chatId],
@@ -92,6 +93,7 @@ const SubmitExpense = () => {
                     setSubmitted(false);
                     setPurpose("");
                     setItems([emptyItem()]);
+                    setErrors({});
                 }, 2500);
             } else {
                 setTimeout(() => navigate("/dashboard"), 2000);
@@ -107,6 +109,13 @@ const SubmitExpense = () => {
     const removeItem = (index: number) => {
         if (items.length > 1) {
             setItems(items.filter((_, i) => i !== index));
+            // Clear errors for that index
+            if (errors.items) {
+                setErrors({
+                    ...errors,
+                    items: errors.items.filter(i => i !== index).map(i => i > index ? i - 1 : i)
+                });
+            }
         }
     };
 
@@ -119,6 +128,17 @@ const SubmitExpense = () => {
         }
 
         setItems(newItems);
+        
+        // Clear error for this item if it was invalid
+        if (errors.items?.includes(index)) {
+             const item = newItems[index];
+             if (item.name && item.amount > 0) {
+                 setErrors({
+                     ...errors,
+                     items: errors.items.filter(i => i !== index)
+                 });
+             }
+        }
     };
 
     const handleAmountChange = (index: number, raw: string) => {
@@ -130,13 +150,40 @@ const SubmitExpense = () => {
         const newItems = [...items];
         newItems[index] = { ...newItems[index], amount: num, displayAmount };
         setItems(newItems);
+
+        if (errors.items?.includes(index) && num > 0 && newItems[index].name) {
+            setErrors({
+                ...errors,
+                items: errors.items.filter(i => i !== index)
+            });
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!projectId) return toast.error("Выберите проект");
-        if (!purpose) return toast.error("Введите цель расхода");
-        if (items.some(i => !i.name || i.amount <= 0)) return toast.error("Заполните все поля товаров");
+        const newErrors: typeof errors = {};
+        
+        if (!projectId) {
+            newErrors.project = true;
+            toast.error("Выберите проект");
+        }
+        if (!purpose.trim()) {
+            newErrors.purpose = true;
+            toast.error("Введите цель расхода");
+        }
+        
+        const invalidItems = items.reduce((acc, item, idx) => {
+            if (!item.name || item.amount <= 0) acc.push(idx);
+            return acc;
+        }, [] as number[]);
+
+        if (invalidItems.length > 0) {
+            newErrors.items = invalidItems;
+            toast.error("Заполните все поля товаров");
+        }
+
+        setErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) return;
 
         mutation.mutate();
     };
@@ -178,9 +225,9 @@ const SubmitExpense = () => {
                 <form onSubmit={handleSubmit} className="glass-card p-6 md:p-8 rounded-2xl border space-y-6">
                     {projects.length > 1 && (
                         <div className="space-y-2 animate-fade-in">
-                            <Label>Проект</Label>
-                            <Select value={projectId} onValueChange={setProjectId}>
-                                <SelectTrigger className="rounded-xl">
+                            <Label className={errors.project ? "text-destructive" : ""}>Проект</Label>
+                            <Select value={projectId} onValueChange={(val) => { setProjectId(val); setErrors({...errors, project: false}) }}>
+                                <SelectTrigger className={`rounded-xl ${errors.project ? "border-destructive ring-1 ring-destructive" : ""}`}>
                                     <SelectValue placeholder="Выберите проект" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -191,6 +238,7 @@ const SubmitExpense = () => {
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {errors.project && <p className="text-[10px] text-destructive italic">Обязательное поле</p>}
                         </div>
                     )}
 
@@ -202,15 +250,15 @@ const SubmitExpense = () => {
                     )}
 
                     <div className="space-y-2">
-                        <Label htmlFor="purpose">Цель расхода</Label>
+                        <Label htmlFor="purpose" className={errors.purpose ? "text-destructive" : ""}>Цель расхода</Label>
                         <Input
                             id="purpose"
                             value={purpose}
-                            onChange={(e) => setPurpose(e.target.value)}
+                            onChange={(e) => { setPurpose(e.target.value); if(e.target.value) setErrors({...errors, purpose: false}) }}
                             placeholder="Напр. Закупка канцелярии"
-                            required
-                            className="rounded-xl"
+                            className={`rounded-xl ${errors.purpose ? "border-destructive ring-1 ring-destructive placeholder:text-destructive/50" : ""}`}
                         />
+                        {errors.purpose && <p className="text-[10px] text-destructive italic">Обязательное поле</p>}
                     </div>
 
                     <div className="space-y-4">

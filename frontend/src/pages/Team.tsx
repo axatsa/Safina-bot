@@ -14,6 +14,20 @@ import {
 import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2, KeyRound, FileText, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const AVAILABLE_TEMPLATES = [
     { id: "land", label: "Thompson Land" },
@@ -22,8 +36,6 @@ const AVAILABLE_TEMPLATES = [
     { id: "school", label: "School" },
     { id: "refund", label: "Заявление на возврат" },
 ];
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 const Team = () => {
   const queryClient = useQueryClient();
@@ -69,12 +81,6 @@ const Team = () => {
 
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [activeMember, setActiveMember] = useState<TeamMember | null>(null);
-
-  const handleDeleteMember = (id: string) => {
-    if (confirm("Вы уверены, что хотите удалить этого участника?")) {
-      deleteMutation.mutate(id);
-    }
-  };
 
   const updateTemplatesMutation = useMutation({
     mutationFn: ({ memberId, templates }: { memberId: string; templates: string[] }) =>
@@ -234,112 +240,145 @@ const Team = () => {
 
             <div className="xl:col-span-3">
               <div className="glass-card rounded-2xl border overflow-hidden">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Участник
-                      </th>
-                      <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Должность
-                      </th>
-                      <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Проекты
-                      </th>
-                      <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Филиал / Команда
-                      </th>
-                      <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Логин
-                      </th>
-                      <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Статус
-                      </th>
-                      <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider text-right">
-                        Действия
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {team.map((member: TeamMember) => {
-                      return (
-                        <tr key={member.id} className="hover:bg-muted/10 transition-colors group">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                                {(member.lastName || "?")[0]}{(member.firstName || "?")[0]}
-                              </div>
-                              <div>
-                                <p className="font-display font-semibold text-sm">
-                                  {member.lastName} {member.firstName}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-muted-foreground">
-                            {member.position || "—"}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-wrap gap-1.5">
-                              {(member.projects || []).map(p => (
-                                <span key={p.id} className="text-[10px] font-medium inline-flex items-center gap-1 bg-primary/5 text-primary px-2 py-0.5 rounded-full border border-primary/10">
-                                  {p.name}
-                                </span>
-                              ))}
-                              {(!member.projects || member.projects.length === 0) && <span className="text-xs text-muted-foreground">—</span>}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col gap-1">
-                              <span className="text-sm">{member.branch || "—"}</span>
-                              <span className="text-xs text-muted-foreground">{member.team || "—"}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <code className="text-xs bg-muted px-2 py-1 rounded">
-                              {member.login}
-                            </code>
-                          </td>
-                          <td className="px-6 py-4">
-                            {member.status === "active" ? (
-                              <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                                <ShieldCheck className="w-3 h-3" />
-                                Активен
-                              </div>
-                            ) : (
-                              <div className="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-100">
-                                <ShieldAlert className="w-3 h-3" />
-                                Заблокирован
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-right space-x-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-muted-foreground hover:text-indigo-600 transition-colors"
-                              onClick={() => {
-                                setActiveMember(member);
-                                setTemplateDialogOpen(true);
-                              }}
-                              title="Личные шаблоны"
-                            >
-                              <FileText className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-muted-foreground hover:text-red-600 transition-colors"
-                              onClick={() => handleDeleteMember(member.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </td>
+                {team.length === 0 ? (
+                    <div className="py-20">
+                        <EmptyState 
+                            icon={Users}
+                            title="Команда пуста"
+                            subtitle="Добавьте первого участника, чтобы начать работу"
+                        />
+                    </div>
+                ) : (
+                    <table className="w-full text-left">
+                    <thead>
+                        <tr className="border-b bg-muted/30">
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                            Участник
+                        </th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                            Должность
+                        </th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                            Проекты
+                        </th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                            Филиал / Команда
+                        </th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                            Логин
+                        </th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                            Статус
+                        </th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider text-right">
+                            Действия
+                        </th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                        {team.map((member: TeamMember) => {
+                        return (
+                            <tr key={member.id} className="hover:bg-muted/10 transition-colors group">
+                            <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                                    {(member.lastName || "?")[0]}{(member.firstName || "?")[0]}
+                                </div>
+                                <div>
+                                    <p className="font-display font-semibold text-sm">
+                                    {member.lastName} {member.firstName}
+                                    </p>
+                                </div>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                                {member.position || "—"}
+                            </td>
+                            <td className="px-6 py-4">
+                                <div className="flex flex-wrap gap-1.5">
+                                {(member.projects || []).map(p => (
+                                    <span key={p.id} className="text-[10px] font-medium inline-flex items-center gap-1 bg-primary/5 text-primary px-2 py-0.5 rounded-full border border-primary/10">
+                                    {p.name}
+                                    </span>
+                                ))}
+                                {(!member.projects || member.projects.length === 0) && <span className="text-xs text-muted-foreground">—</span>}
+                                </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <div className="flex flex-col gap-1">
+                                <span className="text-sm">{member.branch || "—"}</span>
+                                <span className="text-xs text-muted-foreground">{member.team || "—"}</span>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <code className="text-xs bg-muted px-2 py-1 rounded">
+                                {member.login}
+                                </code>
+                            </td>
+                            <td className="px-6 py-4">
+                                {member.status === "active" ? (
+                                <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                                    <ShieldCheck className="w-3 h-3" />
+                                    Активен
+                                </div>
+                                ) : (
+                                <div className="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-100">
+                                    <ShieldAlert className="w-3 h-3" />
+                                    Заблокирован
+                                </div>
+                                )}
+                            </td>
+                            <td className="px-6 py-4 text-right space-x-1">
+                                <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-indigo-600 transition-colors"
+                                onClick={() => {
+                                    setActiveMember(member);
+                                    setTemplateDialogOpen(true);
+                                }}
+                                title="Личные шаблоны"
+                                >
+                                <FileText className="w-4 h-4" />
+                                </Button>
+                                
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-muted-foreground hover:text-red-600 transition-colors"
+                                            title="Удалить участника"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Удалить участника?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Вы уверены, что хотите удалить этого участника? Он потеряет доступ к системе.
+                                                Это действие нельзя отменить.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                            <AlertDialogAction 
+                                                onClick={() => deleteMutation.mutate(member.id)}
+                                                className="bg-red-600 hover:bg-red-700"
+                                            >
+                                                Удалить
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </td>
+                            </tr>
+                        );
+                        })}
+                    </tbody>
+                    </table>
+                )}
               </div>
             </div>
           </div>

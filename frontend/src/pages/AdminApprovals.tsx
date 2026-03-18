@@ -27,8 +27,8 @@ const AdminApprovals = () => {
   const isAdmin = store.isAdmin();
 
   const { data: expensesPage, isLoading } = useQuery({
-    queryKey: ["expenses"],
-    queryFn: () => store.getExpenses({ limit: 1000 }),
+    queryKey: ["expenses-admin"],
+    queryFn: () => store.getExpenses({ status: "request,review,revision", limit: 100 }),
   });
   const expenses = expensesPage?.items ?? [];
 
@@ -47,11 +47,12 @@ const AdminApprovals = () => {
         <p className="text-sm text-muted-foreground mt-1">Первичная проверка и распределение заявок (Safina)</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {ADMIN_COLUMNS.map((col) => {
-          const items = expenses.filter((e) => col.statuses.includes(e.status));
-          return (
-            <div key={col.label} className="rounded-xl border bg-card overflow-hidden flex flex-col min-h-[400px]">
+      <div className="overflow-x-auto pb-4 -mx-6 px-6">
+        <div className="flex lg:grid lg:grid-cols-3 md:grid-cols-2 gap-6 min-w-max lg:min-w-0">
+          {ADMIN_COLUMNS.map((col) => {
+            const items = expenses.filter((e) => col.statuses.includes(e.status));
+            return (
+              <div key={col.label} className="rounded-xl border bg-card overflow-hidden flex flex-col min-h-[400px] w-[300px] lg:w-auto shrink-0 lg:shrink">
               <div className={`flex items-center justify-between px-4 py-3 border-b ${col.headerClass}`}>
                 <span className="font-display font-semibold text-sm">{col.label}</span>
                 <span className="text-xs font-medium bg-foreground/10 px-2 py-0.5 rounded-full">{items.length}</span>

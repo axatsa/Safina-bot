@@ -5,7 +5,8 @@ import { ExpenseRequest, ExpenseStatus, KANBAN_STATUSES, APPROVAL_STATUSES, STAT
 import ExpenseCard from "@/components/ExpenseCard";
 import CompactExpenseCard from "@/components/CompactExpenseCard";
 import FilterBar from "@/components/FilterBar";
-import { ChevronDown, ChevronRight, Loader2, DollarSign, FileText, Clock, CheckCircle, UserCheck, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, DollarSign, FileText, Clock, CheckCircle, UserCheck, ExternalLink, ClipboardList } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -232,15 +233,15 @@ const Applications = () => {
       {/* Main area: kanban */}
       <div className="flex gap-4">
         {/* Kanban board */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 overflow-x-auto pb-4 -mx-6 px-6">
           <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="grid grid-cols-1 lg:grid-cols-5 md:grid-cols-3 gap-4">
+            <div className="flex lg:grid lg:grid-cols-5 gap-4 min-w-max lg:min-w-0">
               {KANBAN_STATUSES.map((statusKey) => {
                 const items = filtered.filter((e) => e.status === statusKey);
                 const isCollapsed = !!collapsedColumns[statusKey];
 
                 return (
-                  <div key={statusKey} className="rounded-xl border bg-card overflow-hidden">
+                  <div key={statusKey} className="rounded-xl border bg-card overflow-hidden w-[280px] lg:w-auto shrink-0 lg:shrink">
                     <button
                       onClick={() => toggleColumn(statusKey)}
                       className={`flex items-center gap-2 px-3 py-2.5 w-full text-left ${kanbanColors[statusKey]}`}
@@ -285,8 +286,9 @@ const Applications = () => {
                           ))}
                           {provided.placeholder}
                           {items.length === 0 && (
-                            <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
-                              Нет инвестиций
+                            <div className="flex flex-col items-center justify-center py-10 text-center opacity-40">
+                              <ClipboardList className="w-8 h-8 mb-2" />
+                              <p className="text-[10px] font-medium">Нет инвестиций</p>
                             </div>
                           )}
                         </div>

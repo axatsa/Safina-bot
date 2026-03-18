@@ -2,22 +2,33 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
 import { rbac } from "@/lib/rbac";
-import { ExpenseRequest, ExpenseStatus, STATUS_LABELS, ExpenseStatusHistory } from "@/lib/types";
+import { ExpenseRequest, ExpenseStatus, STATUS_LABELS, ExpenseStatusHistory, STATUS_DESCRIPTIONS } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft, Download, Clock, CheckCircle, XCircle,
   RotateCcw, Archive, Send, Loader2, FastForward, Crown,
-  FileSpreadsheet
+  FileSpreadsheet, HelpCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const statusColorMap: Record<ExpenseStatus, string> = {
   request:         "bg-amber-100 text-amber-800",
@@ -52,7 +63,7 @@ const HistoryTimeline = ({ history }: { history: ExpenseStatusHistory[] }) => {
                   {STATUS_LABELS[item.status as ExpenseStatus] || item.status}
                 </span>
                 <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                  {format(item.createdAt, "dd.MM.yyyy HH:mm")}
+                  {format(new Date(item.createdAt), "dd.MM.yyyy HH:mm")}
                 </span>
               </div>
               <p className="text-sm font-medium mt-0.5">{item.changed_by_name || "Система"}</p>
@@ -171,12 +182,12 @@ const ExpenseDetail = () => {
 
   const isArchived = expense.status === "archived";
 
-  const actionButtons: { status: ExpenseStatus; label: string; icon: React.ReactNode; variant: "default" | "outline" | "destructive" | "ghost" }[] = [
+  const actionButtons: { status: ExpenseStatus; label: string; icon: React.ReactNode; variant: "default" | "outline" | "destructive" | "ghost"; needsConfirm?: boolean }[] = [
     { status: "review", label: "В рассмотрение", icon: <Clock className="w-4 h-4" />, variant: "outline" },
-    { status: "confirmed", label: "Подтвердить", icon: <CheckCircle className="w-4 h-4" />, variant: "default" as const },
-    { status: "declined", label: "Отклонить", icon: <XCircle className="w-4 h-4" />, variant: "destructive" as const },
-    { status: "revision", label: "На доработку", icon: <RotateCcw className="w-4 h-4" />, variant: "outline" as const },
-    { status: "archived", label: "В архив", icon: <Archive className="w-4 h-4" />, variant: "ghost" as const },
+    { status: "confirmed", label: "Подтвердить", icon: <CheckCircle className="w-4 h-4" />, variant: "default", needsConfirm: true },
+    { status: "declined", label: "Отклонить", icon: <XCircle className="w-4 h-4" />, variant: "destructive" },
+    { status: "revision", label: "На доработку", icon: <RotateCcw className="w-4 h-4" />, variant: "outline" },
+    { status: "archived", label: "В архив", icon: <Archive className="w-4 h-4" />, variant: "ghost" },
   ];
 
   return (
@@ -188,9 +199,17 @@ const ExpenseDetail = () => {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-display font-bold text-foreground">{expense.requestId}</h1>
-            <Badge className={statusColorMap[expense.status]}>
-              {STATUS_LABELS[expense.status]}
-            </Badge>
+            <div className="flex flex-col">
+                <Badge className={`${statusColorMap[expense.status]} w-fit`}>
+                    {STATUS_LABELS[expense.status]}
+                </Badge>
+                {STATUS_DESCRIPTIONS[expense.status] && (
+                    <p className="text-[10px] text-muted-foreground mt-1 max-w-[200px] leading-tight flex items-center gap-1">
+                        <HelpCircle className="w-3 h-3 shrink-0" />
+                        {STATUS_DESCRIPTIONS[expense.status]}
+                    </p>
+                )}
+            </div>
           </div>
           <p className="text-sm text-muted-foreground mt-1">{expense.purpose}</p>
         </div>
@@ -216,7 +235,7 @@ const ExpenseDetail = () => {
             {[
               { label: "Проект", value: `${expense.projectName} (${expense.projectCode})` },
               { label: "Ответственный", value: expense.createdBy },
-              { label: "Дата/время", value: format(expense.date, "yyyy-MM-dd HH:mm", { locale: ru }) },
+              { label: "Дата/время", value: format(new Date(expense.date), "yyyy-MM-dd HH:mm", { locale: ru }) },
               { label: "Сумма", value: `${Number(expense.totalAmount || 0).toLocaleString()} ${expense.currency}` },
             ].map((item) => (
               <div key={item.label} className="glass-card rounded-lg p-3">
@@ -307,49 +326,114 @@ const ExpenseDetail = () => {
               {actionButtons
                 .filter((a) => a.status !== expense.status)
                 .map((action) => (
-                  <Button
-                    key={action.status}
-                    variant={action.variant}
-                    size="sm"
-                    className="gap-2"
-                    onClick={() => handleStatusChange(action.status)}
-                    disabled={statusMutation.isPending || forwardSeniorMutation.isPending}
-                  >
-                    {statusMutation.isPending && pendingStatus === action.status ? <Loader2 className="w-4 h-4 animate-spin" /> : action.icon}
-                    {action.label}
-                  </Button>
+                  action.needsConfirm ? (
+                    <AlertDialog key={action.status}>
+                        <AlertDialogTrigger asChild>
+                            <Button
+                                variant={action.variant}
+                                size="sm"
+                                className="gap-2"
+                                disabled={statusMutation.isPending || forwardSeniorMutation.isPending}
+                            >
+                                {statusMutation.isPending && pendingStatus === action.status ? <Loader2 className="w-4 h-4 animate-spin" /> : action.icon}
+                                {action.label}
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Подтвердить действие?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Вы уверены, что хотите установить статус "{action.label}"? 
+                                    {action.status === 'confirmed' && " Это подтвердит совершение платежа."}
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleStatusChange(action.status)}>
+                                    Подтвердить
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                  ) : (
+                    <Button
+                        key={action.status}
+                        variant={action.variant}
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => handleStatusChange(action.status)}
+                        disabled={statusMutation.isPending || forwardSeniorMutation.isPending}
+                    >
+                        {statusMutation.isPending && pendingStatus === action.status ? <Loader2 className="w-4 h-4 animate-spin" /> : action.icon}
+                        {action.label}
+                    </Button>
+                  )
                 ))}
 
               {(store.isAdmin() || store.isSafina()) && expense.status !== "archived" && expense.status !== "pending_senior" && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-                  onClick={() => forwardSeniorMutation.mutate()}
-                  disabled={forwardSeniorMutation.isPending || statusMutation.isPending}
-                >
-                  {forwardSeniorMutation.isPending
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <FastForward className="w-4 h-4" />}
-                  На согласование CFO
-                </Button>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button
+                            variant="default"
+                            size="sm"
+                            className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                            disabled={forwardSeniorMutation.isPending || statusMutation.isPending}
+                        >
+                            {forwardSeniorMutation.isPending
+                                ? <Loader2 className="w-4 h-4 animate-spin" />
+                                : <FastForward className="w-4 h-4" />}
+                            На согласование CFO
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Отправить CFO?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Заявка будет отправлена на согласование финансовому директору.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => forwardSeniorMutation.mutate()}>
+                                Отправить
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
               )}
 
               {(store.isSeniorFinancier() || (store.isAdmin() && !store.isSafina()) || isFarrukh) && 
                 expense.status !== "archived" && 
                 !["pending_ceo", "approved_ceo"].includes(expense.status) && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
-                  onClick={() => forwardCeoMutation.mutate()}
-                  disabled={forwardCeoMutation.isPending || statusMutation.isPending}
-                >
-                  {forwardCeoMutation.isPending
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <Crown className="w-4 h-4" />}
-                  Отправить CEO
-                </Button>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button
+                            variant="default"
+                            size="sm"
+                            className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+                            disabled={forwardCeoMutation.isPending || statusMutation.isPending}
+                        >
+                            {forwardCeoMutation.isPending
+                                ? <Loader2 className="w-4 h-4 animate-spin" />
+                                : <Crown className="w-4 h-4" />}
+                            Отправить CEO
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Отправить CEO?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Заявка будет отправлена на финальное согласование CEO.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => forwardCeoMutation.mutate()}>
+                                Отправить
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
               )}
             </div>
           )}
@@ -362,7 +446,13 @@ const ExpenseDetail = () => {
               placeholder="Добавьте комментарий..."
               rows={3}
             />
-            <Button size="sm" onClick={() => internalCommentMutation.mutate(internalComment)} disabled={internalCommentMutation.isPending}>
+            <Button 
+                size="sm" 
+                onClick={() => internalCommentMutation.mutate(internalComment)} 
+                disabled={internalCommentMutation.isPending}
+                className="gap-2"
+            >
+              {internalCommentMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               {internalCommentMutation.isPending ? "Сохранение..." : "Сохранить"}
             </Button>
           </div>

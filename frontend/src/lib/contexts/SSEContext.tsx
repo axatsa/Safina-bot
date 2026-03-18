@@ -123,6 +123,7 @@ export const SSEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
         };
 
+        if (!token) return;
         connect();
 
         return () => {

@@ -4,13 +4,25 @@ import { Project } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FolderKanban, Loader2, Trash2, Calendar, Users, UserPlus, X, FileText } from "lucide-react";
+import { Plus, FolderKanban, Loader2, Trash2, Calendar, Users, UserPlus, X, FileText, FolderOpen } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const AVAILABLE_TEMPLATES = [
     { id: "land", label: "Thompson Land" },
@@ -50,12 +62,6 @@ const Projects = () => {
         },
         onError: () => toast.error("Ошибка при удалении")
     });
-
-    const handleDeleteProject = (id: string) => {
-        if (confirm("Вы уверены, что хотите удалить этот проект? Это может повлиять на связанные заявки и участников.")) {
-            deleteMutation.mutate(id);
-        }
-    };
 
     const [memberDialogOpen, setMemberDialogOpen] = useState(false);
     const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
@@ -180,95 +186,120 @@ const Projects = () => {
 
                 <div className="xl:col-span-3">
                     <div className="glass-card rounded-2xl border overflow-hidden">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="border-b bg-muted/30">
-                                    <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                        Название
-                                    </th>
-                                    <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                        Код
-                                    </th>
-                                    <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                        Дата создания
-                                    </th>
-                                    <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider text-right">
-                                        Действия
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                                {projects.map((project: Project) => (
-                                    <tr key={project.id} className="hover:bg-muted/10 transition-colors group">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                                                    <FolderKanban className="w-4 h-4" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-display font-semibold text-sm">
-                                                        {project.name}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <code className="text-xs bg-muted px-2 py-1 rounded font-bold">
-                                                {project.code}
-                                            </code>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-muted-foreground">
-                                            <div className="flex items-center gap-2">
-                                                <Calendar className="w-3 h-3" />
-                                                {project.createdAt ? format(new Date(project.createdAt), "dd.MM.yyyy") : "—"}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right space-x-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="text-muted-foreground hover:text-primary transition-colors"
-                                                onClick={() => {
-                                                    setActiveProject(project);
-                                                    setMemberDialogOpen(true);
-                                                }}
-                                                title="Участники проекта"
-                                            >
-                                                <Users className="w-4 h-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="text-muted-foreground hover:text-indigo-600 transition-colors"
-                                                onClick={() => {
-                                                    setActiveProject(project);
-                                                    setTemplateDialogOpen(true);
-                                                }}
-                                                title="Шаблоны бланков"
-                                            >
-                                                <FileText className="w-4 h-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="text-muted-foreground hover:text-red-600 transition-colors"
-                                                onClick={() => handleDeleteProject(project.id)}
-                                                title="Удалить проект"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        </td>
+                        {projects.length === 0 ? (
+                            <div className="py-20">
+                                <EmptyState 
+                                    icon={FolderOpen}
+                                    title="Нет проектов"
+                                    subtitle="Создайте первый проект, чтобы начать работу"
+                                />
+                            </div>
+                        ) : (
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="border-b bg-muted/30">
+                                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                            Название
+                                        </th>
+                                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                            Код
+                                        </th>
+                                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                            Дата создания
+                                        </th>
+                                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider text-right">
+                                            Действия
+                                        </th>
                                     </tr>
-                                ))}
-                                {projects.length === 0 && (
-                                    <tr>
-                                        <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">
-                                            Проектов пока нет
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                    {projects.map((project: Project) => (
+                                        <tr key={project.id} className="hover:bg-muted/10 transition-colors group">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                                                        <FolderKanban className="w-4 h-4" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-display font-semibold text-sm">
+                                                            {project.name}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <code className="text-xs bg-muted px-2 py-1 rounded font-bold">
+                                                    {project.code}
+                                                </code>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                                                <div className="flex items-center gap-2">
+                                                    <Calendar className="w-3 h-3" />
+                                                    {project.createdAt ? format(new Date(project.createdAt), "dd.MM.yyyy") : "—"}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right space-x-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-muted-foreground hover:text-primary transition-colors"
+                                                    onClick={() => {
+                                                        setActiveProject(project);
+                                                        setMemberDialogOpen(true);
+                                                    }}
+                                                    title="Участники проекта"
+                                                >
+                                                    <Users className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-muted-foreground hover:text-indigo-600 transition-colors"
+                                                    onClick={() => {
+                                                        setActiveProject(project);
+                                                        setTemplateDialogOpen(true);
+                                                    }}
+                                                    title="Шаблоны бланков"
+                                                >
+                                                    <FileText className="w-4 h-4" />
+                                                </Button>
+                                                
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="text-muted-foreground hover:text-red-600 transition-colors"
+                                                            title="Удалить проект"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Удалить проект?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Вы уверены, что хотите удалить этот проект? Это может повлиять на связанные заявки и участников.
+                                                                Это действие нельзя отменить.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                                            <AlertDialogAction 
+                                                                onClick={() => deleteMutation.mutate(project.id)}
+                                                                className="bg-red-600 hover:bg-red-700"
+                                                            >
+                                                                Удалить
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
                     </div>
                 </div>
             </div>

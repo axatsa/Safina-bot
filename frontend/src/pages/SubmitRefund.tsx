@@ -25,13 +25,16 @@ interface SubmitRefundProps {
 const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
   const navigate = useNavigate();
   const [studentId, setStudentId] = useState("");
+  const [studentIdError, setStudentIdError] = useState("");
   const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState("");
   const [amount, setAmount] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [cardError, setCardError] = useState("");
   const [amountError, setAmountError] = useState("");
   const [retention, setRetention] = useState(false);
   const [receiptPhoto, setReceiptPhoto] = useState<File | null>(null);
+  const [receiptPhotoError, setReceiptPhotoError] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
   const mutation = useMutation({
@@ -96,11 +99,44 @@ const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentId.trim()) return toast.error("Введите ID ученика");
-    if (!reason.trim()) return toast.error("Выберите или введите причину");
-    if (!amount) return toast.error("Введите сумму");
-    if (cardNumber.replace(/\s/g, "").length !== 16) return toast.error("Введите 16 цифр номера карты");
-    if (!receiptPhoto) return toast.error("Загрузите фото чека");
+    let hasError = false;
+
+    if (!studentId.trim()) {
+      setStudentIdError("Введите ID ученика");
+      hasError = true;
+    } else {
+      setStudentIdError("");
+    }
+
+    if (!reason.trim()) {
+      setReasonError("Выберите или введите причину");
+      hasError = true;
+    } else {
+      setReasonError("");
+    }
+
+    if (!amount) {
+      setAmountError("Введите сумму");
+      hasError = true;
+    }
+
+    if (cardNumber.replace(/\s/g, "").length !== 16) {
+      setCardError("Введите 16 цифр номера карты");
+      hasError = true;
+    }
+
+    if (!receiptPhoto) {
+      setReceiptPhotoError("Загрузите фото чека");
+      hasError = true;
+    } else {
+      setReceiptPhotoError("");
+    }
+
+    if (hasError) {
+      toast.error("Пожалуйста, заполните все обязательные поля");
+      return;
+    }
+
     mutation.mutate();
   };
 
@@ -133,20 +169,26 @@ const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
         <form onSubmit={handleSubmit} className="glass-card p-6 md:p-8 rounded-2xl border space-y-6">
           {/* ID ученика */}
           <div className="space-y-2">
-            <Label htmlFor="studentId">ID ученика</Label>
-            <Input id="studentId" value={studentId} onChange={(e) => setStudentId(e.target.value)}
-              placeholder="Напр. 123456" required className="rounded-xl" />
+            <Label htmlFor="studentId" className={studentIdError ? "text-destructive" : ""}>ID ученика</Label>
+            <Input 
+              id="studentId" 
+              value={studentId} 
+              onChange={(e) => { setStudentId(e.target.value); if(e.target.value) setStudentIdError(""); }}
+              placeholder="Напр. 123456" 
+              className={`rounded-xl ${studentIdError ? "border-destructive ring-1 ring-destructive" : ""}`} 
+            />
+            {studentIdError && <p className="text-[10px] text-destructive italic">{studentIdError}</p>}
           </div>
 
           {/* Причина возврата + пресеты */}
           <div className="space-y-2">
-            <Label htmlFor="reason">Причина возврата</Label>
+            <Label htmlFor="reason" className={reasonError ? "text-destructive" : ""}>Причина возврата</Label>
             <div className="flex flex-wrap gap-2 mb-2">
               {REASON_PRESETS.map((r) => (
                 <button
                   key={r}
                   type="button"
-                  onClick={() => setReason(r)}
+                  onClick={() => { setReason(r); setReasonError(""); }}
                   className={`px-3 py-1 text-xs rounded-full border transition-colors ${
                     reason === r
                       ? "bg-primary text-primary-foreground border-primary"
@@ -157,28 +199,34 @@ const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
                 </button>
               ))}
             </div>
-            <Input id="reason" value={reason} onChange={(e) => setReason(e.target.value)}
-              placeholder="Переезд, отчисление и т.д." required className="rounded-xl" />
+            <Input 
+              id="reason" 
+              value={reason} 
+              onChange={(e) => { setReason(e.target.value); if(e.target.value) setReasonError(""); }}
+              placeholder="Переезд, отчисление и т.д." 
+              className={`rounded-xl ${reasonError ? "border-destructive ring-1 ring-destructive" : ""}`} 
+            />
+            {reasonError && <p className="text-[10px] text-destructive italic">{reasonError}</p>}
           </div>
 
           {/* Сумма */}
           <div className="space-y-1">
-            <Label htmlFor="amount">Сумма возврата (UZS)</Label>
+            <Label htmlFor="amount" className={amountError ? "text-destructive" : ""}>Сумма возврата (UZS)</Label>
             <Input id="amount" inputMode="numeric" value={amount}
               onChange={(e) => handleAmountChange(e.target.value)}
-              placeholder="1 000 000" required
-              className={`rounded-xl font-bold ${amountError ? "border-destructive" : ""}`} />
-            {amountError && <p className="text-xs text-destructive">{amountError}</p>}
+              placeholder="1 000 000"
+              className={`rounded-xl font-bold ${amountError ? "border-destructive ring-1 ring-destructive" : ""}`} />
+            {amountError && <p className="text-[10px] text-destructive italic">{amountError}</p>}
           </div>
 
           {/* Номер карты */}
           <div className="space-y-1">
-            <Label htmlFor="cardNumber">Номер карты (UZCARD/HUMO)</Label>
+            <Label htmlFor="cardNumber" className={cardError ? "text-destructive" : ""}>Номер карты (UZCARD/HUMO)</Label>
             <Input id="cardNumber" inputMode="numeric" value={cardNumber}
               onChange={(e) => handleCardChange(e.target.value)}
-              placeholder="8600 0000 0000 0000" required
-              className={`rounded-xl font-bold tracking-widest ${cardError ? "border-destructive" : ""}`} />
-            {cardError && <p className="text-xs text-destructive">{cardError}</p>}
+              placeholder="8600 0000 0000 0000"
+              className={`rounded-xl font-bold tracking-widest ${cardError ? "border-destructive ring-1 ring-destructive" : ""}`} />
+            {cardError && <p className="text-[10px] text-destructive italic">{cardError}</p>}
           </div>
 
           {/* Удержание */}
@@ -192,17 +240,18 @@ const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
 
           {/* Фото чека */}
           <div className="space-y-2">
-            <Label>Фото чека (Обязательно)</Label>
-            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer hover:bg-muted/50 transition-colors">
+            <Label className={receiptPhotoError ? "text-destructive" : ""}>Фото чека (Обязательно)</Label>
+            <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer hover:bg-muted/50 transition-colors ${receiptPhotoError ? "border-destructive bg-destructive/5" : ""}`}>
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
                 {receiptPhoto
                   ? <><UploadCloud className="w-8 h-8 text-primary mb-2" /><span className="text-sm text-primary font-medium">{receiptPhoto.name}</span></>
-                  : <><Camera className="w-8 h-8 text-muted-foreground mb-2" /><span className="text-sm text-muted-foreground">Съёмка / загрузка фото чека</span></>}
+                  : <><Camera className={`w-8 h-8 mb-2 ${receiptPhotoError ? "text-destructive" : "text-muted-foreground"}`} /><span className={`text-sm ${receiptPhotoError ? "text-destructive" : "text-muted-foreground"}`}>Съёмка / загрузка фото чека</span></>}
               </div>
               {/* capture="environment" — открывает заднюю камеру на мобильных */}
               <input type="file" className="hidden" accept="image/*" capture="environment"
-                onChange={(e) => setReceiptPhoto(e.target.files?.[0] || null)} />
+                onChange={(e) => { setReceiptPhoto(e.target.files?.[0] || null); if(e.target.files?.[0]) setReceiptPhotoError(""); }} />
             </label>
+            {receiptPhotoError && <p className="text-[10px] text-destructive italic">{receiptPhotoError}</p>}
           </div>
 
           <Button type="submit" className="w-full rounded-xl py-6 text-lg font-bold" disabled={mutation.isPending}>

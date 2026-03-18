@@ -104,6 +104,21 @@ export const STATUS_LABELS: Record<ExpenseStatus, string> = {
   archived:         "В архиве",
 };
 
+export const STATUS_DESCRIPTIONS: Record<ExpenseStatus, string> = {
+  request:         "Заявка создана, ожидает проверки Сафины",
+  review:          "Сафина проверяет заявку",
+  revision:        "Нужно уточнить детали — прочитайте комментарий",
+  pending_senior:  "Отправлено на согласование финансовому директору",
+  approved_senior: "Финансовый директор одобрил",
+  rejected_senior: "Финансовый директор отклонил",
+  pending_ceo:     "Отправлено на финальное согласование CEO",
+  approved_ceo:    "CEO одобрил",
+  rejected_ceo:    "CEO отклонил",
+  confirmed:       "Утверждено и оплачено",
+  declined:        "Отклонено",
+  archived:        "Архивировано",
+};
+
 /** Statuses shown in the main Kanban board */
 export const KANBAN_STATUSES: ExpenseStatus[] = [
   "request",

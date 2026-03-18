@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
 import { ExpenseRequest, STATUS_LABELS } from "@/lib/types";
-import { Loader2, ExternalLink, RefreshCw, Download } from "lucide-react";
+import { Loader2, ExternalLink, RefreshCw, Download, RotateCcw } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -11,19 +12,39 @@ import { Button } from "@/components/ui/button";
 const Refunds = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [skip, setSkip] = useState(0);
+  const [allRefunds, setAllRefunds] = useState<ExpenseRequest[]>([]);
+  const LIMIT = 50;
 
-  const { data: expensesPage, isLoading, refetch } = useQuery({
-    queryKey: ["expenses-refunds"],
-    queryFn: () => store.getExpenses({ limit: 1000 }),
+  const { data: expensesPage, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ["expenses-refunds", skip],
+    queryFn: () => store.getExpenses({ 
+      skip, 
+      limit: LIMIT,
+      status: "confirmed,declined,archived,review,request,revision,pending_senior,approved_senior,rejected_senior,pending_ceo,approved_ceo,rejected_ceo" 
+    }),
     refetchInterval: 15000,
   });
-  const expenses = expensesPage?.items ?? [];
 
-  const refunds = expenses.filter(
-    (e) => e.requestType === "refund" || e.requestType === "blank_refund"
-  );
+  const recipes = useMemo(() => {
+    const items = expensesPage?.items ?? [];
+    return items.filter(
+      (e) => e.requestType === "refund" || e.requestType === "blank_refund"
+    );
+  }, [expensesPage]);
 
-  const filtered = refunds.filter((e) => {
+  useEffect(() => {
+    if (recipes.length > 0) {
+      setAllRefunds(prev => {
+        if (skip === 0) return recipes;
+        const existingIds = new Set(prev.map(e => e.id));
+        const newItems = recipes.filter(e => !existingIds.has(e.id));
+        return [...prev, ...newItems];
+      });
+    }
+  }, [recipes, skip]);
+
+  const filtered = allRefunds.filter((e) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -32,7 +53,7 @@ const Refunds = () => {
     );
   });
 
-  if (isLoading) {
+  if (isLoading && skip === 0) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -52,7 +73,10 @@ const Refunds = () => {
             <Download className="w-4 h-4 mr-2" />
             Скачать XLSX
           </Button>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
+          <Button variant="outline" size="sm" onClick={() => {
+            setSkip(0);
+            refetch();
+          }}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Обновить
           </Button>
@@ -114,16 +138,40 @@ const Refunds = () => {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !isFetching && (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground text-sm italic">
-                  Заявок на возврат пока нет
+                <td colSpan={7}>
+                  <EmptyState 
+                    icon={RotateCcw}
+                    title="Возвратов нет"
+                    subtitle="Заявления на возврат появятся здесь"
+                  />
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {expensesPage?.has_more && (
+        <div className="flex justify-center py-6">
+          <Button
+            variant="outline"
+            onClick={() => setSkip(prev => prev + LIMIT)}
+            disabled={isFetching}
+            className="px-8"
+          >
+            {isFetching ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Загрузка...
+              </>
+            ) : (
+              "Загрузить ещё"
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

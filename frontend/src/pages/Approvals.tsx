@@ -34,8 +34,8 @@ const Approvals = () => {
   const isCEO = store.isCeo();
 
   const { data: expensesPage, isLoading } = useQuery({
-    queryKey: ["expenses"],
-    queryFn: () => store.getExpenses({ limit: 1000 }),
+    queryKey: ["expenses-approvals"],
+    queryFn: () => store.getExpenses({ status: "pending_senior,pending_ceo", limit: 100 }),
   });
   
   const expenses = expensesPage?.items ?? [];
@@ -71,11 +71,12 @@ const Approvals = () => {
         <p className="text-sm text-muted-foreground mt-1">Одобрите или отклоните инвестиции</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {CFO_COLUMNS.map((col) => {
-          const items = expenses.filter((e) => col.statuses.includes(e.status));
-          return (
-            <div key={col.label} className="rounded-xl border bg-card overflow-hidden flex flex-col">
+      <div className="overflow-x-auto pb-4 -mx-6 px-6">
+        <div className="flex lg:grid lg:grid-cols-4 md:grid-cols-2 gap-4 min-w-max lg:min-w-0">
+          {CFO_COLUMNS.map((col) => {
+            const items = expenses.filter((e) => col.statuses.includes(e.status));
+            return (
+              <div key={col.label} className="rounded-xl border bg-card overflow-hidden flex flex-col w-[280px] lg:w-auto shrink-0 lg:shrink">
               <div className={`flex items-center justify-between px-4 py-3 border-b ${col.headerClass}`}>
                 <span className="font-display font-semibold text-sm">{col.label}</span>
                 <span className="text-xs font-medium bg-foreground/10 px-2 py-0.5 rounded-full">{items.length}</span>

@@ -4,7 +4,8 @@ import { store } from "@/lib/store";
 import { ExpenseRequest } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import FilterBar from "@/components/FilterBar";
-import { Download, ExternalLink, Loader2 } from "lucide-react";
+import { Download, ExternalLink, Loader2, Archive } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -132,8 +133,12 @@ const Archive = () => {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground text-sm italic">
-                  В архиве пока нет заявок, соответствующих фильтрам
+                <td colSpan={6}>
+                  <EmptyState 
+                    icon={Archive}
+                    title="Архив пуст"
+                    subtitle="Завершенные заявки появятся здесь после обработки"
+                  />
                 </td>
               </tr>
             )}
