@@ -82,6 +82,9 @@ class TeamMemberSchema(TeamMemberBase):
         from_attributes = True
 
 # Expense Request Schemas
+class RefundDataSchema(BaseModel):
+    student_id: Optional[str] = None
+    retention: Optional[bool] = False
     branch: Optional[str] = None
     team: Optional[str] = None
     client_name: Optional[str] = None

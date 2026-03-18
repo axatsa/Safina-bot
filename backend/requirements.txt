@@ -15,3 +15,4 @@ docxtpl
 pandas
 sse-starlette
 openpyxl
+httpx
