@@ -117,10 +117,14 @@ def get_expenses(db: Session, project_id: str = None, status: str = None, user_i
     query = db.query(models.ExpenseRequest)
     if project_id:
         query = query.filter(models.ExpenseRequest.project_id == project_id)
-    if status:
-        query = query.filter(models.ExpenseRequest.status == status)
     if user_id:
         query = query.filter(models.ExpenseRequest.created_by_id == user_id)
+    if status:
+        statuses = [s.strip() for s in status.split(",")]
+        if len(statuses) > 1:
+            query = query.filter(models.ExpenseRequest.status.in_(statuses))
+        else:
+            query = query.filter(models.ExpenseRequest.status == status)
     return query.order_by(models.ExpenseRequest.date.desc()).offset(skip).limit(limit).all()
 
 def count_expenses(
@@ -137,7 +141,11 @@ def count_expenses(
     if project_id:
         query = query.filter(models.ExpenseRequest.project_id == project_id)
     if status:
-        query = query.filter(models.ExpenseRequest.status == status)
+        statuses = [s.strip() for s in status.split(",")]
+        if len(statuses) > 1:
+            query = query.filter(models.ExpenseRequest.status.in_(statuses))
+        else:
+            query = query.filter(models.ExpenseRequest.status == status)
 
     return query.count()
 
