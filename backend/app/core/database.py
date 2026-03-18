@@ -29,10 +29,22 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
-def get_db():
-    """Yield a database session and ensure it is closed after use."""
+from contextlib import contextmanager
+
+@contextmanager
+def database_session():
+    """Context manager for database sessions to ensure proper closing."""
     db = SessionLocal()
     try:
         yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
+
+def get_db():
+    """Generator for FastAPI dependency injection."""
+    with database_session() as db:
+        yield db
