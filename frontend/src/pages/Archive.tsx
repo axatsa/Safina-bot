@@ -4,7 +4,7 @@ import { store } from "@/lib/store";
 import { ExpenseRequest } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import FilterBar from "@/components/FilterBar";
-import { Download, ExternalLink, Loader2, Archive } from "lucide-react";
+import { Download, ExternalLink, Loader2, Archive as ArchiveIcon } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -18,9 +18,9 @@ const Archive = () => {
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: expensesPage, isLoading } = useQuery({
-    queryKey: ["expenses"],
-    queryFn: () => store.getExpenses({ limit: 1000 }),
+  const { data: expensesPage, isLoading, isError } = useQuery({
+    queryKey: ["expenses", { limit: 100, status: "archived" }],
+    queryFn: () => store.getExpenses({ limit: 100, status: "archived" }),
     refetchInterval: 60000, // Refresh every minute
   });
   const expenses = expensesPage?.items ?? [];
@@ -36,6 +36,8 @@ const Archive = () => {
   });
 
   const filtered = expenses.filter((e) => {
+    // Note: status filter is now redundant if we filter on backend, 
+    // but kept for safety if backend doesn't support status param.
     if (e.status !== "archived") return false;
     if (selectedProject !== "all" && e.projectId !== selectedProject) return false;
     if (selectedUser !== "all" && e.createdById !== selectedUser) return false;
@@ -62,8 +64,19 @@ const Archive = () => {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-[80vh] items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col h-[80vh] items-center justify-center space-y-4">
+        <p className="text-destructive font-medium">Ошибка при загрузке архива</p>
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Попробовать снова
+        </Button>
       </div>
     );
   }
@@ -135,7 +148,7 @@ const Archive = () => {
               <tr>
                 <td colSpan={6}>
                   <EmptyState 
-                    icon={Archive}
+                    icon={ArchiveIcon}
                     title="Архив пуст"
                     subtitle="Завершенные заявки появятся здесь после обработки"
                   />
