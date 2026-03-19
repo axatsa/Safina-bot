@@ -197,6 +197,8 @@ async def process_add_more(message: types.Message, state: FSMContext):
     await state.set_state(ExpenseWizard.item_name)
 
 @router.message(ExpenseWizard.confirm, F.text == "Готово")
+async def process_finish(message: types.Message, state: FSMContext):
+    data = await state.get_data()
     items = data.get("items", [])
     if not items:
         await message.answer("Нет добавленных позиций. Начните заново.")
