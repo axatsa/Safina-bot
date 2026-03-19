@@ -26,17 +26,17 @@ const AppSidebar = () => {
     { title: "Заявки", url: "/dashboard", icon: ClipboardList, show: true },
     { title: "Новая заявка", url: "/submit", icon: Send, show: true },
     { 
-      title: isAdmin ? "Очередь обработки" : "Согласования", 
-      url: isAdmin ? "/dashboard/admin-approvals" : "/dashboard/approvals", 
+      title: "Очередь обработки", 
+      url: "/dashboard/admin-approvals", 
       icon: ShieldCheck, 
-      show: isAdmin || store.isSeniorFinancier() || store.isCeo() 
+      show: true 
     },
     { title: "Возвраты", url: "/dashboard/refunds", icon: RotateCcw, show: true },
-    { title: "Статистика", url: "/dashboard/statistics", icon: BarChart, show: isAdmin },
+    { title: "Статистика", url: "/dashboard/statistics", icon: BarChart, show: true },
     { title: "Архив", url: "/dashboard/archive", icon: Archive, show: true },
-    { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen, show: isAdmin },
-    { title: "Команда", url: "/dashboard/team", icon: Users, show: store.canManageTeam() },
-  ].filter(item => item.show);
+    { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen, show: true },
+    { title: "Команда", url: "/dashboard/team", icon: Users, show: true },
+  ];
 
   return (
     <aside className="w-60 min-h-screen bg-sidebar flex flex-col border-r border-sidebar-border shrink-0">
@@ -47,7 +47,10 @@ const AppSidebar = () => {
             Thompson Finance
           </h2>
         </div>
-        <p className="text-xs text-sidebar-muted">Управление расходами</p>
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] text-sidebar-muted">Управление расходами</p>
+          <span className="text-[8px] font-mono text-sidebar-primary/50">v2.1-FIX</span>
+        </div>
         {userName && (
           <div className="mt-4 px-1 py-1 text-[10px] font-medium text-sidebar-muted border-t border-sidebar-border/30 pt-2">
             Пользователь: <span className="text-sidebar-foreground">{userName}</span>

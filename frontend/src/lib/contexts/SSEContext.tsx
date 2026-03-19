@@ -52,29 +52,40 @@ export const SSEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         const connect = () => {
-            if (eventSourceRef.current) {
-                eventSourceRef.current.close();
-            }
-
-            console.log(`Connecting to SSE (Attempt ${reconnectCount + 1})...`);
-            
             try {
-                // Determing base URL safely
-                const origin = window.location.origin;
-                const apiBase = import.meta.env.VITE_APP_API_URL || "";
-                
-                // If apiBase is absolute, use it. Otherwise, use origin.
-                const baseUrl = apiBase.startsWith("http") ? apiBase : origin;
-                
-                // Construct the URL safely
-                const url = new URL('/api/notifications/stream', baseUrl);
-                
-                // Add token safely
-                if (token) {
-                    url.searchParams.append('token', token);
+                if (eventSourceRef.current) {
+                    eventSourceRef.current.close();
                 }
+
+                console.log(`Connecting to SSE (Attempt ${reconnectCount + 1})...`);
                 
-                const es = new EventSource(url.toString(), { withCredentials: true });
+                // Extremely safe URL construction
+                const getSafeUrl = () => {
+                    try {
+                        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                        const apiBase = import.meta.env.VITE_APP_API_URL || "";
+                        const base = apiBase.startsWith("http") ? apiBase : origin;
+                        
+                        if (!base) return null;
+                        
+                        const url = new URL('/api/notifications/stream', base);
+                        if (token) {
+                            url.searchParams.append('token', token);
+                        }
+                        return url.toString();
+                    } catch (e) {
+                        console.error("Safe URL failure:", e);
+                        return null;
+                    }
+                };
+
+                const sseUrl = getSafeUrl();
+                if (!sseUrl) {
+                    console.error("Could not construct SSE URL");
+                    return;
+                }
+
+                const es = new EventSource(sseUrl, { withCredentials: true });
                 eventSourceRef.current = es;
 
                 es.onopen = () => {
@@ -86,11 +97,7 @@ export const SSEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 es.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
-                        console.log('SSE message received:', data);
-
-                        // Invalidate queries to keep data fresh
                         queryClient.invalidateQueries();
-
                         if (data.title && data.message) {
                             toast(data.title, { description: data.message });
                         }
@@ -105,10 +112,7 @@ export const SSEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     es.close();
                     eventSourceRef.current = null;
 
-                    // Exponential backoff
                     const delay = Math.min(Math.pow(2, reconnectCount) * 1000, 30000);
-                    console.log(`Reconnecting in ${delay}ms...`);
-                    
                     if (reconnectCount < 5) {
                         reconnectTimeoutRef.current = setTimeout(() => {
                             setReconnectCount(prev => prev + 1);
@@ -116,12 +120,11 @@ export const SSEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         }, delay);
                     }
                 };
-            } catch (err) {
-                console.error('Critical failure constructing SSE URL:', err);
+            } catch (fatalErr) {
+                console.error('Fatal crash in SSE connect:', fatalErr);
             }
         };
 
-        if (!token) return;
         connect();
 
         return () => {
