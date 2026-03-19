@@ -25,7 +25,7 @@ def login(request: schemas.LoginRequest, db: Session = Depends(database.get_db))
     if input_login.lower() == admin_login.lower() and input_password == admin_password:
         logger.info(f"Admin login successful: {input_login}")
         access_token = auth.create_access_token(data={"sub": input_login})
-        return {"access_token": access_token, "token_type": "bearer", "role": "admin"}
+        return {"access_token": access_token, "token_type": "bearer", "role": "admin", "team": "Администрация"}
     
     # Check team members
     try:
@@ -52,6 +52,7 @@ def login(request: schemas.LoginRequest, db: Session = Depends(database.get_db))
                 "access_token": access_token,
                 "token_type": "bearer",
                 "role": role,
+                "team": user.team,
                 "projectId": project_id,
             }
         

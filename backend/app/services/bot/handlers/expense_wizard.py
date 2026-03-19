@@ -17,21 +17,38 @@ router = Router()
 
 @router.message(F.text == "Создать инвестицию (в боте)")
 async def start_wizard_selection(message: types.Message, state: FSMContext):
+    user_not_found = False
+    no_projects = False
+    projects = []
+    user_id = None
+    
     with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
         if not user:
-            await message.answer("Сначала авторизуйтесь: /start")
-            return
-        if len(user.projects) > 1:
-            await state.update_data(user_id=user.id)
-            await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
-            await state.set_state(ExpenseWizard.project_selection)
-        elif len(user.projects) == 1:
-            await state.update_data(project_id=user.projects[0].id, user_id=user.id)
-            await message.answer("Введите дату или «Сейчас»:", reply_markup=get_date_kb())
-            await state.set_state(ExpenseWizard.date)
+            user_not_found = True
         else:
-            await message.answer("Проекты не привязаны.")
+            user_id = user.id
+            projects = list(user.projects or [])
+            if not projects:
+                no_projects = True
+
+    if user_not_found:
+        await message.answer("Сначала авторизуйтесь: /start")
+        return
+    
+    if no_projects:
+        await message.answer("Проекты не привязаны.")
+        return
+
+    if len(projects) > 1:
+        await state.update_data(user_id=user_id)
+        await message.answer("Выберите проект:", reply_markup=get_projects_kb(projects))
+        await state.set_state(ExpenseWizard.project_selection)
+    else:
+        # Exactly one project
+        await state.update_data(project_id=projects[0].id, user_id=user_id)
+        await message.answer("Введите дату или «Сейчас»:", reply_markup=get_date_kb())
+        await state.set_state(ExpenseWizard.date)
 
 @router.message(ExpenseWizard.project_selection)
 async def process_project_selection(message: types.Message, state: FSMContext):
@@ -180,18 +197,21 @@ async def process_add_more(message: types.Message, state: FSMContext):
     await state.set_state(ExpenseWizard.item_name)
 
 @router.message(ExpenseWizard.confirm, F.text == "Готово")
-async def process_finish(message: types.Message, state: FSMContext):
-    data = await state.get_data()
     items = data.get("items", [])
     if not items:
         await message.answer("Нет добавленных позиций. Начните заново.")
         await state.clear()
         return
 
-    with database.database_session() as db:
-        try:
+    currency = items[0]["currency"]
+    usd_rate = await currency_service.get_usd_rate() if currency == "USD" else None
+    
+    expense_req_id = None
+    request_id = None
+
+    try:
+        with database.database_session() as db:
             total = sum(Decimal(str(i["amount"])) * Decimal(str(i["quantity"])) for i in items)
-            currency = items[0]["currency"]
             expense_create = schemas.ExpenseRequestCreate(
                 purpose=data.get("purpose"),
                 items=[schemas.ExpenseItemSchema(**i) for i in items],
@@ -200,12 +220,17 @@ async def process_finish(message: types.Message, state: FSMContext):
                 project_id=data.get("project_id"),
                 date=datetime.datetime.fromisoformat(data.get("date")),
             )
-            usd_rate = await currency_service.get_usd_rate() if currency == "USD" else None
             db_expense = crud.create_expense_request(db, expense_create, user_id=data.get("user_id"), usd_rate=usd_rate)
-            await message.answer(f"✅ Заявка {db_expense.request_id} создана!", reply_markup=get_main_kb())
-        except Exception as e:
-            logger.error(f"Error creating expense via bot: {e}")
-            await message.answer(f"❌ Ошибка: {e}", reply_markup=get_main_kb())
+            expense_req_id = db_expense.id
+            request_id = db_expense.request_id
+        
+        await message.answer(f"✅ Заявка {request_id} создана!", reply_markup=get_main_kb())
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error creating expense via bot: {e}")
+        await message.answer(f"❌ Ошибка: {e}", reply_markup=get_main_kb())
+    
     await state.clear()
 
 @router.message(F.text == "Создать заявку (Web-App)")

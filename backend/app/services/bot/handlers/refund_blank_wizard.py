@@ -250,37 +250,40 @@ from ...currency.service import currency_service
 @router.message(F.text == "✅ Отправить Сафине", RefundBlankWizard.confirm)
 async def handle_refund_final_submit(message: types.Message, state: FSMContext):
     data = await state.get_data()
-    
+    usd_rate = await currency_service.get_usd_rate()
+    expense_req_id = None
+    request_id = None
+
     with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
-        
-        # 1. Создаем ExpenseRequest в базе
-        # Для возврата сохраняем все доп. поля в поле refund_data (JSON)
-        # Но в ExpenseRequest мы можем сохранить как общие поля
-        
+        if not user:
+            await message.answer("Ошибка: пользователь не найден.")
+            return
+
         expense_create = schemas.ExpenseRequestCreate(
             project_id=data.get("project_id"),
             purpose=f"Возврат: {data['client_name']}",
-            items=[], # Пусто для возврата, используем refund_data
+            items=[],
             currency="UZS",
             request_type="blank_refund",
             template_key="refund",
-            refund_data=data # Сохраняем все собранные данные (client_name, passport, и т.д.)
+            refund_data=data
         )
-        
-        usd_rate = await currency_service.get_usd_rate()
+
         expense_req = crud.create_expense_request(db=db, expense=expense_create, user_id=user.id, usd_rate=usd_rate)
-        
-        # 2. Уведомляем админа
-        admin_chat_id = get_admin_chat_id()
-        if admin_chat_id:
-            await send_admin_notification(expense_req.id, admin_chat_id)
-            
-        await state.clear()
-        await message.answer(
-            f"✅ Заявление на возврат ({expense_req.request_id}) отправлено Сафине.\n\n"
-            f"Когда бланк будет утвержден, вы получите уведомление.",
-            reply_markup=get_main_kb()
-        )
+        expense_req_id = expense_req.id
+        request_id = expense_req.request_id
+
+    # 2. Уведомляем админа (вне сессии)
+    admin_chat_id = get_admin_chat_id()
+    if admin_chat_id:
+        await send_admin_notification(expense_req_id, admin_chat_id)
+
+    await state.clear()
+    await message.answer(
+        f"✅ Заявление на возврат ({request_id}) отправлено Сафине.\n\n"
+        f"Когда бланк будет утвержден, вы получите уведомление.",
+        reply_markup=get_main_kb()
+    )
 
 # Manual download removed from bot flow, handled via Safina export

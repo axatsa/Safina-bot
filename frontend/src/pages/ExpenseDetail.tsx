@@ -275,7 +275,10 @@ const ExpenseDetail = () => {
                   { label: "Договор/Оферта", value: `${expense.refundData.contract_number} от ${expense.refundData.contract_date}` },
                   { label: "Причина", value: expense.refundData.reason },
                   { label: "Сумма возврата", value: `${Number(expense.refundData.amount || 0).toLocaleString()} UZS` },
+                  { label: "Сумма прописью", value: expense.refundData.amount_words },
+                  { label: "Владелец карты", value: expense.refundData.card_holder },
                   { label: "Номер карты", value: expense.refundData.card_number },
+                  { label: "Транзит. счет", value: expense.refundData.transit_account },
                   { label: "Банк", value: expense.refundData.bank_name },
                 ].map((row, i) => (
                   <div key={i} className="flex flex-col">

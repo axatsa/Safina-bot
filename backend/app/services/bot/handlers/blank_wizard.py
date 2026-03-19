@@ -24,36 +24,45 @@ router = Router()
 async def start_blank_wizard(message: types.Message, state: FSMContext):
     await state.clear()
     
+    user_not_found = False
+    no_projects_or_templates = False
+    projects_data = []
+    user_templates = []
+    
     with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
         if not user:
-            await message.answer("Ошибка: вы не зарегистрированы в системе.")
-            return
-
-        # Extract data while session is open
-        user_templates = list(user.templates or [])
-        projects_data = []
-        for p in user.projects:
-            projects_data.append({
-                "id": p.id,
-                "name": p.name,
-                "code": p.code,
-                "templates": list(p.templates or [])
-            })
-        
-        if not projects_data and not user_templates:
-            await message.answer("У вас нет назначенных проектов и личных шаблонов. Обратитесь к Сафине.")
-            return
-
-        # 2. Логика по количеству проектов
-        if len(projects_data) > 1:
-            await state.set_state(BlankWizard.project_selection)
-            # Create a simplified project list for the keyboard
-            await message.answer("Для какого проекта бланк?", reply_markup=get_projects_kb(projects_data))
+            user_not_found = True
         else:
-            # 1 проект или вообще нет проектов (но есть личные шаблоны)
-            project_id = projects_data[0]["id"] if projects_data else None
-            await proceed_to_templates(message, state, user_templates, projects_data, project_id)
+            # Extract data while session is open
+            user_templates = list(user.templates or [])
+            for p in user.projects:
+                projects_data.append({
+                    "id": p.id,
+                    "name": p.name,
+                    "code": p.code,
+                    "templates": list(p.templates or [])
+                })
+            
+            if not projects_data and not user_templates:
+                no_projects_or_templates = True
+
+    if user_not_found:
+        await message.answer("Ошибка: вы не зарегистрированы в системе.")
+        return
+    
+    if no_projects_or_templates:
+        await message.answer("У вас нет назначенных проектов и личных шаблонов. Обратитесь к Сафине.")
+        return
+
+    # 2. Логика по количеству проектов
+    if len(projects_data) > 1:
+        await state.set_state(BlankWizard.project_selection)
+        await message.answer("Для какого проекта бланк?", reply_markup=get_projects_kb(projects_data))
+    else:
+        # 1 проект или вообще нет проектов (но есть личные шаблоны)
+        project_id = projects_data[0]["id"] if projects_data else None
+        await proceed_to_templates(message, state, user_templates, projects_data, project_id)
 
 # Позиция 1. Выбор проекта (если 2+)
 @router.message(BlankWizard.project_selection)
@@ -63,32 +72,38 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
         await message.answer("Главное меню", reply_markup=get_main_kb())
         return
 
+    user_not_found = False
+    project_id = None
+    projects_data = []
+    user_templates = []
+
     with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
         if not user:
-            await message.answer("Пользователь не найден.")
-            return
-
-        # Extract data while session is open
-        user_templates = list(user.templates or [])
-        projects_data = []
-        project_id = None
-        for p in user.projects:
-            p_data = {
-                "id": p.id,
-                "name": p.name,
-                "code": p.code,
-                "templates": list(p.templates or [])
-            }
-            projects_data.append(p_data)
-            if f"{p.name} ({p.code})" == message.text:
-                project_id = p.id
+            user_not_found = True
+        else:
+            # Extract data while session is open
+            user_templates = list(user.templates or [])
+            for p in user.projects:
+                p_data = {
+                    "id": p.id,
+                    "name": p.name,
+                    "code": p.code,
+                    "templates": list(p.templates or [])
+                }
+                projects_data.append(p_data)
+                if f"{p.name} ({p.code})" == message.text:
+                    project_id = p.id
         
-        if not project_id:
-            await message.answer("Выберите проект из списка кнопок.")
-            return
+    if user_not_found:
+        await message.answer("Пользователь не найден.")
+        return
 
-        await proceed_to_templates(message, state, user_templates, projects_data, project_id)
+    if not project_id:
+        await message.answer("Выберите проект из списка кнопок.")
+        return
+
+    await proceed_to_templates(message, state, user_templates, projects_data, project_id)
 
 async def proceed_to_templates(message: types.Message, state: FSMContext, user_templates: list, projects_data: list, project_id: Optional[str]):
     # Собираем доступные шаблоны: личные + этого проекта
@@ -118,7 +133,6 @@ async def proceed_to_templates(message: types.Message, state: FSMContext, user_t
 @router.message(BlankWizard.template_selection)
 async def handle_template_selection(message: types.Message, state: FSMContext):
     if message.text == _BACK:
-        data = await state.get_data()
         projects_data = []
         with database.database_session() as db:
             user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()

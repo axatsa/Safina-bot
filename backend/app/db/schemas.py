@@ -97,7 +97,10 @@ class RefundDataSchema(BaseModel):
     contract_date: Optional[str] = None
     reason: Optional[str] = None
     amount: Optional[float] = None
+    amount_words: Optional[str] = None
+    card_holder: Optional[str] = None
     card_number: Optional[str] = None
+    transit_account: Optional[str] = None
     bank_name: Optional[str] = None
 
 class ExpenseRequestCreate(BaseModel):
@@ -161,6 +164,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     role: str = "admin"
+    team: Optional[str] = None
     projectId: Optional[str] = None
 
 class TokenData(BaseModel):

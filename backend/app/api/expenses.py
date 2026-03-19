@@ -190,6 +190,7 @@ async def web_submit_blank(
     expense_req.request_type = "blank"
     expense_req.template_key = tpl
     db.commit()
+    db.refresh(expense_req)
     
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:
@@ -228,6 +229,7 @@ async def web_submit_refund_application(
     expense_req.total_amount = amount
     expense_req.refund_data = data
     db.commit()
+    db.refresh(expense_req)
     
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:

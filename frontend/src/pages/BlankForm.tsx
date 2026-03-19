@@ -217,7 +217,19 @@ const BlankForm = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Дата договора</Label>
+                  <Label>Кем выдан паспорт</Label>
+                  <Input value={refundData.passport_issued_by} onChange={(e) => setRefundData({...refundData, passport_issued_by: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Дата выдачи паспорта</Label>
+                  <Input type="date" value={refundData.passport_date} onChange={(e) => setRefundData({...refundData, passport_date: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Номер оферты/договора</Label>
+                  <Input value={refundData.contract_number} onChange={(e) => setRefundData({...refundData, contract_number: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Дата оферты/договора</Label>
                   <Input type="date" value={refundData.contract_date} onChange={(e) => setRefundData({...refundData, contract_date: e.target.value})} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
@@ -233,21 +245,43 @@ const BlankForm = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                {refundData.reason === "Другое" && (
+                  <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-1">
+                    <Label>Укажите причину</Label>
+                    <Input value={refundData.reason_other} onChange={(e) => setRefundData({...refundData, reason_other: e.target.value})} />
+                  </div>
+                )}
                 <div className="space-y-2">
-                  <Label>Сумма</Label>
+                  <Label>Сумма цифрами</Label>
                   <Input type="number" value={refundData.amount} onChange={(e) => setRefundData({...refundData, amount: Number(e.target.value)})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Сумма прописью</Label>
+                  <Input value={refundData.amount_words} onChange={(e) => setRefundData({...refundData, amount_words: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>ФИО владельца карты</Label>
+                  <Input value={refundData.card_holder} onChange={(e) => setRefundData({...refundData, card_holder: e.target.value})} />
                 </div>
                 <div className="space-y-2">
                   <Label>Номер карты</Label>
                   <Input value={refundData.card_number} onChange={(e) => setRefundData({...refundData, card_number: e.target.value})} />
                 </div>
+                <div className="space-y-2">
+                  <Label>Транзитный счет банка (если есть)</Label>
+                  <Input value={refundData.transit_account} onChange={(e) => setRefundData({...refundData, transit_account: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Название банка и филиал</Label>
+                  <Input value={refundData.bank_name} onChange={(e) => setRefundData({...refundData, bank_name: e.target.value})} />
+                </div>
               </div>
             </>
           )}
 
-          <Button type="submit" className="w-full rounded-xl py-6" disabled={loading}>
-            {loading ? <Loader2 className="animate-spin mr-2" /> : (template === "refund" ? <Download className="mr-2" /> : <Plus className="mr-2" />)}
-            {template === "refund" ? "Скачать DOCX" : "Отправить Сафине"}
+          <Button type="submit" className="w-full rounded-xl py-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg" disabled={loading}>
+            {loading ? <Loader2 className="animate-spin mr-2" /> : <Plus className="mr-2" />}
+            Отправить Сафине
           </Button>
         </form>
       </div>

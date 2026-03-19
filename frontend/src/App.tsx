@@ -30,11 +30,11 @@ import { store } from "./lib/store";
 import { Navigate } from "react-router-dom";
 
 const DashboardIndex = () => {
-  if (store.isFarrukh()) {
-    return <Navigate to="/dashboard/approvals" replace />;
-  }
-  if (store.isSafina()) {
+  if (store.isAdmin()) {
     return <Navigate to="/dashboard/admin-approvals" replace />;
+  }
+  if (store.isFarrukh() || store.isSeniorFinancier()) {
+    return <Navigate to="/dashboard/approvals" replace />;
   }
   return <Navigate to="/dashboard/applications" replace />;
 };

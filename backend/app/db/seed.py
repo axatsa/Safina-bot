@@ -31,6 +31,17 @@ SEEDED_USERS = [
         "position": "ceo",
         "status": "active",
     },
+    {
+        "login_env_key": "FIN_LOGIN",
+        "password_env_key": "FIN_PASSWORD",
+        "default_login": "financier",
+        "default_password": "f_admin123",
+        "first_name": "Финансист",
+        "last_name": "Команда",
+        "position": "admin",
+        "team": "Финансисты",
+        "status": "active",
+    },
 ]
 
 
