@@ -373,7 +373,7 @@ const ExpenseDetail = () => {
                   )
                 ))}
 
-              {(store.isAdmin() || store.isSafina()) && expense.status !== "archived" && expense.status !== "pending_senior" && (
+              {store.isAdmin() && expense.status !== "archived" && expense.status !== "pending_senior" && (
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <Button
@@ -405,7 +405,7 @@ const ExpenseDetail = () => {
                 </AlertDialog>
               )}
 
-              {(store.isSeniorFinancier() || (store.isAdmin() && !store.isSafina()) || isFarrukh) && 
+              {(store.isAdmin() || store.isSeniorFinancier()) && 
                 expense.status !== "archived" && 
                 !["pending_ceo", "approved_ceo"].includes(expense.status) && (
                 <AlertDialog>

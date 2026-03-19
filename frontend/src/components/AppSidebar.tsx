@@ -23,7 +23,7 @@ const AppSidebar = () => {
   };
 
   const menuItems = [
-    { title: "Заявки", url: "/dashboard", icon: ClipboardList, show: true },
+    { title: "Заявки", url: "/dashboard/applications", icon: ClipboardList, show: true },
     { title: "Новая заявка", url: "/submit", icon: Send, show: true },
     { 
       title: "Очередь обработки", 

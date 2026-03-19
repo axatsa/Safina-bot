@@ -78,7 +78,8 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
     
 def is_admin(user: models.TeamMember) -> bool:
     """Check if the user has admin privileges (Superuser or Financiers team)."""
-    if user.login == os.getenv("ADMIN_LOGIN", "safina"):
+    admins = [os.getenv("ADMIN_LOGIN", "safina"), "farrukh"]
+    if user.login in admins:
         return True
     return user.team == "Финансисты"
 

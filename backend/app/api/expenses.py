@@ -43,7 +43,7 @@ def read_expenses(
     db: Session = Depends(database.get_db),
     current_user: models.TeamMember = Depends(auth.get_current_user)
 ):
-    user_id = None if current_user.login == os.getenv("ADMIN_LOGIN", "safina") else current_user.id
+    user_id = None if auth.is_admin(current_user) else current_user.id
     items = crud.get_expenses(db, project_id=project, status=status, user_id=user_id, skip=skip, limit=limit)
     total = crud.count_expenses(db, project_id=project, status=status, user_id=user_id)
     
@@ -303,7 +303,7 @@ def forward_to_senior_financier(
     current_user: models.TeamMember = Depends(auth.get_current_user),
 ):
     """Forward an expense to the CFO (Senior Financier). Only Safina admin can do this."""
-    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
+    is_admin = auth.is_admin(current_user)
     if not is_admin:
         raise HTTPException(status_code=403, detail="Only administrators can forward to the Senior Financier")
 
@@ -342,7 +342,7 @@ def forward_to_ceo(
     current_user: models.TeamMember = Depends(auth.get_current_user),
 ):
     """Forward an expense to the CEO. Only CFO (senior_financier) or Admin can do this."""
-    if current_user.position not in ["senior_financier", "admin"] and current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
+    if not auth.is_admin(current_user) and current_user.position != "senior_financier":
         raise HTTPException(status_code=403, detail="Only the CFO or Admin can forward to CEO")
 
     expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
@@ -387,7 +387,7 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
     query = db.query(models.ExpenseRequest)
     
     # Ограничение по пользователю
-    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
+    is_admin = auth.is_admin(current_user)
     if not is_admin:
         query = query.filter(models.ExpenseRequest.created_by_id == current_user.id)
     elif user_id:
@@ -479,7 +479,7 @@ def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: st
     
     query = db.query(models.ExpenseRequest)
     
-    is_admin = current_user.login == os.getenv("ADMIN_LOGIN", "safina")
+    is_admin = auth.is_admin(current_user)
     if not is_admin:
         query = query.filter(models.ExpenseRequest.created_by_id == current_user.id)
     elif user_id:

@@ -15,7 +15,7 @@ export const rbac = {
     if (!token) return false;
     const team = getTeam();
     const login = getUser().toLowerCase();
-    return login === "safina" || team === "Финансисты";
+    return login === "safina" || login === "farrukh" || team === "Финансисты";
   },
   isSeniorFinancier: () => {
     const role = localStorage.getItem("safina_role");
