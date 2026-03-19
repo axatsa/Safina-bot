@@ -49,7 +49,7 @@ const AppSidebar = () => {
         </div>
         <div className="flex items-center justify-between">
           <p className="text-[10px] text-sidebar-muted">Управление расходами</p>
-          <span className="text-[8px] font-mono text-sidebar-primary/50">v2.1-FIX</span>
+          <span className="text-[8px] font-mono text-sidebar-primary/50">v3.0-CLEAN</span>
         </div>
         {userName && (
           <div className="mt-4 px-1 py-1 text-[10px] font-medium text-sidebar-muted border-t border-sidebar-border/30 pt-2">
