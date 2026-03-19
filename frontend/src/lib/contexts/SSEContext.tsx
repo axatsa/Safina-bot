@@ -58,21 +58,21 @@ export const SSEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
             console.log(`Connecting to SSE (Attempt ${reconnectCount + 1})...`);
             
-            // Handle cross-platform API URL
-            const baseUrl = import.meta.env.VITE_APP_API_URL || 
-                            import.meta.env.VITE_API_URL || 
-                            import.meta.env.VITE_API_BASE_URL || 
-                            window.location.origin;
-
-            let validBaseUrl = baseUrl;
-            if (!baseUrl.startsWith('http')) {
-                validBaseUrl = window.location.origin;
-            }
-
             try {
-                const url = new URL('/api/notifications/stream', validBaseUrl);
-                // We pass token as query param since EventSource doesn't support headers natively
-                url.searchParams.append('token', token);
+                // Determing base URL safely
+                const origin = window.location.origin;
+                const apiBase = import.meta.env.VITE_APP_API_URL || "";
+                
+                // If apiBase is absolute, use it. Otherwise, use origin.
+                const baseUrl = apiBase.startsWith("http") ? apiBase : origin;
+                
+                // Construct the URL safely
+                const url = new URL('/api/notifications/stream', baseUrl);
+                
+                // Add token safely
+                if (token) {
+                    url.searchParams.append('token', token);
+                }
                 
                 const es = new EventSource(url.toString(), { withCredentials: true });
                 eventSourceRef.current = es;
@@ -109,17 +109,15 @@ export const SSEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     const delay = Math.min(Math.pow(2, reconnectCount) * 1000, 30000);
                     console.log(`Reconnecting in ${delay}ms...`);
                     
-                    if (reconnectCount < 10) {
+                    if (reconnectCount < 5) {
                         reconnectTimeoutRef.current = setTimeout(() => {
                             setReconnectCount(prev => prev + 1);
                             connect();
                         }, delay);
-                    } else {
-                        toast.error('Не удалось восстановить связь с сервером. Пожалуйста, обновите страницу.');
                     }
                 };
             } catch (err) {
-                console.error('Failed to create EventSource:', err);
+                console.error('Critical failure constructing SSE URL:', err);
             }
         };
 
