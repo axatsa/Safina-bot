@@ -26,7 +26,7 @@ import {
 
 const AVAILABLE_TEMPLATES = [
     { id: "land", label: "Thompson Land" },
-    { id: "ls", label: "Learning Center (LS)" },
+    { id: "drujba", label: "ЛС (Дружба)" },
     { id: "management", label: "Management" },
     { id: "school", label: "School" },
     { id: "refund", label: "Заявление на возврат" },
@@ -66,6 +66,7 @@ const Projects = () => {
     const [memberDialogOpen, setMemberDialogOpen] = useState(false);
     const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
     const [activeProject, setActiveProject] = useState<Project | null>(null);
+    const [pendingTemplates, setPendingTemplates] = useState<string[] | null>(null);
 
     const { data: team = [] } = useQuery({
         queryKey: ["team"],
@@ -102,19 +103,22 @@ const Projects = () => {
     });
 
     const handleTemplateToggle = (templateId: string) => {
-        if (!activeProject) return;
-        const currentTemplates = activeProject.templates || [];
-        const newTemplates = currentTemplates.includes(templateId)
-            ? currentTemplates.filter(id => id !== templateId)
-            : [...currentTemplates, templateId];
-        
-        updateTemplatesMutation.mutate({ 
-            projectId: activeProject.id, 
-            templates: newTemplates 
+        if (pendingTemplates === null) return;
+        const updated = pendingTemplates.includes(templateId)
+            ? pendingTemplates.filter(id => id !== templateId)
+            : [...pendingTemplates, templateId];
+        setPendingTemplates(updated);
+    };
+
+    const handleSaveTemplates = () => {
+        if (!activeProject || pendingTemplates === null) return;
+        updateTemplatesMutation.mutate({
+            projectId: activeProject.id,
+            templates: pendingTemplates
         });
-        
-        // Update local state for immediate feedback
-        setActiveProject({ ...activeProject, templates: newTemplates });
+        setActiveProject({ ...activeProject, templates: pendingTemplates });
+        setTemplateDialogOpen(false);
+        setPendingTemplates(null);
     };
 
     const projectMembers = activeProject
@@ -257,6 +261,7 @@ const Projects = () => {
                                                     className="text-muted-foreground hover:text-indigo-600 transition-colors"
                                                     onClick={() => {
                                                         setActiveProject(project);
+                                                        setPendingTemplates(project.templates || []);
                                                         setTemplateDialogOpen(true);
                                                     }}
                                                     title="Шаблоны бланков"
@@ -374,7 +379,13 @@ const Projects = () => {
                     </div>
                 </DialogContent>
             </Dialog>
-            <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+            <Dialog 
+                open={templateDialogOpen} 
+                onOpenChange={(open) => {
+                    setTemplateDialogOpen(open);
+                    if (!open) setPendingTemplates(null);
+                }}
+            >
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>Шаблоны для: {activeProject?.name}</DialogTitle>
@@ -386,7 +397,7 @@ const Projects = () => {
                                 <div key={tpl.id} className="flex items-center space-x-3 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors">
                                     <Checkbox 
                                         id={`tpl-${tpl.id}`}
-                                        checked={(activeProject?.templates || []).includes(tpl.id)}
+                                        checked={(pendingTemplates ?? []).includes(tpl.id)}
                                         onCheckedChange={() => handleTemplateToggle(tpl.id)}
                                     />
                                     <Label 
@@ -402,6 +413,16 @@ const Projects = () => {
                         <p className="text-[11px] text-muted-foreground italic mt-2">
                             * Выбранные шаблоны будут доступны всем участникам этого проекта в Telegram боте.
                         </p>
+                        
+                        <Button
+                            onClick={handleSaveTemplates}
+                            disabled={updateTemplatesMutation.isPending}
+                            className="w-full mt-4"
+                        >
+                            {updateTemplatesMutation.isPending ? (
+                                <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Сохранение...</>
+                            ) : "Сохранить"}
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>

@@ -3,7 +3,8 @@ import datetime
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import WebAppInfo
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 from app.core import database
 from app.db import models, schemas, crud
@@ -235,11 +236,19 @@ async def process_finish(message: types.Message, state: FSMContext):
     
     await state.clear()
 
-@router.message(F.text == "Создать заявку (Web-App)")
+@router.message(F.text == "Создать инвестицию (Web-App)")
 @router.message(Command("form"))
-async def show_form_link(message: types.Message):
-    base_url = os.getenv("WEB_FORM_BASE_URL", "https://finance.thompson.uz")
+async def open_expense_webapp(message: types.Message):
+    base_url = os.getenv("WEB_APP_URL", "https://finance.thompson.uz")
     url = f"{base_url}/submit?chat_id={message.from_user.id}&type=expense"
-    builder = InlineKeyboardBuilder()
-    builder.button(text="📝 Открыть форму заявки", url=url)
-    await message.answer("Откройте форму по кнопке ниже:", reply_markup=builder.as_markup())
+    builder = ReplyKeyboardBuilder()
+    builder.button(
+        text="📝 Открыть форму заявки",
+        web_app=WebAppInfo(url=url)
+    )
+    builder.button(text="◀️ Назад")
+    builder.adjust(1)
+    await message.answer(
+        "Нажмите кнопку ниже, чтобы открыть форму заявки:",
+        reply_markup=builder.as_markup(resize_keyboard=True)
+    )

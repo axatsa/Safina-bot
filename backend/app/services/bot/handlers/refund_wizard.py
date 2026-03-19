@@ -1,12 +1,14 @@
-import re
 from aiogram import Router, types, F
+import os
 from aiogram.fsm.context import FSMContext
 from aiogram.types import WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 from app.core import database
 from ..states import RefundWizard
 from ..keyboards import get_reason_kb, get_back_kb, get_refund_confirm_markup, get_main_kb, get_currency_kb
 from ..utils import _BACK, tashkent_now
+import re
 
 router = Router()
 
@@ -85,3 +87,19 @@ async def handle_refund_submit(callback: types.CallbackQuery, state: FSMContext)
         except Exception as e:
             await callback.message.answer(f"❌ Ошибка: {e}")
     await state.clear()
+
+@router.message(F.text == "Создать возврат (Web-App)")
+async def open_refund_webapp(message: types.Message):
+    base_url = os.getenv("WEB_APP_URL", "https://finance.thompson.uz")
+    url = f"{base_url}/submit?chat_id={message.from_user.id}&type=refund"
+    builder = ReplyKeyboardBuilder()
+    builder.button(
+        text="💸 Открыть форму возврата",
+        web_app=WebAppInfo(url=url)
+    )
+    builder.button(text="◀️ Назад")
+    builder.adjust(1)
+    await message.answer(
+        "Нажмите кнопку ниже, чтобы открыть форму возврата:",
+        reply_markup=builder.as_markup(resize_keyboard=True)
+    )
