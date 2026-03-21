@@ -90,14 +90,12 @@ async def send_status_notification(
 # ---------------------------------------------------------------------------
 
 async def send_admin_notification(expense_id: str, admin_chat_id: int) -> None:
-    """Notify Safina (web-admin) about a newly created expense."""
-    from app.core import database
+    from app.core.database import SessionLocal
     from app.db import models
-
-    with database.database_session() as db:
+    db = SessionLocal()
+    try:
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
-            print(f"[TG] Expense {expense_id} not found for admin notification")
             return
 
         base_url = os.getenv("WEB_FORM_BASE_URL", "https://finance.thompson.uz")
@@ -108,10 +106,7 @@ async def send_admin_notification(expense_id: str, admin_chat_id: int) -> None:
         if expense.request_type == "blank":
             header = "📋 *Safina: Новая заявка на БЛАНК*"
             type_label = "Бланк"
-        elif expense.request_type == "blank_refund":
-            header = "🧾 *Safina: Заявление на ВОЗВРАТ*"
-            type_label = "Возврат"
-        elif expense.request_type == "refund":
+        elif expense.request_type in ("blank_refund", "refund"):
             header = "🧾 *Safina: Заявление на ВОЗВРАТ*"
             type_label = "Возврат"
 
@@ -124,20 +119,18 @@ async def send_admin_notification(expense_id: str, admin_chat_id: int) -> None:
             f"🆔 {expense.request_id}\n"
             f"💵 {expense.total_amount:,.2f} {expense.currency}\n"
         )
-        
         if expense.usd_rate:
-            text += f"📉 Курс: {Decimal(str(expense.usd_rate)):,.2f} UZS/USD\n"
-            
-        text += (
-            f"🕒 {dt_str} (Ташкент)\n"
-            f"✅ Ожидает рассмотрения"
-        )
+            text += f"📉 Курс: {float(expense.usd_rate):,.2f} UZS/USD\n"
+        text += f"🕒 {dt_str} (Ташкент)\n✅ Ожидает рассмотрения"
+
         builder = InlineKeyboardBuilder()
         builder.button(text="📄 Скачать смету", callback_data=f"download_smeta_{expense.id}")
         builder.button(text="🖥 Открыть в системе", url=f"{base_url}/dashboard")
         builder.adjust(1)
 
         await _send_message(admin_chat_id, text, reply_markup=builder.as_markup())
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------------------
@@ -145,14 +138,12 @@ async def send_admin_notification(expense_id: str, admin_chat_id: int) -> None:
 # ---------------------------------------------------------------------------
 
 async def send_senior_notification(expense_id: str, senior_chat_id: int) -> None:
-    """Send approval-request notification to CFO."""
-    from app.core import database
+    from app.core.database import SessionLocal
     from app.db import models
-
-    with database.database_session() as db:
+    db = SessionLocal()
+    try:
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
-            print(f"[TG] Expense {expense_id} not found for senior notification")
             return
 
         text = (
@@ -164,7 +155,8 @@ async def send_senior_notification(expense_id: str, senior_chat_id: int) -> None
             f"💵 {expense.total_amount:,.2f} {expense.currency}\n"
         )
         if expense.usd_rate:
-            text += f"📉 Курс: {Decimal(str(expense.usd_rate)):,.2f} UZS/USD\n"
+            text += f"📉 Курс: {float(expense.usd_rate):,.2f} UZS/USD\n"
+
         builder = InlineKeyboardBuilder()
         builder.button(text="✅ Утвердить", callback_data=f"approve_senior_{expense.id}")
         builder.button(text="❌ Отклонить", callback_data=f"reject_senior_{expense.id}")
@@ -172,6 +164,8 @@ async def send_senior_notification(expense_id: str, senior_chat_id: int) -> None
         builder.adjust(2, 1)
 
         await _send_message(senior_chat_id, text, reply_markup=builder.as_markup())
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------------------
@@ -179,14 +173,12 @@ async def send_senior_notification(expense_id: str, senior_chat_id: int) -> None
 # ---------------------------------------------------------------------------
 
 async def send_ceo_notification(expense_id: str, ceo_chat_id: int) -> None:
-    """Send approval-request notification to CEO with 3 action buttons."""
-    from app.core import database
+    from app.core.database import SessionLocal
     from app.db import models
-
-    with database.database_session() as db:
+    db = SessionLocal()
+    try:
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
-            print(f"[TG] Expense {expense_id} not found for CEO notification")
             return
 
         text = (
@@ -198,14 +190,17 @@ async def send_ceo_notification(expense_id: str, ceo_chat_id: int) -> None:
             f"💵 {expense.total_amount:,.2f} {expense.currency}\n"
         )
         if expense.usd_rate:
-            text += f"📉 Курс: {Decimal(str(expense.usd_rate)):,.2f} UZS/USD\n"
+            text += f"📉 Курс: {float(expense.usd_rate):,.2f} UZS/USD\n"
+
         builder = InlineKeyboardBuilder()
-        builder.button(text="✅ Одобрить",  callback_data=f"approve_ceo_{expense.id}")
+        builder.button(text="✅ Одобрить", callback_data=f"approve_ceo_{expense.id}")
         builder.button(text="❌ Отклонить", callback_data=f"reject_ceo_{expense.id}")
         builder.button(text="📄 Скачать инвестицию", callback_data=f"download_excel_{expense.id}")
         builder.adjust(2, 1)
 
         await _send_message(ceo_chat_id, text, reply_markup=builder.as_markup())
+    finally:
+        db.close()
 
 
 async def send_ceo_decision_notification(
@@ -234,36 +229,37 @@ async def send_ceo_decision_notification(
 # ---------------------------------------------------------------------------
 
 def _get_chat_id_by_position(position: str) -> list[int]:
-    """Return list of telegram_chat_ids for members with the given position."""
-    from app.core import database
+    from app.core.database import SessionLocal
     from app.db import models
-
-    with next(database.get_db()) as db:
+    db = SessionLocal()
+    try:
         users = db.query(models.TeamMember).filter(
             models.TeamMember.position == position,
             models.TeamMember.telegram_chat_id.isnot(None),
         ).all()
         return [u.telegram_chat_id for u in users]
+    finally:
+        db.close()
 
 
 def get_admin_chat_id() -> int | None:
-    """Return Safina's linked Telegram chat_id from Settings table."""
-    from app.core import database
+    from app.core.database import SessionLocal
     from app.db import models
-
-    with next(database.get_db()) as db:
+    db = SessionLocal()
+    try:
         setting = db.query(models.Setting).filter(models.Setting.key == "admin_chat_id").first()
         if setting:
             return int(setting.value)
-    return None
+        return None
+    finally:
+        db.close()
 
 
 def set_admin_chat_id(chat_id: int) -> None:
-    """Persist Safina's Telegram chat_id in Settings."""
-    from app.core import database
+    from app.core.database import SessionLocal
     from app.db import models
-
-    with next(database.get_db()) as db:
+    db = SessionLocal()
+    try:
         setting = db.query(models.Setting).filter(models.Setting.key == "admin_chat_id").first()
         if setting:
             setting.value = str(chat_id)
@@ -271,11 +267,22 @@ def set_admin_chat_id(chat_id: int) -> None:
             setting = models.Setting(key="admin_chat_id", value=str(chat_id))
             db.add(setting)
         db.commit()
+    finally:
+        db.close()
 
 
 def get_senior_financier_chat_ids() -> list[int]:
-    """Return all CFO (senior_financier) Telegram chat IDs."""
-    return _get_chat_id_by_position("senior_financier")
+    from app.core.database import SessionLocal
+    from app.db import models
+    db = SessionLocal()
+    try:
+        users = db.query(models.TeamMember).filter(
+            models.TeamMember.position == "senior_financier",
+            models.TeamMember.telegram_chat_id.isnot(None),
+        ).all()
+        return [u.telegram_chat_id for u in users]
+    finally:
+        db.close()
 
 
 def get_ceo_chat_id() -> int | None:

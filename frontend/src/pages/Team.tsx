@@ -85,8 +85,11 @@ const Team = () => {
   const updateTemplatesMutation = useMutation({
     mutationFn: ({ memberId, templates }: { memberId: string; templates: string[] }) =>
       store.updateTeamMemberTemplates(memberId, templates),
-    onSuccess: () => {
+    onSuccess: (updatedMember) => {
       queryClient.invalidateQueries({ queryKey: ["team"] });
+      if (activeMember && updatedMember.id === activeMember.id) {
+        setActiveMember(updatedMember);
+      }
       toast.success("Личные шаблоны обновлены");
     }
   });
@@ -102,8 +105,6 @@ const Team = () => {
       memberId: activeMember.id, 
       templates: newTemplates 
     });
-    
-    setActiveMember({ ...activeMember, templates: newTemplates });
   };
 
   const generatePassword = () => {

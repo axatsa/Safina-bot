@@ -258,3 +258,7 @@ async def open_expense_webapp(message: types.Message):
         "Нажмите кнопку ниже, чтобы открыть форму заявки:",
         reply_markup=builder.as_markup(resize_keyboard=True)
     )
+@router.message(F.text == "◀️ Назад")
+async def back_to_main(message: types.Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Главное меню", reply_markup=get_main_kb())

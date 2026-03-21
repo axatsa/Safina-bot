@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from decimal import Decimal
  
-AVAILABLE_TEMPLATE_KEYS = {"land", "drujba", "management", "school"}
+AVAILABLE_TEMPLATE_KEYS = {"land", "drujba", "management", "school", "refund"}
 
 class ExpenseStatusEnum(str, Enum):
     request = "request"

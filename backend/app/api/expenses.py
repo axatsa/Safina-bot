@@ -71,9 +71,7 @@ async def create_expense(expense: schemas.ExpenseRequestCreate, background_tasks
 
 @router.post("/web-submit", response_model=schemas.ExpenseRequestSchema)
 async def web_submit_expense(data: dict, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    chat_id = current_user.telegram_chat_id
-    if not chat_id:
-        raise HTTPException(status_code=400, detail="У вашего аккаунта не привязан Telegram Chat ID")
+    # chat_id validation removed
     
     chat_id_int = chat_id
     user = current_user
@@ -111,21 +109,12 @@ async def web_submit_refund(
     reason: str = Form(...),
     amount: float = Form(...),
     card_number: str = Form(...),
-    retention: str = Form(...),
-    receipt_photo: UploadFile = File(...)
 ):
-    """Web-App endpoint: создаёт заявку возврата (принимает данные из формы)."""
+    """Web-App endpoint: создаёт заявку возврата."""
     user = current_user
     user_id = user.id
     branch = user.branch
     team = user.team
-    chat_id_int = user.telegram_chat_id
-
-    if not chat_id_int:
-        raise HTTPException(status_code=400, detail="У вашего аккаунта не привязан Telegram Chat ID")
-
-    receipt_path = save_receipt_photo(receipt_photo)
-    retention_bool = retention.lower() == "true"
 
     try:
         expense_req = await create_refund(
@@ -134,8 +123,6 @@ async def web_submit_refund(
             reason=reason,
             amount=amount,
             card_number=card_number,
-            retention=retention_bool,
-            receipt_photo_ref=receipt_path,
             user_id=user_id,
             branch=branch,
             team=team,

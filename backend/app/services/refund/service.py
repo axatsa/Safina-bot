@@ -108,7 +108,7 @@ async def create_refund(
         schemas.ExpenseItemSchema(
             name=f"Возврат (ID: {student_id})",
             quantity=1,
-            amount=amount,
+            amount=float(amount),
             currency=schemas.CurrencyEnum.UZS,
         )
     ]

@@ -192,14 +192,24 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
     if total_amount is None:
         total_amount = sum(item.amount * item.quantity for item in expense.items)
 
+    # Конвертируем Decimal в float для JSON совместимости
+    items_serializable = []
+    for item in expense.items:
+        items_serializable.append({
+            "name": item.name,
+            "quantity": float(item.quantity),
+            "amount": float(item.amount),
+            "currency": str(item.currency),
+        })
+
     db_expense = models.ExpenseRequest(
         request_id=request_id,
         date=expense.date or tashkent_now(),
         purpose=expense.purpose,
-        items=[item.dict() for item in expense.items],
-        total_amount=total_amount,
+        items=items_serializable,
+        total_amount=float(total_amount) if total_amount else 0,
         currency=currency,
-        usd_rate=usd_rate,
+        usd_rate=float(usd_rate) if usd_rate else None,
         created_by_id=user_id if user_id != "admin" else None,
         created_by=user_name,
         created_by_position=user_position,

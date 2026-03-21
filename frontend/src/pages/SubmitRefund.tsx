@@ -32,21 +32,16 @@ const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
   const [cardNumber, setCardNumber] = useState("");
   const [cardError, setCardError] = useState("");
   const [amountError, setAmountError] = useState("");
-  const [retention, setRetention] = useState(false);
-  const [receiptPhoto, setReceiptPhoto] = useState<File | null>(null);
-  const [receiptPhotoError, setReceiptPhotoError] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!receiptPhoto) throw new Error("Фото чека обязательно");
       const formData = new FormData();
+      formData.append("user_id", localStorage.getItem("safina_user_id") || ""); // Web endpoint needs user_id
       formData.append("student_id", studentId);
       formData.append("reason", reason);
       formData.append("amount", amount.replace(/[^\d]/g, ""));
       formData.append("card_number", cardNumber.replace(/\s/g, ""));
-      formData.append("retention", String(retention));
-      formData.append("receipt_photo", receiptPhoto);
       if (chatId) formData.append("chat_id", chatId);
 
       const token = localStorage.getItem("safina_token");
@@ -123,13 +118,6 @@ const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
     if (cardNumber.replace(/\s/g, "").length !== 16) {
       setCardError("Введите 16 цифр номера карты");
       hasError = true;
-    }
-
-    if (!receiptPhoto) {
-      setReceiptPhotoError("Загрузите фото чека");
-      hasError = true;
-    } else {
-      setReceiptPhotoError("");
     }
 
     if (hasError) {
@@ -227,31 +215,6 @@ const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
               placeholder="8600 0000 0000 0000"
               className={`rounded-xl font-bold tracking-widest ${cardError ? "border-destructive ring-1 ring-destructive" : ""}`} />
             {cardError && <p className="text-[10px] text-destructive italic">{cardError}</p>}
-          </div>
-
-          {/* Удержание */}
-          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-dashed">
-            <div className="space-y-0.5">
-              <Label>Удержание</Label>
-              <p className="text-[10px] text-muted-foreground">Применяется ли удержание?</p>
-            </div>
-            <Switch id="retention" checked={retention} onCheckedChange={setRetention} />
-          </div>
-
-          {/* Фото чека */}
-          <div className="space-y-2">
-            <Label className={receiptPhotoError ? "text-destructive" : ""}>Фото чека (Обязательно)</Label>
-            <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer hover:bg-muted/50 transition-colors ${receiptPhotoError ? "border-destructive bg-destructive/5" : ""}`}>
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                {receiptPhoto
-                  ? <><UploadCloud className="w-8 h-8 text-primary mb-2" /><span className="text-sm text-primary font-medium">{receiptPhoto.name}</span></>
-                  : <><Camera className={`w-8 h-8 mb-2 ${receiptPhotoError ? "text-destructive" : "text-muted-foreground"}`} /><span className={`text-sm ${receiptPhotoError ? "text-destructive" : "text-muted-foreground"}`}>Съёмка / загрузка фото чека</span></>}
-              </div>
-              {/* capture="environment" — открывает заднюю камеру на мобильных */}
-              <input type="file" className="hidden" accept="image/*" capture="environment"
-                onChange={(e) => { setReceiptPhoto(e.target.files?.[0] || null); if(e.target.files?.[0]) setReceiptPhotoError(""); }} />
-            </label>
-            {receiptPhotoError && <p className="text-[10px] text-destructive italic">{receiptPhotoError}</p>}
           </div>
 
           <Button type="submit" className="w-full rounded-xl py-6 text-lg font-bold" disabled={mutation.isPending}>

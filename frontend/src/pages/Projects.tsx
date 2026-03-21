@@ -96,9 +96,14 @@ const Projects = () => {
     const updateTemplatesMutation = useMutation({
         mutationFn: ({ projectId, templates }: { projectId: string; templates: string[] }) =>
             store.updateProjectTemplates(projectId, templates),
-        onSuccess: () => {
+        onSuccess: (updatedProject) => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
+            if (activeProject && updatedProject.id === activeProject.id) {
+                setActiveProject(updatedProject);
+            }
             toast.success("Шаблоны обновлены");
+            setTemplateDialogOpen(false);
+            setPendingTemplates(null);
         }
     });
 
@@ -116,9 +121,6 @@ const Projects = () => {
             projectId: activeProject.id,
             templates: pendingTemplates
         });
-        setActiveProject({ ...activeProject, templates: pendingTemplates });
-        setTemplateDialogOpen(false);
-        setPendingTemplates(null);
     };
 
     const projectMembers = activeProject
