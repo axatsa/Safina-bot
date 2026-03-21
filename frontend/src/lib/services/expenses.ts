@@ -149,6 +149,30 @@ export const expensesService = {
     link.remove();
   },
 
+  confirmRefund: async (expenseId: string, retention: boolean, receiptPhoto: File): Promise<ExpenseRequest> => {
+    const formData = new FormData();
+    formData.append("retention", retention.toString());
+    formData.append("receipt_photo", receiptPhoto);
+
+    // Use a fresh fetch call for multipart data as apiFetch might set JSON headers by default
+    const token = localStorage.getItem("safina_token");
+    const baseUrl = import.meta.env.VITE_API_URL || "https://finance-api.thompson.uz/api";
+    const res = await fetch(`${baseUrl}/expenses/${expenseId}/refund-confirm`, {
+      method: "PATCH",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      },
+      body: formData,
+    });
+    
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || "Error confirming refund");
+    }
+    
+    return res.json();
+  },
+
   getExpenseHistory: async (expenseId: string): Promise<any[]> => {
     const res = await apiFetch(`/expenses/${expenseId}/history`);
     const data = await res.json();

@@ -13,6 +13,7 @@ from ..keyboards import get_confirm_kb, get_date_kb, get_currency_kb, get_projec
 from .utils import tashkent_now, _BACK
 from decimal import Decimal
 from app.services.currency.service import currency_service
+from ..notifications import send_admin_notification, get_admin_chat_id
 
 router = Router()
 
@@ -227,6 +228,11 @@ async def process_finish(message: types.Message, state: FSMContext):
             expense_req_id = db_expense.id
             request_id = db_expense.request_id
         
+        # Notify Safina
+        admin_chat_id = get_admin_chat_id()
+        if admin_chat_id:
+            await send_admin_notification(expense_req_id, admin_chat_id)
+            
         await message.answer(f"✅ Заявка {request_id} создана!", reply_markup=get_main_kb())
     except Exception as e:
         import logging

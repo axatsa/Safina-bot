@@ -12,8 +12,9 @@ import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft, Download, Clock, CheckCircle, XCircle,
   RotateCcw, Archive, Send, Loader2, FastForward, Crown,
-  FileSpreadsheet, HelpCircle
+  FileSpreadsheet, HelpCircle, FileText, Camera
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -105,6 +106,9 @@ const ExpenseDetail = () => {
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<ExpenseStatus | null>(null);
   const [statusComment, setStatusComment] = useState("");
+  const [retentionValue, setRetentionValue] = useState(false);
+  const [receiptPhoto, setReceiptPhoto] = useState<File | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     if (expense?.internalComment) {
@@ -178,6 +182,23 @@ const ExpenseDetail = () => {
     setCommentDialogOpen(false);
     setPendingStatus(null);
     setStatusComment("");
+  };
+  
+  const handleConfirmRefund = async () => {
+    if (!receiptPhoto || !expense) return;
+    setIsConfirming(true);
+    try {
+      await store.confirmRefund(expense.id, retentionValue, receiptPhoto);
+      toast.success("Возврат подтверждён!");
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      // Clear states
+      setReceiptPhoto(null);
+      setRetentionValue(false);
+    } catch (e: any) {
+      toast.error(e.message || "Ошибка при подтверждении");
+    } finally {
+      setIsConfirming(false);
+    }
   };
 
   const isArchived = expense.status === "archived";
@@ -287,6 +308,75 @@ const ExpenseDetail = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Safina: Confirm refund with receipt */}
+          {expense.requestType === "refund" && expense.status !== "confirmed" && isAdmin && (
+            <div className="glass-card rounded-lg p-5 space-y-4 border-amber-200 bg-amber-50/40 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-amber-800 flex items-center gap-2 uppercase tracking-wider">
+                  <Camera className="w-4 h-4 text-amber-600" /> Подтверждение возврата
+                </h3>
+              </div>
+              <p className="text-xs text-amber-700/70 leading-relaxed uppercase font-semibold">
+                Загрузите чек перевода и укажите наличие удержания
+              </p>
+
+              <div className="flex flex-col md:flex-row md:items-center gap-6 py-2">
+                {/* Retention toggle */}
+                <div className="flex items-center gap-3 bg-white/50 px-3 py-2 rounded-md border border-amber-100">
+                  <Label htmlFor="retention" className="text-xs font-bold uppercase tracking-tight cursor-pointer">Удержание</Label>
+                  <Switch
+                    id="retention"
+                    checked={retentionValue}
+                    onCheckedChange={setRetentionValue}
+                  />
+                  <span className="text-[10px] font-bold text-amber-900 w-20">
+                    {retentionValue ? "ДА (ЕСТЬ)" : "НЕТ (БЕЗ)"}
+                  </span>
+                </div>
+
+                {/* Photo upload */}
+                <div className="flex-1 space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Скриншот чека перевода</Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      id="receipt-upload"
+                      accept="image/*"
+                      onChange={(e) => setReceiptPhoto(e.target.files?.[0] ?? null)}
+                      className="hidden"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="bg-white border-amber-200 text-amber-800 hover:bg-amber-100/50 text-[11px] h-8"
+                      onClick={() => document.getElementById('receipt-upload')?.click()}
+                    >
+                      {receiptPhoto ? "Сменить файл" : "Выбрать файл..."}
+                    </Button>
+                    {receiptPhoto && (
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded border border-green-100">
+                        <FileText className="w-3 h-3 text-green-600" />
+                        <span className="text-[10px] font-medium text-green-700 truncate max-w-[120px]">
+                          {receiptPhoto.name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleConfirmRefund}
+                disabled={!receiptPhoto || isConfirming}
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold h-10 shadow-md shadow-amber-200/50"
+              >
+                {isConfirming ? (
+                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Обработка...</>
+                ) : "ПОДТВЕРДИТЬ И ЗАВЕРШИТЬ ВОЗВРАТ"}
+              </Button>
             </div>
           )}
 

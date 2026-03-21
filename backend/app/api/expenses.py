@@ -266,6 +266,40 @@ def export_refund_application(
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{fname}"},
     )
 
+@router.patch("/{expense_id}/refund-confirm", response_model=schemas.ExpenseRequestSchema)
+async def confirm_refund_with_receipt(
+    expense_id: str,
+    retention: str = Form(...),           # "true" or "false"
+    receipt_photo: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.TeamMember = Depends(auth.get_current_user),
+):
+    """Safina attaches receipt photo and sets retention flag on a refund request."""
+    if not auth.is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only admin can confirm refunds")
+
+    expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    if expense.request_type not in ("refund", "blank_refund"):
+        raise HTTPException(status_code=400, detail="This endpoint is only for refund requests")
+
+    # Save photo
+    receipt_path = save_receipt_photo(receipt_photo)
+    expense.receipt_photo_file_id = receipt_path
+
+    # Update retention in refund_data JSON
+    retention_bool = retention.lower() == "true"
+    refund_data = expense.refund_data or {}
+    refund_data["retention"] = retention_bool
+    expense.refund_data = refund_data
+
+    # Mark as confirmed
+    expense.status = "confirmed"
+    db.commit()
+    db.refresh(expense)
+    return expense
+
 @router.patch("/{expense_id}/status", response_model=schemas.ExpenseRequestSchema)
 def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     if update.status in ["declined", "revision"] and not update.comment:
