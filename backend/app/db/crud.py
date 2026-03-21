@@ -251,7 +251,7 @@ def update_expense_status(db: Session, expense_id: str, update: schemas.ExpenseS
             expense_id=db_expense.id,
             status=update.status,
             comment=update.comment or f"Статус изменен с {old_status} на {update.status}",
-            changed_by_id=user_id,
+            changed_by_id=user_id if user_id != "admin" else None,
             changed_by_name=user_name
         )
         db.add(history)
