@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from . import models, schemas
+from app.db import models, schemas
 from app.core import auth
 from decimal import Decimal
 
@@ -199,7 +199,7 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
             "name": item.name,
             "quantity": float(item.quantity),
             "amount": float(item.amount),
-            "currency": str(item.currency),
+            "currency": str(getattr(item.currency, 'value', item.currency)),
         })
 
     db_expense = models.ExpenseRequest(

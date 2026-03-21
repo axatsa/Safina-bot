@@ -73,7 +73,7 @@ async def create_expense(expense: schemas.ExpenseRequestCreate, background_tasks
 async def web_submit_expense(data: dict, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     # chat_id validation removed
     
-    chat_id_int = chat_id
+    chat_id_int = current_user.telegram_chat_id or 0
     user = current_user
     
     items = []

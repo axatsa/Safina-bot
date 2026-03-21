@@ -81,31 +81,35 @@ async def handle_refund_submit(callback: types.CallbackQuery, state: FSMContext)
     from app.services.refund.service import create_refund
     from ..notifications import send_admin_notification, get_admin_chat_id
 
-    data = await state.get_data()
-    expense_req = None
+        # Placeholder variables for attributes fetched inside the session
+        request_id = None
+        expense_id = None
 
-    try:
-        with database.database_session() as db:
-            expense_req = await create_refund(
-                db,
-                student_id=data["student_id"],
-                reason=data["reason"],
-                amount=data["amount"],
-                card_number=data["card_number"],
-                user_id=data["user_id"],
-                branch=data.get("branch"),
-                team=data.get("team"),
+        try:
+            with database.database_session() as db:
+                expense_req = await create_refund(
+                    db,
+                    student_id=data["student_id"],
+                    reason=data["reason"],
+                    amount=data["amount"],
+                    card_number=data["card_number"],
+                    user_id=data["user_id"],
+                    branch=data.get("branch"),
+                    team=data.get("team"),
+                )
+                # Store necessary attributes before session closes
+                expense_id = expense_req.id
+                request_id = expense_req.request_id
+
+            # Notify Safina
+            admin_chat_id = get_admin_chat_id()
+            if admin_chat_id:
+                await send_admin_notification(expense_id, admin_chat_id)
+
+            await callback.message.answer(
+                f"✅ Заявка {request_id} отправлена Сафине!",
+                reply_markup=get_main_kb()
             )
-
-        # Notify Safina
-        admin_chat_id = get_admin_chat_id()
-        if admin_chat_id and expense_req:
-            await send_admin_notification(expense_req.id, admin_chat_id)
-
-        await callback.message.answer(
-            f"✅ Заявка {expense_req.request_id} отправлена Сафине!",
-            reply_markup=get_main_kb()
-        )
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Refund submit error: {e}")

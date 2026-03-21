@@ -10,7 +10,7 @@ from app.core import database
 from app.db import models, schemas, crud
 from ..states import ExpenseWizard
 from ..keyboards import get_confirm_kb, get_date_kb, get_currency_kb, get_projects_kb, get_main_kb, get_back_kb
-from .utils import tashkent_now, _BACK
+from ..utils import tashkent_now, _BACK
 from decimal import Decimal
 from app.services.currency.service import currency_service
 from ..notifications import send_admin_notification, get_admin_chat_id
