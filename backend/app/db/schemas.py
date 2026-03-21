@@ -111,7 +111,10 @@ class RefundDataSchema(BaseModel):
     card_holder: Optional[str] = None
     card_number: Optional[str] = None
     transit_account: Optional[str] = None
+    bank_iin: Optional[str] = None
+    bank_mfo: Optional[str] = None
     bank_name: Optional[str] = None
+
 
 class ExpenseRequestCreate(BaseModel):
     purpose: str = Field(..., min_length=1, max_length=500)

@@ -63,31 +63,88 @@ class DocxService:
                         "total": qty * price
                     })
 
+        # Sender Name Short
+        full_name = expense.created_by or ""
+        parts = full_name.split()
+        if len(parts) >= 2:
+            sender_name_short = f"{parts[0]} {parts[1][0]}."
+            if len(parts) >= 3:
+                sender_name_short += f"{parts[2][0]}."
+        else:
+            sender_name_short = full_name
+
+        # Sender Position Filtering
+        raw_position = expense.created_by_position or ""
+        SYSTEM_ROLES = {"user", "admin", "senior_financier", "ceo", ""}
+        sender_position = raw_position if raw_position not in SYSTEM_ROLES else "Сотрудник"
+
         data = {
             "sender_name": expense.created_by,
-            "sender_position": expense.created_by_position or "Сотрудник",
+            "sender_name_short": sender_name_short,
+            "sender_position": sender_position,
             "purpose": expense.purpose,
             "items": items_data,
             "total_amount": Decimal(str(expense.total_amount)),
             "currency": expense.currency,
             "request_id": expense.request_id,
-            "date": expense.date,
+            "date": expense.date.strftime("%d.%m.%Y") if hasattr(expense.date, "strftime") else expense.date,
             "project_name": expense.project_name or "-",
             "project_code": expense.project_code or "-",
             "usd_rate": float(expense.usd_rate) if expense.usd_rate else "-"
         }
+
+        # Director Name Logic
+        DIRECTOR_NAMES = {
+            "school": "Ганиев Б.Б.",
+            "land": "Ганиев Б.Б.",
+            "drujba": "Ганиев Б.Б.",
+            "management": "Ганиев Б.Б.",
+        }
+        data["director_name"] = DIRECTOR_NAMES.get(expense.template_key or "default", "Ганиев Б.Б.")
         
         # Add refund specific data if available
         if expense.refund_data:
-            data.update(expense.refund_data)
+            rd = expense.refund_data
+            data.update(rd)
+            
+            # Reasons Mapping for Checkboxes
+            reason = rd.get("reason", "")
+            reasons_map = {
+                "Переезд": "reason_pereezd",
+                "Изменение графика": "reason_grafik",
+                "Несоответствие": "reason_ozhidaniy",
+                "Материальные трудности": "reason_trudnosti",
+                "По личным причинам": "reason_lichnye",
+                "Другое": "reason_drugoe",
+            }
+            for label, key in reasons_map.items():
+                data[key] = "☑" if reason == label else "□"
+            
+            if reason != "Другое":
+                data["reason_drugoe_text"] = ""
+            else:
+                data["reason_drugoe_text"] = rd.get("reason_other", "")
+
+            # Branch from user profile if not in refund_data
+            if expense.created_by_user and expense.created_by_user.branch:
+                data["branch"] = expense.created_by_user.branch
+            elif not data.get("branch"):
+                data["branch"] = ""
+
+            # Defaults for optional fields
+            for field in ["transit_account", "bank_iin", "bank_mfo", "amount_words"]:
+                if not data.get(field):
+                    data[field] = ""
+
             # Ensure some common keys are also available as top-level if needed by templates
-            if "client_name" in expense.refund_data:
-                data["client"] = expense.refund_data["client_name"]
-            if "amount" in expense.refund_data:
-                data["refund_amount"] = expense.refund_data["amount"]
-                data["total_amount"] = Decimal(str(expense.refund_data["amount"]))
+            if "client_name" in rd:
+                data["client"] = rd["client_name"]
+            if "amount" in rd:
+                data["refund_amount"] = rd["amount"]
+                data["total_amount"] = Decimal(str(rd["amount"]))
             
         return data
+
 
     def generate_expense_docx(self, expense: models.ExpenseRequest):
         """Main method to generate DOCX for an expense."""

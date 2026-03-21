@@ -58,5 +58,8 @@ class RefundBlankWizard(StatesGroup):
     card_holder = State()
     card_number = State()
     transit_account = State()
+    bank_iin = State()
+    bank_mfo = State()
     bank_name = State()
     confirm = State()
+

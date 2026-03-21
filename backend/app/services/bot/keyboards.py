@@ -104,6 +104,27 @@ def get_reason_kb():
     b.adjust(2, 2, 1)
     return b.as_markup(resize_keyboard=True)
 
+def get_refund_reasons_kb():
+    """Кнопки причин для RefundBlankWizard."""
+    reasons = [
+        "Переезд", "Изменение графика", "Несоответствие",
+        "Материальные трудности", "По личным причинам", "Другое"
+    ]
+    b = ReplyKeyboardBuilder()
+    for r in reasons:
+        b.button(text=r)
+    b.button(text=_BACK)
+    b.adjust(2)
+    return b.as_markup(resize_keyboard=True)
+
+def get_skip_back_kb():
+    b = ReplyKeyboardBuilder()
+    b.button(text="⏭ Пропустить")
+    b.button(text=_BACK)
+    b.adjust(2)
+    return b.as_markup(resize_keyboard=True)
+
+
 def get_refund_confirm_markup(expense_id: str) -> InlineKeyboardMarkup:
     """Inline-кнопки редактирования полей на экране подтверждения."""
     return InlineKeyboardMarkup(inline_keyboard=[

@@ -1,59 +1,122 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
-import { ExpenseRequest, STATUS_LABELS } from "@/lib/types";
-import { Loader2, ExternalLink, RefreshCw, Download, RotateCcw } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
-import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { ru } from "date-fns/locale";
+import { ExpenseRequest, ExpenseStatus, STATUS_LABELS } from "@/lib/types";
+import CompactExpenseCard from "@/components/CompactExpenseCard";
+import ExpenseCard from "@/components/ExpenseCard";
+import { 
+  Loader2, RefreshCw, Download, 
+  ClipboardList, ChevronDown, ChevronRight 
+} from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { toast } from "sonner";
+
+const COLUMN_DEFS = [
+  {
+    id: "new",
+    label: "Новые заявления",
+    statuses: ["request", "review", "revision"] as ExpenseStatus[],
+    color: "bg-amber-500",
+    headerClass: "bg-amber-100 text-amber-800 border-amber-200"
+  },
+  {
+    id: "cfo",
+    label: "На согласовании CFO",
+    statuses: ["pending_senior", "pending_ceo"] as ExpenseStatus[],
+    color: "bg-blue-500",
+    headerClass: "bg-blue-100 text-blue-800 border-blue-200"
+  },
+  {
+    id: "completed",
+    label: "Утверждено / Оплачено",
+    statuses: ["approved_senior", "approved_ceo", "confirmed"] as ExpenseStatus[],
+    color: "bg-emerald-500",
+    headerClass: "bg-emerald-100 text-emerald-800 border-emerald-200"
+  },
+  {
+    id: "rejected",
+    label: "Отклонено",
+    statuses: ["declined", "rejected_senior", "rejected_ceo"] as ExpenseStatus[],
+    color: "bg-red-500",
+    headerClass: "bg-red-100 text-red-800 border-red-200"
+  }
+];
 
 const Refunds = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [skip, setSkip] = useState(0);
-  const [allRefunds, setAllRefunds] = useState<ExpenseRequest[]>([]);
-  const LIMIT = 50;
+  const [collapsedColumns, setCollapsedColumns] = useState<Record<string, boolean>>({});
 
   const { data: expensesPage, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ["expenses-refunds", skip],
+    queryKey: ["expenses-refunds"],
     queryFn: () => store.getExpenses({ 
-      skip, 
-      limit: LIMIT,
-      status: "confirmed,declined,review,request,revision,pending_senior,approved_senior,rejected_senior,pending_ceo,approved_ceo,rejected_ceo" 
+      limit: 1000, // Fetch all for kanban
     }),
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
-  const recipes = useMemo(() => {
+  const refunds = useMemo(() => {
     const items = expensesPage?.items ?? [];
     return items.filter(
-      (e) => e.requestType === "refund" || e.requestType === "blank_refund"
+      (e) => (e.requestType === "refund" || e.requestType === "blank_refund") && e.status !== "archived"
     );
   }, [expensesPage]);
 
-  useEffect(() => {
-    if (recipes.length > 0) {
-      setAllRefunds(prev => {
-        if (skip === 0) return recipes;
-        const existingIds = new Set(prev.map(e => e.id));
-        const newItems = recipes.filter(e => !existingIds.has(e.id));
-        return [...prev, ...newItems];
-      });
-    }
-  }, [recipes, skip]);
-
-  const filtered = allRefunds.filter((e) => {
-    if (!search) return true;
+  const filtered = useMemo(() => {
+    if (!search) return refunds;
     const q = search.toLowerCase();
-    return (
+    return refunds.filter((e) =>
       e.requestId?.toLowerCase().includes(q) ||
-      e.createdBy?.toLowerCase().includes(q)
+      e.createdBy?.toLowerCase().includes(q) ||
+      e.purpose?.toLowerCase().includes(q)
     );
+  }, [refunds, search]);
+
+  const mutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: ExpenseStatus }) =>
+      store.updateExpenseStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses-refunds"] });
+      toast.success("Статус обновлен");
+    },
+    onError: () => {
+      toast.error("Не удалось обновить статус");
+    }
   });
 
-  if (isLoading && skip === 0) {
+  const handleDragEnd = (result: DropResult) => {
+    const { draggableId, destination } = result;
+    if (!destination) return;
+
+    // Find which status to assign based on column
+    const column = COLUMN_DEFS.find(c => c.id === destination.droppableId);
+    if (!column) return;
+
+    const item = refunds.find(r => r.id === draggableId);
+    if (!item) return;
+
+    // Use the first status of the column as the target, 
+    // but only if the item isn't already in one of the column's statuses
+    if (!column.statuses.includes(item.status)) {
+        const newStatus = column.statuses[0];
+        
+        if (newStatus === "declined" || newStatus === "revision") {
+            toast.info("Для этого статуса требуется комментарий. Откройте детали заявления.");
+            return;
+        }
+        
+        mutation.mutate({ id: draggableId, status: newStatus });
+    }
+  };
+
+  const toggleColumn = (id: string) => {
+    setCollapsedColumns(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -66,114 +129,108 @@ const Refunds = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-display font-bold text-foreground">Возвраты инвестиций</h1>
-          <p className="text-sm text-muted-foreground mt-1">Управление возвратами средств ученикам</p>
+          <p className="text-sm text-muted-foreground mt-1">Канбан-доска заявлений на возврат</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => store.exportXLSX({ allStatuses: true, project: 'all' })}>
             <Download className="w-4 h-4 mr-2" />
-            Скачать XLSX
+            Экспорт
           </Button>
-          <Button variant="outline" size="sm" onClick={() => {
-            setSkip(0);
-            refetch();
-          }}>
-            <RefreshCw className="w-4 h-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
             Обновить
           </Button>
         </div>
       </div>
 
-      <div className="relative">
+      <div className="flex items-center gap-4">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Поиск по ID или автору..."
-          className="w-full max-w-sm px-4 py-2 text-sm rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+          placeholder="Поиск по ID, автору или назначению..."
+          className="w-full max-w-md px-4 py-2 text-sm rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
       </div>
 
-      <div className="glass-card rounded-2xl border overflow-hidden">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b bg-muted/30">
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">ID</th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Дата</th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Автор</th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Назначение</th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Статус</th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider text-right">Сумма</th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider text-right">Действия</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {filtered.map((expense: ExpenseRequest) => (
-              <tr key={expense.id} className="hover:bg-muted/10 transition-colors">
-                <td className="px-6 py-4 font-display font-bold text-primary text-sm">
-                  {expense.requestId}
-                </td>
-                <td className="px-6 py-4 text-xs text-muted-foreground">
-                  {format(new Date(expense.date), "dd.MM.yyyy HH:mm", { locale: ru })}
-                </td>
-                <td className="px-6 py-4 text-sm">{expense.createdBy}</td>
-                <td className="px-6 py-4 text-sm text-muted-foreground max-w-[200px] truncate">
-                  {expense.purpose}
-                </td>
-                <td className="px-6 py-4">
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted border">
-                    {STATUS_LABELS[expense.status] ?? expense.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right font-display font-bold text-sm">
-                  {Number(expense.totalAmount).toLocaleString()} {expense.currency}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => navigate(`/dashboard/expense/${expense.id}`)}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && !isFetching && (
-              <tr>
-                <td colSpan={7}>
-                  <EmptyState 
-                    icon={RotateCcw}
-                    title="Возвратов нет"
-                    subtitle="Заявления на возврат появятся здесь"
-                  />
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 min-h-[calc(100vh-250px)]">
+        <DragDropContext onDragEnd={handleDragEnd}>
+          {COLUMN_DEFS.map((column) => {
+            const items = filtered.filter(f => column.statuses.includes(f.status));
+            const isCollapsed = !!collapsedColumns[column.id];
+
+            return (
+              <div 
+                key={column.id} 
+                className={`flex flex-col rounded-xl border bg-muted/30 shrink-0 transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-80'}`}
+              >
+                <div 
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-t-xl border-b font-display font-bold text-xs uppercase tracking-wider ${column.headerClass} ${isCollapsed ? 'flex-col py-4' : ''}`}
+                    onClick={() => toggleColumn(column.id)}
+                    role="button"
+                >
+                    {isCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4" />
+                    )}
+                    <span className={isCollapsed ? 'vertical-text mt-4' : ''}>{column.label}</span>
+                    {!isCollapsed && (
+                        <span className="ml-auto bg-white/50 px-2 py-0.5 rounded-full text-[10px]">
+                            {items.length}
+                        </span>
+                    )}
+                </div>
+
+                {!isCollapsed && (
+                    <Droppable droppableId={column.id}>
+                        {(provided, snapshot) => (
+                            <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                className={`flex-1 p-2 space-y-3 transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
+                            >
+                                {items.map((refund, index) => (
+                                    <Draggable key={refund.id} draggableId={refund.id} index={index}>
+                                        {(dragProvided, dragSnapshot) => (
+                                            <div
+                                                ref={dragProvided.innerRef}
+                                                {...dragProvided.draggableProps}
+                                                {...dragProvided.dragHandleProps}
+                                                className={dragSnapshot.isDragging ? "opacity-80 rotate-1 scale-105" : ""}
+                                            >
+                                                <ExpenseCard expense={refund} />
+                                            </div>
+                                        )}
+                                    </Draggable>
+                                ))}
+                                {provided.placeholder}
+                                {items.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center opacity-30 select-none">
+                                        <ClipboardList className="w-10 h-10 mb-2" />
+                                        <p className="text-xs font-medium">Пусто</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </Droppable>
+                )}
+              </div>
+            );
+          })}
+        </DragDropContext>
       </div>
 
-      {expensesPage?.has_more && (
-        <div className="flex justify-center py-6">
-          <Button
-            variant="outline"
-            onClick={() => setSkip(prev => prev + LIMIT)}
-            disabled={isFetching}
-            className="px-8"
-          >
-            {isFetching ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Загрузка...
-              </>
-            ) : (
-              "Загрузить ещё"
-            )}
-          </Button>
-        </div>
-      )}
+      <style>{`
+        .vertical-text {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+        }
+      `}</style>
     </div>
   );
 };
 
 export default Refunds;
+

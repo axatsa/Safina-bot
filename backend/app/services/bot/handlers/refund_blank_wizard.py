@@ -5,7 +5,10 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from app.core import database
 from app.db import models
 from ..states import RefundBlankWizard
-from ..keyboards import get_main_kb, get_fill_method_kb, get_back_kb
+from ..keyboards import (
+    get_main_kb, get_fill_method_kb, get_back_kb, 
+    get_skip_back_kb, get_refund_reasons_kb
+)
 from ..utils import _BACK
 import os
 import datetime
@@ -113,13 +116,7 @@ async def handle_contract_date(message: types.Message, state: FSMContext):
         return
     await state.update_data(contract_date=message.text)
     await state.set_state(RefundBlankWizard.reason)
-    reasons = ["Переезд", "Изменение графика", "Несоответствие", "Материальные трудности", "По личным причинам", "Другое"]
-    kb = ReplyKeyboardBuilder()
-    for r in reasons:
-        kb.button(text=r)
-    kb.button(text=_BACK)
-    kb.adjust(2)
-    await message.answer("Причина возврата:", reply_markup=kb.as_markup(resize_keyboard=True))
+    await message.answer("Причина возврата:", reply_markup=get_refund_reasons_kb())
 
 @router.message(RefundBlankWizard.reason)
 async def handle_reason(message: types.Message, state: FSMContext):
@@ -173,7 +170,7 @@ async def handle_amount(message: types.Message, state: FSMContext):
         val = float(message.text.replace(",", "."))
         await state.update_data(amount=val)
         await state.set_state(RefundBlankWizard.amount_words)
-        await message.answer("Сумма прописью:", reply_markup=get_back_kb())
+        await message.answer("Сумма прописью:", reply_markup=get_skip_back_kb())
     except ValueError:
         await message.answer("Введите число.")
 
@@ -213,28 +210,74 @@ async def handle_transit(message: types.Message, state: FSMContext):
         await state.set_state(RefundBlankWizard.card_number)
         await message.answer("Номер карты:", reply_markup=get_back_kb())
         return
-    await state.update_data(transit_account=message.text)
+    value = "" if message.text in ("⏭ Пропустить", "Пропустить") else message.text
+    await state.update_data(transit_account=value)
+    await state.set_state(RefundBlankWizard.bank_iin)
+    await message.answer("ИИН банка:", reply_markup=get_skip_back_kb())
+
+@router.message(RefundBlankWizard.bank_iin)
+async def handle_bank_iin(message: types.Message, state: FSMContext):
+    if message.text == _BACK:
+        await state.set_state(RefundBlankWizard.transit_account)
+        await message.answer("Транзитный счет банка (если есть):", reply_markup=get_skip_back_kb())
+        return
+    
+    value = "" if message.text in ("⏭ Пропустить", "Пропустить") else message.text
+    await state.update_data(bank_iin=value)
+    await state.set_state(RefundBlankWizard.bank_mfo)
+    await message.answer("МФО банка:", reply_markup=get_skip_back_kb())
+
+@router.message(RefundBlankWizard.bank_mfo)
+async def handle_bank_mfo(message: types.Message, state: FSMContext):
+    if message.text == _BACK:
+        await state.set_state(RefundBlankWizard.bank_iin)
+        await message.answer("ИИН банка:", reply_markup=get_skip_back_kb())
+        return
+    
+    value = "" if message.text in ("⏭ Пропустить", "Пропустить") else message.text
+    await state.update_data(bank_mfo=value)
     await state.set_state(RefundBlankWizard.bank_name)
     await message.answer("Название банка и филиал:", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.bank_name)
 async def handle_bank(message: types.Message, state: FSMContext):
     if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.transit_account)
-        await message.answer("Транзитный счет банка (если есть):", reply_markup=get_back_kb())
+        await state.set_state(RefundBlankWizard.bank_mfo)
+        await message.answer("МФО банка:", reply_markup=get_skip_back_kb())
         return
     await state.update_data(bank_name=message.text)
-    await state.set_state(RefundBlankWizard.confirm)
-    
+    await show_refund_summary(message, state)
+
+async def show_refund_summary(message: types.Message, state: FSMContext):
     data = await state.get_data()
+    
     summary = (
-        "🧾 *Заявление на возврат*\n\n"
-        f"👤 Клиент: {data['client_name']}\n"
-        f"📞 Тел: {data['phone']}\n"
-        f"📝 Причина: {data['reason']}\n"
-        f"💰 Сумма: {data['amount']:,} UZS\n"
-        f"💳 Карта: {data['card_number']}\n"
+        "🧾 *Заявление на возврат — проверьте данные:*\n\n"
+        f"👤 Клиент: {data.get('client_name', '—')}\n"
+        f"📄 Паспорт: {data.get('passport_series', '')} {data.get('passport_number', '')}\n"
+        f"   Выдан: {data.get('passport_issued_by', '—')}, {data.get('passport_date', '—')}\n"
+        f"📞 Тел: {data.get('phone', '—')}\n"
+        f"📋 Договор: № {data.get('contract_number', '—')} от {data.get('contract_date', '—')}\n"
+        f"📝 Причина: {data.get('reason', '—')}"
     )
+    if data.get('reason') == 'Другое':
+        summary += f" ({data.get('reason_other', '')})"
+    
+    summary += (
+        f"\n💰 Сумма: {data.get('amount', 0):,} UZS\n"
+        f"   Прописью: {data.get('amount_words', '—')}\n"
+        f"💳 Карта: {data.get('card_number', '—')}\n"
+        f"   Владелец: {data.get('card_holder', '—')}\n"
+        f"🏦 Банк: {data.get('bank_name', '—')}\n"
+    )
+    if data.get('transit_account'):
+        summary += f"   Транзит: {data.get('transit_account')}\n"
+    if data.get('bank_iin'):
+        summary += f"   ИИН: {data.get('bank_iin')}\n"
+    if data.get('bank_mfo'):
+        summary += f"   МФО: {data.get('bank_mfo')}\n"
+    
+    await state.set_state(RefundBlankWizard.confirm)
     
     kb = ReplyKeyboardBuilder()
     kb.button(text="✅ Отправить Сафине")
@@ -267,8 +310,28 @@ async def handle_refund_final_submit(message: types.Message, state: FSMContext):
             currency="UZS",
             request_type="blank_refund",
             template_key="refund",
-            refund_data=data
+            refund_data=schemas.RefundDataSchema(
+                client_name=data.get("client_name"),
+                passport_series=data.get("passport_series"),
+                passport_number=data.get("passport_number"),
+                passport_issued_by=data.get("passport_issued_by"),
+                passport_date=data.get("passport_date"),
+                phone=data.get("phone"),
+                contract_number=data.get("contract_number"),
+                contract_date=data.get("contract_date"),
+                reason=data.get("reason"),
+                reason_other=data.get("reason_other"),
+                amount=float(data.get("amount", 0)),
+                amount_words=data.get("amount_words", ""),
+                card_holder=data.get("card_holder"),
+                card_number=data.get("card_number"),
+                transit_account=data.get("transit_account", ""),
+                bank_iin=data.get("bank_iin", ""),
+                bank_mfo=data.get("bank_mfo", ""),
+                bank_name=data.get("bank_name"),
+            )
         )
+
 
         expense_req = crud.create_expense_request(db=db, expense=expense_create, user_id=user.id, usd_rate=usd_rate)
         expense_req_id = expense_req.id

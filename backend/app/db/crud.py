@@ -160,7 +160,11 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
         user_name = f"{user.last_name} {user.first_name}".strip()
         if user_name.lower().startswith("user "):
             user_name = user_name[5:].strip()
-        user_position = user.position
+        
+        # Filter technical roles
+        SYSTEM_ROLES = {"user", "admin", "senior_financier", "ceo"}
+        raw_pos = user.position or ""
+        user_position = raw_pos if raw_pos not in SYSTEM_ROLES else None
         
     if expense.project_id:
         project = db.query(models.Project).filter(models.Project.id == expense.project_id).first()
