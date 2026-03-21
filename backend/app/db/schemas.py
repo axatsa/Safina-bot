@@ -29,6 +29,16 @@ class ExpenseItemSchema(BaseModel):
     name: str = Field(..., min_length=1, max_length=200, description="Наименование товара или услуги")
     quantity: Decimal = Field(..., gt=0, description="Количество, должно быть больше нуля")
     amount: Decimal = Field(..., gt=0, description="Цена за единицу, должна быть больше нуля")
+    @validator("currency", pre=True)
+    def validate_currency(cls, v):
+        if isinstance(v, str):
+            if "CurrencyEnum.USD" in v: return "USD"
+            if "CurrencyEnum.UZS" in v: return "UZS"
+            # Handle cases where it might be just string but in different format
+            if v.upper() == "USD": return "USD"
+            if v.upper() == "UZS": return "UZS"
+        return v
+
     currency: CurrencyEnum
 
 # Project Schemas

@@ -30,8 +30,9 @@ async def start_wizard_selection(message: types.Message, state: FSMContext):
             user_not_found = True
         else:
             user_id = user.id
-            projects = list(user.projects or [])
-            if not projects:
+            # Capture project data while session is open to avoid DetachedInstanceError
+            projects_data = [{"id": p.id, "name": p.name} for p in (user.projects or [])]
+            if not projects_data:
                 no_projects = True
 
     if user_not_found:
@@ -42,13 +43,14 @@ async def start_wizard_selection(message: types.Message, state: FSMContext):
         await message.answer("Проекты не привязаны.")
         return
 
-    if len(projects) > 1:
+    if len(projects_data) > 1:
         await state.update_data(user_id=user_id)
-        await message.answer("Выберите проект:", reply_markup=get_projects_kb(projects))
+        # Use simple dict objects for keyboard
+        await message.answer("Выберите проект:", reply_markup=get_projects_kb(projects_data))
         await state.set_state(ExpenseWizard.project_selection)
     else:
         # Exactly one project
-        await state.update_data(project_id=projects[0].id, user_id=user_id)
+        await state.update_data(project_id=projects_data[0]["id"], user_id=user_id)
         await message.answer("Введите дату или «Сейчас»:", reply_markup=get_date_kb())
         await state.set_state(ExpenseWizard.date)
 
