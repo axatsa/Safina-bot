@@ -80,6 +80,12 @@ class DocxService:
         # Add refund specific data if available
         if expense.refund_data:
             data.update(expense.refund_data)
+            # Ensure some common keys are also available as top-level if needed by templates
+            if "client_name" in expense.refund_data:
+                data["client"] = expense.refund_data["client_name"]
+            if "amount" in expense.refund_data:
+                data["refund_amount"] = expense.refund_data["amount"]
+                data["total_amount"] = Decimal(str(expense.refund_data["amount"]))
             
         return data
 

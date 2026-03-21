@@ -238,13 +238,7 @@ const ExpenseDetail = () => {
           {rbac.canDownload() && (
             <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportDocx(expense.id, expense.requestType === "blank" || expense.requestType === "blank_refund")}>
               <Download className="w-4 h-4" />
-              Word
-            </Button>
-          )}
-          {rbac.canDownload() && (
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportXLSX({ status: expense.status })}>
-              <FileSpreadsheet className="w-4 h-4" />
-              Excel
+              Docx
             </Button>
           )}
         </div>

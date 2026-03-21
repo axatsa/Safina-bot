@@ -43,7 +43,7 @@ type ItemWithDisplay = ExpenseItem & { displayAmount: string };
 const SubmitExpense = () => {
     const [searchParams] = useSearchParams();
     const chatId = searchParams.get("chat_id");
-    const reqType = searchParams.get("type");
+    const reqType = searchParams.get("template") || searchParams.get("type");
     const navigate = useNavigate();
     const [projectId, setProjectId] = useState("");
     const [purpose, setPurpose] = useState("");

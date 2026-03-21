@@ -21,7 +21,7 @@ const Refunds = () => {
     queryFn: () => store.getExpenses({ 
       skip, 
       limit: LIMIT,
-      status: "confirmed,declined,archived,review,request,revision,pending_senior,approved_senior,rejected_senior,pending_ceo,approved_ceo,rejected_ceo" 
+      status: "confirmed,declined,review,request,revision,pending_senior,approved_senior,rejected_senior,pending_ceo,approved_ceo,rejected_ceo" 
     }),
     refetchInterval: 15000,
   });

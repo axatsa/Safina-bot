@@ -191,7 +191,7 @@ async def handle_filling_method(message: types.Message, state: FSMContext):
         template = data.get("template")
         # Для WebApp передаем project_id и template
         base_url = os.getenv("WEB_APP_URL", "https://finance.thompson.uz")
-        url = f"{base_url}/blank-form?template={template}&project_id={data.get('project_id', '')}"
+        url = f"{base_url}/blank?template={template}&project_id={data.get('project_id', '')}"
         
         builder = ReplyKeyboardBuilder()
         builder.button(text="Открыть форму", web_app=types.WebAppInfo(url=url))
@@ -281,7 +281,7 @@ async def handle_item_currency(message: types.Message, state: FSMContext):
     await state.set_state(BlankWizard.confirm)
     await message.answer(f"Позиция добавлена. Всего: {len(items)}", reply_markup=get_confirm_kb())
 
-@router.message(BlankWizard.confirm)
+@router.message(BlankWizard.confirm, F.text.in_(["Добавить ещё позицию", "Готово", _BACK]))
 async def handle_confirm(message: types.Message, state: FSMContext):
     if message.text == "Добавить ещё позицию":
         await state.set_state(BlankWizard.item_name)

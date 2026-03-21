@@ -22,8 +22,8 @@ async def handle_filling_method(message: types.Message, state: FSMContext):
         return
 
     if message.text == "🌐 Открыть Web форму":
-        base_url = os.getenv("WEB_FORM_BASE_URL", "https://finance.thompson.uz")
-        url = f"{base_url}/blank?type=refund&chat_id={message.from_user.id}"
+        base_url = os.getenv("WEB_APP_URL", "https://finance.thompson.uz")
+        url = f"{base_url}/blank?template=refund&chat_id={message.from_user.id}"
         builder = ReplyKeyboardBuilder()
         builder.button(text="Открыть форму", web_app=types.WebAppInfo(url=url))
         builder.button(text=_BACK)

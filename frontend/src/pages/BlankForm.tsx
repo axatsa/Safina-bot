@@ -17,7 +17,7 @@ import { store } from "@/lib/store";
 
 const BlankForm = () => {
   const [searchParams] = useSearchParams();
-  const template = searchParams.get("type") || "ls";
+  const template = searchParams.get("template") || searchParams.get("type") || "ls";
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 

@@ -65,6 +65,7 @@ const App = () => {
               </Route>
               <Route path="/submit" element={<SubmitExpense />} />
               <Route path="/blank" element={<BlankForm />} />
+              <Route path="/blank-form" element={<Navigate to="/blank" replace />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
