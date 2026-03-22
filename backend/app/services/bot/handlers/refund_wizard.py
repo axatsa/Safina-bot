@@ -81,6 +81,17 @@ async def handle_refund_submit(callback: types.CallbackQuery, state: FSMContext)
     from app.services.refund.service import create_refund
     from ..notifications import send_admin_notification, get_admin_chat_id
     data = await state.get_data()
+    
+    user_id = data.get("user_id")
+    if not user_id:
+        await callback.message.answer(
+            "❌ Сессия устарела. Пожалуйста, начните заново: /start",
+            reply_markup=get_main_kb()
+        )
+        await state.clear()
+        await callback.answer()
+        return
+
     # Placeholder variables for attributes fetched inside the session
     request_id = None
     expense_id = None

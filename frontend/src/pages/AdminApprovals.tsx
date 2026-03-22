@@ -32,7 +32,10 @@ const AdminApprovals = () => {
 
   const { data: expensesPage, isLoading } = useQuery({
     queryKey: ["admin-expenses-approvals"],
-    queryFn: () => store.getExpenses({ limit: 100 }),
+    queryFn: () => store.getExpenses({ 
+      limit: 100, 
+      status: ADMIN_COLUMNS.flatMap(c => c.statuses).join(',') as ExpenseStatus 
+    }),
   });
   
   const expenses = expensesPage?.items ?? [];

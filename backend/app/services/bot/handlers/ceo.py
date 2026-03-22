@@ -17,13 +17,13 @@ async def handle_ceo_update(message: types.Message):
         # Находим все заявки со статусом pending_ceo
         pending_requests = db.query(models.ExpenseRequest).filter(
             models.ExpenseRequest.status == "pending_ceo"
-        ).all()
+        ).order_by(models.ExpenseRequest.date.asc()).limit(10).all()
         
         if not pending_requests:
             await message.answer("✅ Новых заявок для согласования нет.")
             return
             
-        await message.answer(f"🔍 Найдено {len(pending_requests)} заявок, ожидающих вашего решения:")
+        await message.answer(f"🔍 Найдено {len(pending_requests)} заявок (показаны 10 старейших):")
         
         for req in pending_requests:
             await send_ceo_notification(req.id, tg_id)

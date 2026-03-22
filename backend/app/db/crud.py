@@ -27,7 +27,6 @@ def generate_request_id(db: Session, project_code: str):
         counter_record.counter += 1
         next_val = counter_record.counter
         
-    db.flush()
     return f"{project_code}-{next_val}"
 
 # Projects
@@ -165,8 +164,9 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
         raw_pos = user.position or ""
         user_position = raw_pos if raw_pos not in SYSTEM_ROLES else None
         
-    if expense.project_id:
-        project = db.query(models.Project).filter(models.Project.id == expense.project_id).first()
+    project_id = expense.project_id if expense.project_id else None
+    if project_id:
+        project = db.query(models.Project).filter(models.Project.id == project_id).first()
         if not project:
             raise ValueError("Project not found")
         project_name = project.name
@@ -216,7 +216,7 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
         created_by_id=user_id if user_id != "admin" else None,
         created_by=user_name,
         created_by_position=user_position,
-        project_id=expense.project_id,
+        project_id=project_id,
         project_name=project_name,
         project_code=project_code,
         request_type=expense.request_type,

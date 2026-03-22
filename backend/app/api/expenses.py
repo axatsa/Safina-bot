@@ -32,6 +32,22 @@ from app.services.bot.notifications import (
 
 logger = get_logger(__name__)
 
+
+def get_expense_dict(expense) -> dict:
+    return {
+        'id': expense.id,
+        'request_id': expense.request_id,
+        'date': expense.date,
+        'project_name': getattr(expense, 'project_name', None),
+        'project_code': getattr(expense, 'project_code', None),
+        'created_by': getattr(expense, 'created_by', None),
+        'purpose': getattr(expense, 'purpose', None),
+        'total_amount': getattr(expense, 'total_amount', 0),
+        'currency': getattr(expense, 'currency', 'UZS'),
+        'usd_rate': getattr(expense, 'usd_rate', None),
+        'request_type': getattr(expense, 'request_type', 'expense'),
+    }
+
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
 @router.get("", response_model=schemas.PaginatedExpensesSchema)
@@ -66,7 +82,7 @@ async def create_expense(expense: schemas.ExpenseRequestCreate, background_tasks
     
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:
-        background_tasks.add_task(send_admin_notification, expense_req.id, admin_chat_id)
+        background_tasks.add_task(send_admin_notification, get_expense_dict(expense_req), admin_chat_id)
     return expense_req
 
 @router.post("/web-submit", response_model=schemas.ExpenseRequestSchema)
@@ -97,7 +113,7 @@ async def web_submit_expense(data: dict, background_tasks: BackgroundTasks, db: 
     
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:
-        background_tasks.add_task(send_admin_notification, expense_req.id, admin_chat_id)
+        background_tasks.add_task(send_admin_notification, get_expense_dict(expense_req), admin_chat_id)
     return expense_req
 
 @router.post("/refund/web-submit", response_model=schemas.ExpenseRequestSchema)
@@ -132,7 +148,7 @@ async def web_submit_refund(
 
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:
-        background_tasks.add_task(send_admin_notification, expense_req.id, admin_chat_id)
+        background_tasks.add_task(send_admin_notification, get_expense_dict(expense_req), admin_chat_id)
     return expense_req
 
 @router.post("/blank-submit", response_model=schemas.ExpenseRequestSchema)
@@ -181,7 +197,7 @@ async def web_submit_blank(
     
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:
-        background_tasks.add_task(send_admin_notification, expense_req.id, admin_chat_id)
+        background_tasks.add_task(send_admin_notification, get_expense_dict(expense_req), admin_chat_id)
         
     return expense_req
 
@@ -220,7 +236,7 @@ async def web_submit_refund_application(
     
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:
-        background_tasks.add_task(send_admin_notification, expense_req.id, admin_chat_id)
+        background_tasks.add_task(send_admin_notification, get_expense_dict(expense_req), admin_chat_id)
         
     return expense_req
 
@@ -287,15 +303,40 @@ async def confirm_refund_with_receipt(
     db.refresh(expense)
     return expense
 
+ALLOWED_TRANSITIONS = {
+    "pending_senior": ["request", "review", "revision"],
+    "approved_senior": ["pending_senior"],
+    "rejected_senior": ["pending_senior"],
+    "pending_ceo": ["approved_senior", "pending_senior"],
+    "approved_ceo": ["pending_ceo"],
+    "rejected_ceo": ["pending_ceo"],
+    "confirmed": ["approved_ceo", "approved_senior", "review", "request"],
+    "declined": ["request", "review", "pending_senior", "pending_ceo"],
+    "revision": ["request", "review", "pending_senior", "pending_ceo"],
+    "review": ["request", "revision"],
+    "archived": ["confirmed", "declined"]
+}
+
+def validate_transition(current_status: str, new_status: str) -> bool:
+    if new_status not in ALLOWED_TRANSITIONS:
+        return True
+    allowed = ALLOWED_TRANSITIONS.get(new_status, [])
+    return current_status in allowed
+
 @router.patch("/{expense_id}/status", response_model=schemas.ExpenseRequestSchema)
 def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    db_expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+    if not db_expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+        
+    if not validate_transition(db_expense.status, update.status):
+        raise HTTPException(status_code=400, detail=f"Нельзя перевести в {update.status} из статуса {db_expense.status}")
+
     if update.status in ["declined", "revision"] and not update.comment:
         raise HTTPException(status_code=400, detail="Comment is required for declined or revision status")
     
     user_name = f"{current_user.last_name} {current_user.first_name}"
     expense = crud.update_expense_status(db, expense_id, update, user_id=current_user.id, user_name=user_name)
-    if not expense:
-        raise HTTPException(status_code=404, detail="Expense not found")
     
     if expense.created_by_user and expense.created_by_user.telegram_chat_id:
         background_tasks.add_task(
@@ -342,7 +383,7 @@ def forward_to_senior_financier(
     senior_chat_ids = get_senior_financier_chat_ids()
     if senior_chat_ids:
         for chat_id in senior_chat_ids:
-            background_tasks.add_task(send_senior_notification, expense.id, chat_id)
+            background_tasks.add_task(send_senior_notification, get_expense_dict(expense), chat_id)
     else:
         logger.warning(f"No linked Senior Financiers (CFO) found for expense {expense.request_id}")
 
@@ -381,7 +422,7 @@ def forward_to_ceo(
     logger.info(f"Forwarding expense {expense.request_id} (status: {expense.status}) to CEO")
     ceo_chat_id = get_ceo_chat_id()
     if ceo_chat_id:
-        background_tasks.add_task(send_ceo_notification, expense.id, ceo_chat_id)
+        background_tasks.add_task(send_ceo_notification, get_expense_dict(expense), ceo_chat_id)
     else:
         logger.warning("CEO has not linked their Telegram account yet.")
 
@@ -591,4 +632,17 @@ def export_blank_docx(
         logger.error(f"Error generating blank DOCX: {e}")
         raise HTTPException(status_code=500, detail="Ошибка при генерации документа")
 
-
+@router.get("/{expense_id}", response_model=schemas.ExpenseRequestSchema)
+def read_expense_by_id(
+    expense_id: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
+    expense = db.query(models.ExpenseRequest).filter(
+        models.ExpenseRequest.id == expense_id
+    ).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    if not auth.is_admin(current_user) and expense.created_by_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return expense

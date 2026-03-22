@@ -86,7 +86,7 @@ else:
         "http://localhost:8000",
     ]
 
-cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX", r"https?://.*\.thompson\.uz")
+cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX", r"https?://([a-zA-Z0-9-]+\.)*thompson\.uz$")
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):

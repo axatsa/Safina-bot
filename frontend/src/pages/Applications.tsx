@@ -39,7 +39,6 @@ const Applications = () => {
   const { data: expensesPage, isLoading, isFetching } = useQuery({
     queryKey: ["expenses", skip],
     queryFn: () => store.getExpenses({ skip, limit: LIMIT }),
-    refetchInterval: 10000,
     placeholderData: keepPreviousData,
   });
 

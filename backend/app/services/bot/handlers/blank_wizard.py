@@ -14,7 +14,7 @@ from ..notifications import send_admin_notification, get_admin_chat_id
 from ...currency.service import currency_service
 import os
 import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import Optional, List, Dict, Any
 
 router = Router()
@@ -28,13 +28,19 @@ async def start_blank_wizard(message: types.Message, state: FSMContext):
     no_projects_or_templates = False
     projects_data = []
     user_templates = []
+    user_id = None
     
     with database.database_session() as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+        user = db.query(models.TeamMember).options(
+            joinedload(models.TeamMember.projects)
+        ).filter(
+            models.TeamMember.telegram_chat_id == message.from_user.id
+        ).first()
+        
         if not user:
             user_not_found = True
         else:
-            await state.update_data(user_id=user.id)
+            user_id = user.id
             # Extract data while session is open
             user_templates = list(user.templates or [])
             for p in user.projects:
@@ -51,6 +57,8 @@ async def start_blank_wizard(message: types.Message, state: FSMContext):
     if user_not_found:
         await message.answer("Ошибка: вы не зарегистрированы в системе.")
         return
+        
+    await state.update_data(user_id=user_id)
     
     if no_projects_or_templates:
         await message.answer("У вас нет назначенных проектов и личных шаблонов. Обратитесь к Сафине.")
@@ -77,13 +85,19 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
     project_id = None
     projects_data = []
     user_templates = []
+    user_id = None
 
     with database.database_session() as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+        user = db.query(models.TeamMember).options(
+            joinedload(models.TeamMember.projects)
+        ).filter(
+            models.TeamMember.telegram_chat_id == message.from_user.id
+        ).first()
+        
         if not user:
             user_not_found = True
         else:
-            await state.update_data(user_id=user.id)
+            user_id = user.id
             # Extract data while session is open
             user_templates = list(user.templates or [])
             for p in user.projects:
@@ -100,6 +114,8 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
     if user_not_found:
         await message.answer("Пользователь не найден.")
         return
+        
+    await state.update_data(user_id=user_id)
 
     if not project_id:
         await message.answer("Выберите проект из списка кнопок.")
@@ -136,10 +152,15 @@ async def proceed_to_templates(message: types.Message, state: FSMContext, user_t
 async def handle_template_selection(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         projects_data = []
+        user_id = None
         with database.database_session() as db:
-            user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+            user = db.query(models.TeamMember).options(
+                joinedload(models.TeamMember.projects)
+            ).filter(
+                models.TeamMember.telegram_chat_id == message.from_user.id
+            ).first()
             if user:
-                await state.update_data(user_id=user.id)
+                user_id = user.id
                 for p in user.projects:
                     projects_data.append({
                         "id": p.id,
@@ -147,6 +168,9 @@ async def handle_template_selection(message: types.Message, state: FSMContext):
                         "code": p.code,
                         "templates": list(p.templates or [])
                     })
+        
+        if user_id:
+            await state.update_data(user_id=user_id)
 
         if len(projects_data) > 1:
             await state.set_state(BlankWizard.project_selection)
@@ -206,7 +230,10 @@ async def handle_filling_method(message: types.Message, state: FSMContext):
     if message.text == "📱 Заполнить в боте":
         data = await state.get_data()
         if data.get("template") == "refund":
+            user_id = data.get("user_id")
+            project_id = data.get("project_id")
             await state.set_state(RefundBlankWizard.client_name)
+            await state.update_data(user_id=user_id, project_id=project_id)
             await message.answer("Заполнение заявления на возврат.\nФИО клиента (родителя):", reply_markup=get_back_kb())
         else:
             await state.set_state(BlankWizard.purpose)
@@ -327,16 +354,19 @@ async def show_summary(message: types.Message, state: FSMContext):
 @router.message(F.text == "✅ Отправить Сафине", BlankWizard.confirm)
 async def handle_final_submit(message: types.Message, state: FSMContext):
     data = await state.get_data()
+    
+    user_id = data.get("user_id")
+    if not user_id:
+        await message.answer("Ошибка: сессия устарела. Начните заново /start", reply_markup=get_main_kb())
+        await state.clear()
+        return
+        
     usd_rate = await currency_service.get_usd_rate()
     expense_req_id = None
     request_id = None
     
     with database.database_session() as db:
-        user_id = data.get("user_id")
-        if user_id:
-            user = db.query(models.TeamMember).filter(models.TeamMember.id == user_id).first()
-        else:
-            user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+        user = db.query(models.TeamMember).filter(models.TeamMember.id == user_id).first()
             
         if not user:
             await message.answer("Ошибка: пользователь не найден.")

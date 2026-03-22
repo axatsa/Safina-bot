@@ -22,8 +22,16 @@ from decimal import Decimal
 logger = get_logger(__name__)
 TASHKENT_TZ = datetime.timezone(datetime.timedelta(hours=5))
 
-# Persistent bot instance
-bot = Bot(token=os.getenv("BOT_TOKEN"))
+_bot: Bot | None = None
+
+def get_bot() -> Bot | None:
+    global _bot
+    token = os.getenv("BOT_TOKEN")
+    if not token:
+        return None
+    if _bot is None:
+        _bot = Bot(token=token)
+    return _bot
 
 # ---------------------------------------------------------------------------
 # Generic send helper
@@ -31,6 +39,10 @@ bot = Bot(token=os.getenv("BOT_TOKEN"))
 
 async def _send_message(chat_id: int, text: str, reply_markup=None, parse_mode: str = "Markdown") -> None:
     """Send a single Telegram message using the shared bot instance."""
+    bot = get_bot()
+    if not bot:
+        logger.warning(f"BOT_TOKEN not set, cannot send message to {chat_id}")
+        return
     try:
         await bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode=parse_mode)
     except Exception as e:
@@ -89,118 +101,119 @@ async def send_status_notification(
 # Admin (Safina) notification — new request arrived
 # ---------------------------------------------------------------------------
 
-async def send_admin_notification(expense_id: str, admin_chat_id: int) -> None:
-    from app.core.database import SessionLocal
-    from app.db import models
-    db = SessionLocal()
-    try:
-        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
-        if not expense:
-            return
+async def send_admin_notification(expense: dict, admin_chat_id: int) -> None:
+    base_url = os.getenv("WEB_FORM_BASE_URL", "https://finance.thompson.uz")
+    dt_str = _format_expense_dt(expense["date"])
 
-        base_url = os.getenv("WEB_FORM_BASE_URL", "https://finance.thompson.uz")
-        dt_str = _format_expense_dt(expense.date)
+    project_name = expense.get("project_name") or "—"
+    project_code = expense.get("project_code") or "—"
+    created_by = expense["created_by"]
+    purpose = expense["purpose"]
+    request_id = expense["request_id"]
+    total_amount = expense["total_amount"]
+    currency = expense["currency"]
+    usd_rate = expense.get("usd_rate")
+    expense_id_db = expense["id"]
+    request_type = expense.get("request_type")
 
-        header = "🔴 *Safina Expense Tracker*"
-        type_label = "Инвестиция"
-        if expense.request_type == "blank":
-            header = "📋 *Safina: Новая заявка на БЛАНК*"
-            type_label = "Бланк"
-        elif expense.request_type in ("blank_refund", "refund"):
-            header = "🧾 *Safina: Заявление на ВОЗВРАТ*"
-            type_label = "Возврат"
+    header = "🔴 *Safina Expense Tracker*"
+    type_label = "Инвестиция"
+    if request_type == "blank":
+        header = "📋 *Safina: Новая заявка на БЛАНК*"
+        type_label = "Бланк"
+    elif request_type in ("blank_refund", "refund"):
+        header = "🧾 *Safina: Заявление на ВОЗВРАТ*"
+        type_label = "Возврат"
 
-        text = (
-            f"{header}\n"
-            f"🟢 {expense.project_name} ({expense.project_code})\n"
-            f"➡️ Параметры {type_label.lower()}а:\n"
-            f"🔸 {expense.created_by}\n"
-            f"🔸 {expense.purpose}\n"
-            f"🆔 {expense.request_id}\n"
-            f"💵 {expense.total_amount:,.2f} {expense.currency}\n"
-        )
-        if expense.usd_rate:
-            text += f"📉 Курс: {float(expense.usd_rate):,.2f} UZS/USD\n"
-        text += f"🕒 {dt_str} (Ташкент)\n✅ Ожидает рассмотрения"
+    text = (
+        f"{header}\n"
+        f"🟢 {project_name} ({project_code})\n"
+        f"➡️ Параметры {type_label.lower()}а:\n"
+        f"🔸 {created_by}\n"
+        f"🔸 {purpose}\n"
+        f"🆔 {request_id}\n"
+        f"💵 {total_amount:,.2f} {currency}\n"
+    )
+    if usd_rate:
+        text += f"📉 Курс: {float(usd_rate):,.2f} UZS/USD\n"
+    text += f"🕒 {dt_str} (Ташкент)\n✅ Ожидает рассмотрения"
 
-        builder = InlineKeyboardBuilder()
-        builder.button(text="📄 Скачать смету", callback_data=f"download_smeta_{expense.id}")
-        builder.button(text="🖥 Открыть в системе", url=f"{base_url}/dashboard")
-        builder.adjust(1)
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📄 Скачать смету", callback_data=f"download_smeta_{expense_id_db}")
+    builder.button(text="🖥 Открыть в системе", url=f"{base_url}/dashboard")
+    builder.adjust(1)
 
-        await _send_message(admin_chat_id, text, reply_markup=builder.as_markup())
-    finally:
-        db.close()
+    await _send_message(admin_chat_id, text, reply_markup=builder.as_markup())
 
 
 # ---------------------------------------------------------------------------
 # Senior Financier (CFO / Farrukh) notification
 # ---------------------------------------------------------------------------
 
-async def send_senior_notification(expense_id: str, senior_chat_id: int) -> None:
-    from app.core.database import SessionLocal
-    from app.db import models
-    db = SessionLocal()
-    try:
-        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
-        if not expense:
-            return
+async def send_senior_notification(expense: dict, senior_chat_id: int) -> None:
+    project_name = expense.get("project_name") or "—"
+    project_code = expense.get("project_code") or "—"
+    created_by = expense["created_by"]
+    purpose = expense["purpose"]
+    request_id_str = expense["request_id"]
+    total_amount = expense["total_amount"]
+    currency = expense["currency"]
+    usd_rate = expense.get("usd_rate")
+    expense_id_db = expense["id"]
 
-        text = (
-            f"🔵 *Safina | На согласование CFO*\n"
-            f"🟢 {expense.project_name} ({expense.project_code})\n"
-            f"🔸 Инициатор: {expense.created_by}\n"
-            f"🔸 Цель: {expense.purpose}\n"
-            f"🆔 {expense.request_id}\n"
-            f"💵 {expense.total_amount:,.2f} {expense.currency}\n"
-        )
-        if expense.usd_rate:
-            text += f"📉 Курс: {float(expense.usd_rate):,.2f} UZS/USD\n"
+    text = (
+        f"🔵 *Safina | На согласование CFO*\n"
+        f"🟢 {project_name} ({project_code})\n"
+        f"🔸 Инициатор: {created_by}\n"
+        f"🔸 Цель: {purpose}\n"
+        f"🆔 {request_id_str}\n"
+        f"💵 {total_amount:,.2f} {currency}\n"
+    )
+    if usd_rate:
+        text += f"📉 Курс: {float(usd_rate):,.2f} UZS/USD\n"
 
-        builder = InlineKeyboardBuilder()
-        builder.button(text="✅ Утвердить", callback_data=f"approve_senior_{expense.id}")
-        builder.button(text="❌ Отклонить", callback_data=f"reject_senior_{expense.id}")
-        builder.button(text="📄 Скачать Excel смету", callback_data=f"download_excel_{expense.id}")
-        builder.adjust(2, 1)
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Утвердить", callback_data=f"approve_senior_{expense_id_db}")
+    builder.button(text="❌ Отклонить", callback_data=f"reject_senior_{expense_id_db}")
+    builder.button(text="📄 Скачать Excel смету", callback_data=f"download_excel_{expense_id_db}")
+    builder.adjust(2, 1)
 
-        await _send_message(senior_chat_id, text, reply_markup=builder.as_markup())
-    finally:
-        db.close()
+    await _send_message(senior_chat_id, text, reply_markup=builder.as_markup())
 
 
 # ---------------------------------------------------------------------------
 # CEO (Ganiev) notification
 # ---------------------------------------------------------------------------
 
-async def send_ceo_notification(expense_id: str, ceo_chat_id: int) -> None:
-    from app.core.database import SessionLocal
-    from app.db import models
-    db = SessionLocal()
-    try:
-        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
-        if not expense:
-            return
+async def send_ceo_notification(expense: dict, ceo_chat_id: int) -> None:
+    project_name = expense.get("project_name") or "—"
+    project_code = expense.get("project_code") or "—"
+    created_by = expense["created_by"]
+    purpose = expense["purpose"]
+    request_id_str = expense["request_id"]
+    total_amount = expense["total_amount"]
+    currency = expense["currency"]
+    usd_rate = expense.get("usd_rate")
+    expense_id_db = expense["id"]
 
-        text = (
-            f"🟣 *Safina | На согласование CEO*\n"
-            f"🟢 {expense.project_name} ({expense.project_code})\n"
-            f"🔸 Инициатор: {expense.created_by}\n"
-            f"🔸 Цель: {expense.purpose}\n"
-            f"🆔 {expense.request_id}\n"
-            f"💵 {expense.total_amount:,.2f} {expense.currency}\n"
-        )
-        if expense.usd_rate:
-            text += f"📉 Курс: {float(expense.usd_rate):,.2f} UZS/USD\n"
+    text = (
+        f"🟣 *Safina | На согласование CEO*\n"
+        f"🟢 {project_name} ({project_code})\n"
+        f"🔸 Инициатор: {created_by}\n"
+        f"🔸 Цель: {purpose}\n"
+        f"🆔 {request_id_str}\n"
+        f"💵 {total_amount:,.2f} {currency}\n"
+    )
+    if usd_rate:
+        text += f"📉 Курс: {float(usd_rate):,.2f} UZS/USD\n"
 
-        builder = InlineKeyboardBuilder()
-        builder.button(text="✅ Одобрить", callback_data=f"approve_ceo_{expense.id}")
-        builder.button(text="❌ Отклонить", callback_data=f"reject_ceo_{expense.id}")
-        builder.button(text="📄 Скачать инвестицию", callback_data=f"download_excel_{expense.id}")
-        builder.adjust(2, 1)
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Одобрить", callback_data=f"approve_ceo_{expense_id_db}")
+    builder.button(text="❌ Отклонить", callback_data=f"reject_ceo_{expense_id_db}")
+    builder.button(text="📄 Скачать инвестицию", callback_data=f"download_excel_{expense_id_db}")
+    builder.adjust(2, 1)
 
-        await _send_message(ceo_chat_id, text, reply_markup=builder.as_markup())
-    finally:
-        db.close()
+    await _send_message(ceo_chat_id, text, reply_markup=builder.as_markup())
 
 
 async def send_ceo_decision_notification(

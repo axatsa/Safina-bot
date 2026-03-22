@@ -2,6 +2,32 @@ import { apiFetch } from "../api-client";
 import { ExpenseRequest, ExpenseStatus, PaginatedResponse } from "../types";
 
 export const expensesService = {
+  getExpenseById: async (id: string): Promise<ExpenseRequest> => {
+    const res = await apiFetch(`/expenses/${id}`);
+    const e = await res.json();
+    return {
+        id: e.id,
+        requestId: e.request_id,
+        purpose: e.purpose,
+        items: e.items,
+        totalAmount: e.total_amount,
+        currency: e.currency,
+        projectId: e.project_id,
+        projectName: e.project_name,
+        projectCode: e.project_code,
+        status: e.status,
+        statusComment: e.status_comment,
+        internalComment: e.internal_comment,
+        createdBy: e.created_by,
+        createdById: e.created_by_id,
+        requestType: e.request_type,
+        refundData: e.refund_data,
+        receiptPhotoFileId: e.receipt_photo_file_id,
+        date: new Date(e.date),
+        createdAt: new Date(e.created_at),
+    };
+  },
+
   getExpenses: async (params?: { 
     project?: string; 
     status?: string;

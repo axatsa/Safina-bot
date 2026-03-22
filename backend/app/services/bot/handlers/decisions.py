@@ -17,6 +17,15 @@ async def handle_approve_senior(callback: types.CallbackQuery):
             await callback.answer("У вас нет прав для этого действия", show_alert=True)
             return
 
+        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+        if not expense:
+            await callback.answer("Ошибка: Заявка не найдена", show_alert=True)
+            return
+            
+        if expense.status != "pending_senior":
+            await callback.answer(f"Заявка уже обработана (статус: {expense.status})", show_alert=True)
+            return
+
         update = schemas.ExpenseStatusUpdate(status="approved_senior", comment="Утверждено CFO")
         crud.update_expense_status(db, expense_id, update, user_name=f"{user.last_name} {user.first_name} (CFO)")
     
@@ -30,6 +39,15 @@ async def handle_reject_senior(callback: types.CallbackQuery):
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == callback.from_user.id).first()
         if not user or user.position not in ["senior_financier", "admin"]:
             await callback.answer("У вас нет прав для этого действия", show_alert=True)
+            return
+
+        expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+        if not expense:
+            await callback.answer("Ошибка: Заявка не найдена", show_alert=True)
+            return
+            
+        if expense.status != "pending_senior":
+            await callback.answer(f"Заявка уже обработана (статус: {expense.status})", show_alert=True)
             return
 
         update = schemas.ExpenseStatusUpdate(status="rejected_senior", comment="Отклонено CFO")
@@ -50,6 +68,10 @@ async def handle_approve_ceo(callback: types.CallbackQuery):
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
             await callback.answer("Ошибка: Заявка не найдена")
+            return
+            
+        if expense.status != "pending_ceo":
+            await callback.answer(f"Заявка уже обработана (статус: {expense.status})", show_alert=True)
             return
             
         update = schemas.ExpenseStatusUpdate(status="approved_ceo", comment="Одобрено CEO")
@@ -90,6 +112,10 @@ async def handle_reject_ceo(callback: types.CallbackQuery):
         expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
         if not expense:
             await callback.answer("Ошибка: Заявка не найдена")
+            return
+            
+        if expense.status != "pending_ceo":
+            await callback.answer(f"Заявка уже обработана (статус: {expense.status})", show_alert=True)
             return
             
         update = schemas.ExpenseStatusUpdate(status="rejected_ceo", comment="Отклонено CEO")

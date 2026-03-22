@@ -89,19 +89,17 @@ const ExpenseDetail = () => {
   const isFarrukh = store.isFarrukh();
   const queryClient = useQueryClient();
 
-  const { data: expensesPage } = useQuery({
-    queryKey: ["expenses"],
-    queryFn: () => store.getExpenses({ limit: 1000 }),
+  const { data: expense, isLoading } = useQuery({
+    queryKey: ["expense", id],
+    queryFn: () => store.getExpenseById(id),
+    enabled: !!id,
   });
-  const expenses = expensesPage?.items ?? [];
 
   const { data: history = [] } = useQuery({
     queryKey: ["expense-history", id],
     queryFn: () => store.getExpenseHistory(id),
     enabled: !!id,
   });
-
-  const expense = expenses.find((e) => e.id === id);
 
   const [internalComment, setInternalComment] = useState("");
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
@@ -155,6 +153,14 @@ const ExpenseDetail = () => {
     },
     onError: (e: Error) => toast.error(e.message || "Ошибка при отправке CEO"),
   });
+
+  if (isLoading) {
+    return (
+      <div className="p-6 text-center flex justify-center items-center h-48">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!expense) {
     return (

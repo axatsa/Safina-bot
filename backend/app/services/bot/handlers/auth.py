@@ -73,6 +73,10 @@ async def process_login(message: types.Message, state: FSMContext):
 
     login = data["login"]
     password = message.text
+    try:
+        await message.delete()
+    except Exception:
+        pass
     tg_id = message.from_user.id
 
     # Admin auth

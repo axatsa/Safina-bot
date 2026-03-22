@@ -232,7 +232,7 @@ async def process_finish(message: types.Message, state: FSMContext):
         
         # Notify Safina
         admin_chat_id = get_admin_chat_id()
-        if admin_chat_id:
+        if admin_chat_id and expense_req_id:
             await send_admin_notification(expense_req_id, admin_chat_id)
             
         await message.answer(f"✅ Заявка {request_id} создана!", reply_markup=get_main_kb())
@@ -240,9 +240,9 @@ async def process_finish(message: types.Message, state: FSMContext):
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Error creating expense via bot: {e}")
-        await message.answer(f"❌ Ошибка: {e}", reply_markup=get_main_kb())
-    
-    await state.clear()
+        await message.answer(f"❌ Ошибка при создании заявки. Попробуйте снова.", reply_markup=get_main_kb())
+    finally:
+        await state.clear()
 
 @router.message(F.text == "Создать инвестицию (Web-App)")
 @router.message(Command("form"))

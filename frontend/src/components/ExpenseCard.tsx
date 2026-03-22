@@ -30,7 +30,8 @@ const ExpenseCard = ({ expense }: ExpenseCardProps) => {
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
-    store.exportDocx(expense.id);
+    const isBlank = expense.requestType === "blank" || expense.requestType === "blank_refund";
+    store.exportDocx(expense.id, isBlank);
   };
 
   const handleOpen = () => {
