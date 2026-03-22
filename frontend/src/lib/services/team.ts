@@ -35,7 +35,9 @@ export const teamService = {
         project_ids: member.projectIds,
         login: member.login,
         password: member.password,
-        position: member.position
+        position: member.position,
+        branch: member.branch,
+        team: member.team
       }),
     });
     const data = await res.json();

@@ -67,7 +67,7 @@ const Team = () => {
       setFormData({ lastName: "", firstName: "", projectIds: [], login: "", password: "", position: "user", branch: "", team: "" });
       toast.success("Участник добавлен");
     },
-    onError: () => toast.error("Ошибка при добавлении")
+    onError: (error: any) => toast.error(error.message || "Ошибка при добавлении")
   });
 
   const deleteMutation = useMutation({
