@@ -432,6 +432,75 @@ const ExpenseDetail = () => {
             </div>
           )}
 
+          {/* Safina: Confirm refund with receipt */}
+          {expense.requestType === "refund" && expense.status !== "confirmed" && isAdmin && (
+            <div className="glass-card rounded-lg p-5 space-y-4 border-amber-200 bg-amber-50/40 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-amber-800 flex items-center gap-2 uppercase tracking-wider">
+                  <Camera className="w-4 h-4 text-amber-600" /> Подтверждение возврата
+                </h3>
+              </div>
+              <p className="text-xs text-amber-700/70 leading-relaxed uppercase font-semibold">
+                Загрузите чек перевода и укажите наличие удержания
+              </p>
+
+              <div className="flex flex-col md:flex-row md:items-center gap-6 py-2">
+                {/* Retention toggle */}
+                <div className="flex items-center gap-3 bg-white/50 px-3 py-2 rounded-md border border-amber-100">
+                  <Label htmlFor="retention" className="text-xs font-bold uppercase tracking-tight cursor-pointer">Удержание</Label>
+                  <Switch
+                    id="retention"
+                    checked={retentionValue}
+                    onCheckedChange={setRetentionValue}
+                  />
+                  <span className="text-[10px] font-bold text-amber-900 w-20">
+                    {retentionValue ? "ДА (ЕСТЬ)" : "НЕТ (БЕЗ)"}
+                  </span>
+                </div>
+
+                {/* Photo upload */}
+                <div className="flex-1 space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Скриншот чека перевода</Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      id="receipt-upload"
+                      accept="image/*"
+                      onChange={(e) => setReceiptPhoto(e.target.files?.[0] ?? null)}
+                      className="hidden"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="bg-white border-amber-200 text-amber-800 hover:bg-amber-100/50 text-[11px] h-8"
+                      onClick={() => document.getElementById('receipt-upload')?.click()}
+                    >
+                      {receiptPhoto ? "Сменить файл" : "Выбрать файл..."}
+                    </Button>
+                    {receiptPhoto && (
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded border border-green-100">
+                        <FileText className="w-3 h-3 text-green-600" />
+                        <span className="text-[10px] font-medium text-green-700 truncate max-w-[120px]">
+                          {receiptPhoto.name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleConfirmRefund}
+                disabled={!receiptPhoto || isConfirming}
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold h-10 shadow-md shadow-amber-200/50"
+              >
+                {isConfirming ? (
+                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Обработка...</>
+                ) : "ПОДТВЕРДИТЬ И ЗАВЕРШИТЬ ВОЗВРАТ"}
+              </Button>
+            </div>
+          )}
+
           <div className="glass-card rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead>
@@ -465,102 +534,32 @@ const ExpenseDetail = () => {
               </tfoot>
             </table>
           </div>
-        </div>
 
-        <div className="space-y-6">
-          <div className="glass-card rounded-lg p-5">
-            <HistoryTimeline history={history} />
-          </div>
 
-          {/* Safina: Confirm refund with receipt */}
-          {expense.requestType === "refund" && expense.status !== "confirmed" && isAdmin && (
-            <div className="glass-card rounded-lg p-5 space-y-4 border-amber-200 bg-amber-50/40 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-amber-800 flex items-center gap-2 uppercase tracking-wider">
-                  <Camera className="w-4 h-4 text-amber-600" /> Подтверждение возврата
-                </h3>
-              </div>
-              <p className="text-xs text-amber-700/70 leading-relaxed uppercase font-semibold">
-                Загрузите чек перевода и укажите наличие удержания
-              </p>
-
-              <div className="flex flex-col gap-4 py-2">
-                {/* Retention toggle */}
-                <div className="flex items-center justify-between gap-3 bg-white/50 px-3 py-2 rounded-md border border-amber-100">
-                  <Label htmlFor="retention" className="text-xs font-bold uppercase tracking-tight cursor-pointer">Удержание</Label>
-                  <div className="flex items-center gap-2">
-                      <Switch
-                        id="retention"
-                        checked={retentionValue}
-                        onCheckedChange={setRetentionValue}
-                      />
-                      <span className="text-[10px] font-bold text-amber-900 w-16 text-right">
-                        {retentionValue ? "ДА (ЕСТЬ)" : "НЕТ (БЕЗ)"}
-                      </span>
-                  </div>
-                </div>
-
-                {/* Photo upload */}
-                <div className="flex-1 space-y-1.5 bg-white/50 px-3 py-2 rounded-md border border-amber-100">
-                  <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight block mb-2">Скриншот чека перевода</Label>
-                  <div className="flex flex-col gap-2">
-                    <input
-                      type="file"
-                      id="receipt-upload"
-                      accept="image/*"
-                      onChange={(e) => setReceiptPhoto(e.target.files?.[0] ?? null)}
-                      className="hidden"
-                    />
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="bg-white border-amber-200 text-amber-800 hover:bg-amber-100/50 text-[11px] h-8 w-full"
-                      onClick={() => document.getElementById('receipt-upload')?.click()}
-                    >
-                      {receiptPhoto ? "Сменить файл" : "Выбрать файл..."}
-                    </Button>
-                    {receiptPhoto && (
-                      <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded border border-green-100 w-full overflow-hidden">
-                        <FileText className="w-3 h-3 text-green-600 shrink-0" />
-                        <span className="text-[10px] font-medium text-green-700 truncate">
-                          {receiptPhoto.name}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <Button
-                onClick={handleConfirmRefund}
-                disabled={!receiptPhoto || isConfirming}
-                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold h-10 shadow-md shadow-amber-200/50 text-xs"
-              >
-                {isConfirming ? (
-                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Обработка...</>
-                ) : "ПОДТВЕРДИТЬ И ЗАВЕРШИТЬ"}
-              </Button>
-            </div>
-          )}
 
           <div className="glass-card rounded-lg p-4 space-y-3">
-            <Label className="text-sm font-medium text-indigo-900">Internal comment <span className="text-xs text-muted-foreground font-normal">(видно только в админке)</span></Label>
+            <Label className="text-sm font-medium">Internal comment (видно только в админке)</Label>
             <Textarea
               value={internalComment}
               onChange={(e) => setInternalComment(e.target.value)}
-              placeholder="Добавьте внутренний комментарий..."
-              rows={4}
-              className="resize-none"
+              placeholder="Добавьте комментарий..."
+              rows={3}
             />
             <Button 
                 size="sm" 
                 onClick={() => internalCommentMutation.mutate(internalComment)} 
                 disabled={internalCommentMutation.isPending}
-                className="gap-2 w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
+                className="gap-2"
             >
               {internalCommentMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              {internalCommentMutation.isPending ? "Сохранение..." : "Сохранить комментарий"}
+              {internalCommentMutation.isPending ? "Сохранение..." : "Сохранить"}
             </Button>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="glass-card rounded-lg p-5">
+            <HistoryTimeline history={history} />
           </div>
         </div>
       </div>
