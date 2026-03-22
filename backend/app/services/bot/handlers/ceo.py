@@ -6,17 +6,20 @@ from ..notifications import send_ceo_notification
 router = Router()
 
 @router.message(F.text == "🔄 Проверить новые заявки")
-async def handle_ceo_update(message: types.Message):
+async def handle_check_requests(message: types.Message):
     tg_id = message.from_user.id
     
     with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == tg_id).first()
-        if not user or user.position != "ceo":
+        if not user or user.position not in ["ceo", "senior_financier"]:
             return
 
-        # Находим все заявки со статусом pending_ceo
+        is_ceo = user.position == "ceo"
+        target_status = "pending_ceo" if is_ceo else "pending_senior"
+
+        # Находим все заявки со статусом
         pending_requests = db.query(models.ExpenseRequest).filter(
-            models.ExpenseRequest.status == "pending_ceo"
+            models.ExpenseRequest.status == target_status
         ).order_by(models.ExpenseRequest.date.asc()).limit(10).all()
         
         if not pending_requests:
@@ -37,4 +40,9 @@ async def handle_ceo_update(message: types.Message):
                 "currency": req.currency,
                 "usd_rate": req.usd_rate,
             }
-            await send_ceo_notification(exp_dict, tg_id)
+            if is_ceo:
+                from ..notifications import send_ceo_notification
+                await send_ceo_notification(exp_dict, tg_id)
+            else:
+                from ..notifications import send_senior_notification
+                await send_senior_notification(exp_dict, tg_id)

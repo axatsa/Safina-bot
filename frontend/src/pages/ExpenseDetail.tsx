@@ -283,119 +283,122 @@ const ExpenseDetail = () => {
           )}
 
           {!isArchived && (
-            <div className="flex flex-wrap gap-2">
-              {actionButtons
-                .filter((a) => a.status !== expense.status)
-                .map((action) => (
-                  action.needsConfirm ? (
-                    <AlertDialog key={action.status}>
+            <div className="glass-card rounded-lg p-5 border shadow-sm">
+                <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">Действия по заявке</p>
+                <div className="flex flex-wrap gap-2">
+                {actionButtons
+                    .filter((a) => a.status !== expense.status)
+                    .map((action) => (
+                    action.needsConfirm ? (
+                        <AlertDialog key={action.status}>
+                            <AlertDialogTrigger asChild>
+                                <Button
+                                    variant={action.variant}
+                                    size="sm"
+                                    className="gap-2"
+                                    disabled={statusMutation.isPending || forwardSeniorMutation.isPending}
+                                >
+                                    {statusMutation.isPending && pendingStatus === action.status ? <Loader2 className="w-4 h-4 animate-spin" /> : action.icon}
+                                    {action.label}
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Подтвердить действие?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Вы уверены, что хотите установить статус "{action.label}"? 
+                                        {action.status === 'confirmed' && " Это подтвердит совершение платежа."}
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleStatusChange(action.status)}>
+                                        Подтвердить
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    ) : (
+                        <Button
+                            key={action.status}
+                            variant={action.variant}
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => handleStatusChange(action.status)}
+                            disabled={statusMutation.isPending || forwardSeniorMutation.isPending}
+                        >
+                            {statusMutation.isPending && pendingStatus === action.status ? <Loader2 className="w-4 h-4 animate-spin" /> : action.icon}
+                            {action.label}
+                        </Button>
+                    )
+                    ))}
+
+                {store.isAdmin() && expense.status !== "archived" && expense.status !== "pending_senior" && (
+                    <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button
-                                variant={action.variant}
+                                variant="default"
                                 size="sm"
-                                className="gap-2"
-                                disabled={statusMutation.isPending || forwardSeniorMutation.isPending}
+                                className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                                disabled={forwardSeniorMutation.isPending || statusMutation.isPending}
                             >
-                                {statusMutation.isPending && pendingStatus === action.status ? <Loader2 className="w-4 h-4 animate-spin" /> : action.icon}
-                                {action.label}
+                                {forwardSeniorMutation.isPending
+                                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                                    : <FastForward className="w-4 h-4" />}
+                                На согласование CFO
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Подтвердить действие?</AlertDialogTitle>
+                                <AlertDialogTitle>Отправить CFO?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    Вы уверены, что хотите установить статус "{action.label}"? 
-                                    {action.status === 'confirmed' && " Это подтвердит совершение платежа."}
+                                    Заявка будет отправлена на согласование финансовому директору.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleStatusChange(action.status)}>
-                                    Подтвердить
+                                <AlertDialogAction onClick={() => forwardSeniorMutation.mutate()}>
+                                    Отправить
                                 </AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
-                  ) : (
-                    <Button
-                        key={action.status}
-                        variant={action.variant}
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => handleStatusChange(action.status)}
-                        disabled={statusMutation.isPending || forwardSeniorMutation.isPending}
-                    >
-                        {statusMutation.isPending && pendingStatus === action.status ? <Loader2 className="w-4 h-4 animate-spin" /> : action.icon}
-                        {action.label}
-                    </Button>
-                  )
-                ))}
+                )}
 
-              {store.isAdmin() && expense.status !== "archived" && expense.status !== "pending_senior" && (
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button
-                            variant="default"
-                            size="sm"
-                            className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-                            disabled={forwardSeniorMutation.isPending || statusMutation.isPending}
-                        >
-                            {forwardSeniorMutation.isPending
-                                ? <Loader2 className="w-4 h-4 animate-spin" />
-                                : <FastForward className="w-4 h-4" />}
-                            На согласование CFO
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Отправить CFO?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Заявка будет отправлена на согласование финансовому директору.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Отмена</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => forwardSeniorMutation.mutate()}>
-                                Отправить
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-              )}
-
-              {(store.isAdmin() || store.isSeniorFinancier()) && 
-                expense.status !== "archived" && 
-                !["pending_ceo", "approved_ceo"].includes(expense.status) && (
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button
-                            variant="default"
-                            size="sm"
-                            className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
-                            disabled={forwardCeoMutation.isPending || statusMutation.isPending}
-                        >
-                            {forwardCeoMutation.isPending
-                                ? <Loader2 className="w-4 h-4 animate-spin" />
-                                : <Crown className="w-4 h-4" />}
-                            Отправить CEO
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Отправить CEO?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Заявка будет отправлена на финальное согласование CEO.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Отмена</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => forwardCeoMutation.mutate()}>
-                                Отправить
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-              )}
+                {(store.isAdmin() || store.isSeniorFinancier()) && 
+                    expense.status !== "archived" && 
+                    !["pending_ceo", "approved_ceo"].includes(expense.status) && (
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button
+                                variant="default"
+                                size="sm"
+                                className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+                                disabled={forwardCeoMutation.isPending || statusMutation.isPending}
+                            >
+                                {forwardCeoMutation.isPending
+                                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                                    : <Crown className="w-4 h-4" />}
+                                Отправить CEO
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Отправить CEO?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Заявка будет отправлена на финальное согласование CEO.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => forwardCeoMutation.mutate()}>
+                                    Отправить
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                )}
+                </div>
             </div>
           )}
 
