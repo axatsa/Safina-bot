@@ -35,6 +35,8 @@ def create_team_member(
         
     db_user = db.query(models.TeamMember).filter(models.TeamMember.login == member.login).first()
     if db_user:
+        if db_user.status == "blocked":
+            return crud.reactivate_team_member(db=db, db_user=db_user, member=member)
         raise HTTPException(status_code=400, detail="Login already registered")
     return crud.create_team_member(db=db, member=member)
 

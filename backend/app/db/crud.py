@@ -103,6 +103,27 @@ def create_team_member(db: Session, member: schemas.TeamMemberCreate):
     db.refresh(db_member)
     return db_member
 
+def reactivate_team_member(db: Session, db_user: models.TeamMember, member: schemas.TeamMemberCreate):
+    db_user.last_name = member.last_name
+    db_user.first_name = member.first_name
+    db_user.password_hash = auth.get_password_hash(member.password)
+    db_user.position = member.position
+    db_user.status = "active"
+    db_user.branch = member.branch
+    db_user.team = member.team
+    db_user.templates = member.templates
+    
+    # Update projects
+    db_user.projects.clear()
+    for project_id in member.project_ids:
+        project = db.query(models.Project).filter(models.Project.id == project_id).first()
+        if project:
+            db_user.projects.append(project)
+            
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
 def delete_team_member(db: Session, member_id: str):
     member = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
     if member:
