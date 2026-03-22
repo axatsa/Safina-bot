@@ -45,7 +45,7 @@ const Team = () => {
     projectIds: [] as string[],
     login: "",
     password: "",
-    position: "user",
+    position: "",
     branch: "",
     team: "",
   });
@@ -176,21 +176,16 @@ const Team = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="position">Должность (Роль)</Label>
-                  <Select
+                  <Label htmlFor="position">Должность (для смет и заявок)</Label>
+                  <Input
+                    id="position"
                     value={formData.position}
-                    onValueChange={(value) => setFormData({ ...formData, position: value })}
-                  >
-                    <SelectTrigger id="position">
-                      <SelectValue placeholder="Выберите должность" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">Сотрудник</SelectItem>
-                      <SelectItem value="senior_financier">CFO / Старший финансист</SelectItem>
-                      <SelectItem value="ceo">CEO / Руководитель</SelectItem>
-                      <SelectItem value="admin">Администратор</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                    placeholder="Например: Учитель, Бухгалтер..."
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Для выдачи особых прав используйте системные роли: admin, senior_financier, ceo
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="branch">Филиал</Label>
