@@ -27,8 +27,7 @@ def generate_request_id(db: Session, project_code: str):
         counter_record.counter += 1
         next_val = counter_record.counter
         
-    db.commit()
-    db.refresh(counter_record)
+    db.flush()
     return f"{project_code}-{next_val}"
 
 # Projects
@@ -213,7 +212,7 @@ def create_expense_request(db: Session, expense: schemas.ExpenseRequestCreate, u
         items=items_serializable,
         total_amount=float(total_amount) if total_amount else 0,
         currency=currency,
-        usd_rate=float(usd_rate) if usd_rate else None,
+        usd_rate=float(usd_rate) if (usd_rate and currency == "USD") else None,
         created_by_id=user_id if user_id != "admin" else None,
         created_by=user_name,
         created_by_position=user_position,

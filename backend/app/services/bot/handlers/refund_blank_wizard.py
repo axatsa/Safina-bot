@@ -12,6 +12,7 @@ from ..keyboards import (
 from ..utils import _BACK
 import os
 import datetime
+from decimal import Decimal
 
 router = Router()
 
@@ -310,6 +311,7 @@ async def handle_refund_final_submit(message: types.Message, state: FSMContext):
             currency="UZS",
             request_type="blank_refund",
             template_key="refund",
+            total_amount=Decimal(str(data.get("amount", 0))),
             refund_data=schemas.RefundDataSchema(
                 client_name=data.get("client_name"),
                 passport_series=data.get("passport_series"),

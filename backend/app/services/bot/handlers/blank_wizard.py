@@ -34,6 +34,7 @@ async def start_blank_wizard(message: types.Message, state: FSMContext):
         if not user:
             user_not_found = True
         else:
+            await state.update_data(user_id=user.id)
             # Extract data while session is open
             user_templates = list(user.templates or [])
             for p in user.projects:
@@ -82,6 +83,7 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
         if not user:
             user_not_found = True
         else:
+            await state.update_data(user_id=user.id)
             # Extract data while session is open
             user_templates = list(user.templates or [])
             for p in user.projects:
@@ -137,6 +139,7 @@ async def handle_template_selection(message: types.Message, state: FSMContext):
         with database.database_session() as db:
             user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
             if user:
+                await state.update_data(user_id=user.id)
                 for p in user.projects:
                     projects_data.append({
                         "id": p.id,
@@ -329,7 +332,12 @@ async def handle_final_submit(message: types.Message, state: FSMContext):
     request_id = None
     
     with database.database_session() as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+        user_id = data.get("user_id")
+        if user_id:
+            user = db.query(models.TeamMember).filter(models.TeamMember.id == user_id).first()
+        else:
+            user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+            
         if not user:
             await message.answer("Ошибка: пользователь не найден.")
             return

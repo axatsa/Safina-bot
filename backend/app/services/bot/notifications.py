@@ -229,60 +229,48 @@ async def send_ceo_decision_notification(
 # ---------------------------------------------------------------------------
 
 def _get_chat_id_by_position(position: str) -> list[int]:
-    from app.core.database import SessionLocal
+    from app.core import database
     from app.db import models
-    db = SessionLocal()
-    try:
+    with database.database_session() as db:
         users = db.query(models.TeamMember).filter(
             models.TeamMember.position == position,
             models.TeamMember.telegram_chat_id.isnot(None),
         ).all()
         return [u.telegram_chat_id for u in users]
-    finally:
-        db.close()
 
 
 def get_admin_chat_id() -> int | None:
-    from app.core.database import SessionLocal
+    from app.core import database
     from app.db import models
-    db = SessionLocal()
-    try:
+    with database.database_session() as db:
         setting = db.query(models.Setting).filter(models.Setting.key == "admin_chat_id").first()
         if setting:
             return int(setting.value)
         return None
-    finally:
-        db.close()
 
 
 def set_admin_chat_id(chat_id: int) -> None:
-    from app.core.database import SessionLocal
+    from app.core import database
     from app.db import models
-    db = SessionLocal()
-    try:
+    with database.database_session() as db:
         setting = db.query(models.Setting).filter(models.Setting.key == "admin_chat_id").first()
         if setting:
             setting.value = str(chat_id)
         else:
             setting = models.Setting(key="admin_chat_id", value=str(chat_id))
             db.add(setting)
-        db.commit()
-    finally:
-        db.close()
+        # Note: the commit is handled automatically by database_session
 
 
 def get_senior_financier_chat_ids() -> list[int]:
-    from app.core.database import SessionLocal
+    from app.core import database
     from app.db import models
-    db = SessionLocal()
-    try:
+    with database.database_session() as db:
         users = db.query(models.TeamMember).filter(
             models.TeamMember.position == "senior_financier",
             models.TeamMember.telegram_chat_id.isnot(None),
         ).all()
         return [u.telegram_chat_id for u in users]
-    finally:
-        db.close()
 
 
 def get_ceo_chat_id() -> int | None:
