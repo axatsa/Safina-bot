@@ -1,5 +1,5 @@
 from aiogram import Router
-from . import auth, expense_wizard, refund_wizard, decisions, documents, ceo, blank_wizard, refund_blank_wizard
+from . import auth, expense_wizard, refund_wizard, decisions, documents, ceo, cfo, blank_wizard, refund_blank_wizard
 
 def register_all_handlers(dp):
     router = Router()
@@ -11,4 +11,5 @@ def register_all_handlers(dp):
     router.include_router(ceo.router)
     router.include_router(blank_wizard.router)
     router.include_router(refund_blank_wizard.router)
+    router.include_router(cfo.router)
     dp.include_router(router)

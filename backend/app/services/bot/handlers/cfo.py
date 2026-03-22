@@ -1,22 +1,22 @@
 from aiogram import Router, types, F
 from app.core import database
 from app.db import models
-from ..notifications import send_ceo_notification
+from ..notifications import send_senior_notification
 
 router = Router()
 
 @router.message(F.text == "🔄 Проверить новые заявки")
-async def handle_ceo_update(message: types.Message):
+async def handle_cfo_update(message: types.Message):
     tg_id = message.from_user.id
     
     with database.database_session() as db:
         user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == tg_id).first()
-        if not user or user.position != "ceo":
+        if not user or user.position != "senior_financier":
             return
 
-        # Находим все заявки со статусом pending_ceo
+        # Находим все заявки со статусом pending_senior
         pending_requests = db.query(models.ExpenseRequest).filter(
-            models.ExpenseRequest.status == "pending_ceo"
+            models.ExpenseRequest.status == "pending_senior"
         ).order_by(models.ExpenseRequest.date.asc()).limit(10).all()
         
         if not pending_requests:
@@ -37,4 +37,4 @@ async def handle_ceo_update(message: types.Message):
                 "currency": req.currency,
                 "usd_rate": req.usd_rate,
             }
-            await send_ceo_notification(exp_dict, tg_id)
+            await send_senior_notification(exp_dict, tg_id)

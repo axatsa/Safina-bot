@@ -27,9 +27,9 @@ def get_currency_kb():
     b.adjust(2, 1)
     return b.as_markup(resize_keyboard=True)
 
-def get_main_kb(is_ceo: bool = False):
+def get_main_kb(is_ceo: bool = False, is_senior: bool = False):
     b = ReplyKeyboardBuilder()
-    if is_ceo:
+    if is_ceo or is_senior:
         b.button(text="🔄 Проверить новые заявки")
     else:
         b.button(text="Создать инвестицию (в боте)")

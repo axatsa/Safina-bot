@@ -266,15 +266,16 @@ def update_expense_status(db: Session, expense_id: str, update: schemas.ExpenseS
     db_expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
     if db_expense:
         old_status = db_expense.status
-        db_expense.status = update.status
+        new_status_str = update.status.value if hasattr(update.status, "value") else update.status
+        db_expense.status = new_status_str
         if update.comment:
             db_expense.status_comment = update.comment
             
         # Record history
         history = models.ExpenseStatusHistory(
             expense_id=db_expense.id,
-            status=update.status,
-            comment=update.comment or f"Статус изменен с {old_status} на {update.status}",
+            status=new_status_str,
+            comment=update.comment or f"Статус изменен с {old_status} на {new_status_str}",
             changed_by_id=user_id if user_id != "admin" else None,
             changed_by_name=user_name
         )

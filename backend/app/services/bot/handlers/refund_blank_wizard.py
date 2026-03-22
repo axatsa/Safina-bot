@@ -168,7 +168,8 @@ async def handle_amount(message: types.Message, state: FSMContext):
             await message.answer("Причина возврата:", reply_markup=kb.as_markup(resize_keyboard=True))
         return
     try:
-        val = float(message.text.replace(",", "."))
+        val_str = message.text.replace(",", ".").replace(" ", "")
+        val = float(val_str)
         await state.update_data(amount=val)
         await state.set_state(RefundBlankWizard.amount_words)
         await message.answer("Сумма прописью:", reply_markup=get_skip_back_kb())

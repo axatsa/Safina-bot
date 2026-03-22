@@ -64,7 +64,7 @@ const Team = () => {
     mutationFn: (newMember: any) => store.createTeamMember(newMember),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team"] });
-      setFormData({ lastName: "", firstName: "", projectIds: [], login: "", password: "", position: "user", branch: "", team: "" });
+      setFormData({ lastName: "", firstName: "", projectIds: [], login: "", password: "", position: "", branch: "", team: "" });
       toast.success("Участник добавлен");
     },
     onError: (error: any) => toast.error(error.message || "Ошибка при добавлении")
@@ -176,7 +176,7 @@ const Team = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="position">Должность (для смет и заявок)</Label>
+                  <Label htmlFor="position">Должность</Label>
                   <Input
                     id="position"
                     value={formData.position}
