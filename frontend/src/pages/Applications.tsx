@@ -273,7 +273,7 @@ const Applications = () => {
                         <ChevronDown className="w-3.5 h-3.5 shrink-0" />
                       )}
                       <h3 className="font-display font-semibold text-xs">{STATUS_LABELS[statusKey]}</h3>
-                      <span className="ml-auto text-xs font-medium bg-foreground/10 px-2 py-0.5 rounded-full">
+                      <span className="ml-auto text-xs font-medium bg-white/20 px-2 py-0.5 rounded-full">
                         {items.length}
                       </span>
                     </button>

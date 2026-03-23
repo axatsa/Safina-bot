@@ -18,29 +18,29 @@ const COLUMN_DEFS = [
     id: "new",
     label: "Новые заявления",
     statuses: ["request", "review", "revision"] as ExpenseStatus[],
-    color: "bg-amber-500",
-    headerClass: "bg-amber-100 text-amber-800 border-amber-200"
+    color: "bg-orange-500",
+    headerClass: "bg-gradient-to-br from-orange-500 to-amber-500 text-white border-transparent shadow-sm"
   },
   {
     id: "cfo",
     label: "На согласовании CFO",
     statuses: ["pending_senior", "pending_ceo"] as ExpenseStatus[],
     color: "bg-blue-500",
-    headerClass: "bg-blue-100 text-blue-800 border-blue-200"
+    headerClass: "bg-gradient-to-br from-blue-600 to-indigo-600 text-white border-transparent shadow-sm"
   },
   {
     id: "completed",
     label: "Утверждено / Оплачено",
     statuses: ["approved_senior", "approved_ceo", "confirmed"] as ExpenseStatus[],
     color: "bg-emerald-500",
-    headerClass: "bg-emerald-100 text-emerald-800 border-emerald-200"
+    headerClass: "bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-transparent shadow-sm"
   },
   {
     id: "rejected",
     label: "Отклонено",
     statuses: ["declined", "rejected_senior", "rejected_ceo"] as ExpenseStatus[],
-    color: "bg-red-500",
-    headerClass: "bg-red-100 text-red-800 border-red-200"
+    color: "bg-rose-500",
+    headerClass: "bg-gradient-to-br from-rose-500 to-red-600 text-white border-transparent shadow-sm"
   }
 ];
 
@@ -176,7 +176,7 @@ const Refunds = () => {
                     )}
                     <span className={isCollapsed ? 'vertical-text mt-4' : ''}>{column.label}</span>
                     {!isCollapsed && (
-                        <span className="ml-auto bg-white/50 px-2 py-0.5 rounded-full text-[10px]">
+                        <span className="ml-auto bg-white/20 px-2 py-0.5 rounded-full text-[10px]">
                             {items.length}
                         </span>
                     )}

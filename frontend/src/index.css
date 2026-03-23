@@ -112,28 +112,23 @@
   }
   
   .kanban-request {
-    background: hsl(var(--kanban-request));
-    border-color: hsl(var(--kanban-request-border));
+    @apply bg-gradient-to-br from-orange-500 to-amber-500 text-white border-transparent shadow-sm;
   }
   
   .kanban-review {
-    background: hsl(var(--kanban-review));
-    border-color: hsl(var(--kanban-review-border));
+    @apply bg-gradient-to-br from-blue-600 to-indigo-600 text-white border-transparent shadow-sm;
   }
   
   .kanban-confirmed {
-    background: hsl(var(--kanban-confirmed));
-    border-color: hsl(var(--kanban-confirmed-border));
+    @apply bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-transparent shadow-sm;
   }
 
   .kanban-declined {
-    background: hsl(var(--kanban-declined));
-    border-color: hsl(var(--kanban-declined-border));
+    @apply bg-gradient-to-br from-rose-500 to-red-600 text-white border-transparent shadow-sm;
   }
 
   .kanban-revision {
-    background: hsl(var(--kanban-revision));
-    border-color: hsl(var(--kanban-revision-border));
+    @apply bg-gradient-to-br from-violet-500 to-purple-600 text-white border-transparent shadow-sm;
   }
 }
 

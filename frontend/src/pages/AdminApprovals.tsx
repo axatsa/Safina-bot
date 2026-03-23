@@ -8,22 +8,22 @@ const ADMIN_COLUMNS = [
   {
     label: "📋 Очередь на проверку",
     statuses: ["request", "review"] as ExpenseStatus[],
-    headerClass: "bg-amber-50 border-amber-200 text-amber-800",
+    headerClass: "bg-gradient-to-br from-orange-500 to-amber-500 text-white border-transparent shadow-sm",
   },
   {
     label: "На доработке",
     statuses: ["revision"] as ExpenseStatus[],
-    headerClass: "bg-orange-50 border-orange-200 text-orange-800",
+    headerClass: "bg-gradient-to-br from-violet-500 to-purple-600 text-white border-transparent shadow-sm",
   },
   {
     label: "Согласование CFO",
     statuses: ["pending_senior", "approved_senior", "rejected_senior"] as ExpenseStatus[],
-    headerClass: "bg-blue-50 border-blue-200 text-blue-800",
+    headerClass: "bg-gradient-to-br from-blue-600 to-indigo-600 text-white border-transparent shadow-sm",
   },
   {
     label: "Согласование CEO",
     statuses: ["pending_ceo", "approved_ceo", "rejected_ceo"] as ExpenseStatus[],
-    headerClass: "bg-violet-50 border-violet-200 text-violet-800",
+    headerClass: "bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-transparent shadow-sm",
   },
 ];
 
@@ -79,9 +79,9 @@ const AdminApprovals = () => {
             const items = expenses.filter((e) => col.statuses.includes(e.status));
             return (
               <div key={col.label} className="rounded-xl border bg-card overflow-hidden flex flex-col w-[280px] lg:w-auto shrink-0 lg:shrink">
-                <div className={`flex items-center justify-between px-4 py-3 border-b ${col.headerClass}`}>
+                <div className={`flex items-center justify-between px-4 py-3 border-b border-transparent ${col.headerClass}`}>
                   <span className="font-display font-semibold text-sm">{col.label}</span>
-                  <span className="text-xs font-medium bg-foreground/10 px-2 py-0.5 rounded-full">{items.length}</span>
+                  <span className="text-xs font-medium bg-white/20 px-2 py-0.5 rounded-full">{items.length}</span>
                 </div>
 
                 <div className="p-2 space-y-2 flex-1">
