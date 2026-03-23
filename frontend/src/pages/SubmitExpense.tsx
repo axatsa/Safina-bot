@@ -142,10 +142,14 @@ const SubmitExpense = () => {
     };
 
     const handleAmountChange = (index: number, raw: string) => {
-        // Allow only digits and spaces
+        // Убираем все нецифры
         const digitsOnly = raw.replace(/[^\d]/g, "");
-        const num = digitsOnly === "" ? 0 : parseInt(digitsOnly, 10);
-        const displayAmount = digitsOnly === "" ? "" : num.toLocaleString("ru-RU");
+        
+        // Убираем ведущие нули (кроме пустой строки)
+        const withoutLeadingZeros = digitsOnly.replace(/^0+(\d)/, '$1');
+        
+        const num = withoutLeadingZeros === "" ? 0 : parseInt(withoutLeadingZeros, 10);
+        const displayAmount = withoutLeadingZeros === "" ? "" : num.toLocaleString("ru-RU");
 
         const newItems = [...items];
         newItems[index] = { ...newItems[index], amount: num, displayAmount };

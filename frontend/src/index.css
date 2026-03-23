@@ -136,3 +136,19 @@
     border-color: hsl(var(--kanban-revision-border));
   }
 }
+
+@layer base {
+  /* Стилизация стрелок числовых инпутов */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: inner-spin-button !important;
+    opacity: 1;
+    height: 100%;
+    cursor: pointer;
+  }
+  
+  /* Поддержка Firefox (по умолчанию они там могут скрываться) */
+  input[type="number"] {
+    -moz-appearance: auto;
+  }
+}
