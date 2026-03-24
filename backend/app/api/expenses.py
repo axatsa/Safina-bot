@@ -125,12 +125,14 @@ async def web_submit_refund(
     reason: str = Form(...),
     amount: float = Form(...),
     card_number: str = Form(...),
+    retention: str = Form("false"),
 ):
     """Web-App endpoint: создаёт заявку возврата."""
     user = current_user
     user_id = user.id
     branch = user.branch
     team = user.team
+    retention_bool = retention.lower() == "true"
 
     try:
         expense_req = await create_refund(
@@ -139,6 +141,7 @@ async def web_submit_refund(
             reason=reason,
             amount=amount,
             card_number=card_number,
+            retention=retention_bool,
             user_id=user_id,
             branch=branch,
             team=team,

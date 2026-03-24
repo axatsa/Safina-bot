@@ -37,14 +37,33 @@ async def process_refund_reason(message: types.Message, state: FSMContext):
         await state.set_state(RefundWizard.student_id)
         return
     await state.update_data(reason=message.text)
+    if message.text == "Другое":
+        await message.answer("Укажите причину подробнее:", reply_markup=get_back_kb())
+        await state.set_state(RefundWizard.reason_other)
+    else:
+        await message.answer("Шаг 3/4 — Сумма:", reply_markup=get_back_kb())
+        await state.set_state(RefundWizard.amount)
+
+@router.message(RefundWizard.reason_other)
+async def process_refund_reason_other(message: types.Message, state: FSMContext):
+    if message.text == _BACK:
+        await message.answer("Шаг 2/4 — Причина возврата:", reply_markup=get_reason_kb())
+        await state.set_state(RefundWizard.reason)
+        return
+    await state.update_data(reason_other=message.text)
     await message.answer("Шаг 3/4 — Сумма:", reply_markup=get_back_kb())
     await state.set_state(RefundWizard.amount)
 
 @router.message(RefundWizard.amount)
 async def process_refund_amount(message: types.Message, state: FSMContext):
     if message.text == _BACK:
-        await message.answer("Шаг 2/4 — Причина:", reply_markup=get_reason_kb())
-        await state.set_state(RefundWizard.reason)
+        data = await state.get_data()
+        if data.get("reason") == "Другое":
+            await message.answer("Укажите причину подробнее:", reply_markup=get_back_kb())
+            await state.set_state(RefundWizard.reason_other)
+        else:
+            await message.answer("Шаг 2/4 — Причина:", reply_markup=get_reason_kb())
+            await state.set_state(RefundWizard.reason)
         return
     try:
         amount = float(message.text.replace(",", ".").replace(" ", ""))
@@ -66,10 +85,13 @@ async def process_refund_card(message: types.Message, state: FSMContext):
         return
     await state.update_data(card_number=digits)
     data = await state.get_data()
+    reason_display = data['reason']
+    if data['reason'] == 'Другое' and data.get('reason_other'):
+        reason_display = f"Другое: {data['reason_other']}"
     text = (
         "✅ Проверьте данные:\n"
         f"👤 ID: {data['student_id']}\n"
-        f"📝 Причина: {data['reason']}\n"
+        f"📝 Причина: {reason_display}\n"
         f"💰 Сумма: {data['amount']:,.0f} UZS\n"
         f"💳 Карта: {digits}\n"
     )
@@ -98,10 +120,13 @@ async def handle_refund_submit(callback: types.CallbackQuery, state: FSMContext)
 
     try:
         with database.database_session() as db:
+            reason = data["reason"]
+            if reason == "Другое" and data.get("reason_other"):
+                reason = f"Другое: {data['reason_other']}"
             expense_req = await create_refund(
                 db,
                 student_id=data["student_id"],
-                reason=data["reason"],
+                reason=reason,
                 amount=data["amount"],
                 card_number=data["card_number"],
                 user_id=data["user_id"],

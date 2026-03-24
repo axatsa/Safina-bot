@@ -22,6 +22,7 @@ class ExpenseWizard(StatesGroup):
 class RefundWizard(StatesGroup):
     student_id = State()
     reason = State()
+    reason_other = State()
     amount = State()
     card_number = State()
     confirm = State()
