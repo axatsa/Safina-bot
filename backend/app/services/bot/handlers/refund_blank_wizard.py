@@ -7,7 +7,7 @@ from app.db import models
 from ..states import RefundBlankWizard
 from ..keyboards import (
     get_main_kb, get_fill_method_kb, get_back_kb, 
-    get_skip_back_kb, get_refund_reasons_kb
+    get_skip_back_kb, get_refund_reasons_kb, get_retention_kb
 )
 from ..utils import _BACK
 import os
@@ -170,6 +170,9 @@ async def handle_amount(message: types.Message, state: FSMContext):
     try:
         val_str = message.text.replace(",", ".").replace(" ", "")
         val = float(val_str)
+        if val <= 0:
+            await message.answer("⚠️ Сумма должна быть больше нуля. Введите сумму ещё раз:")
+            return
         await state.update_data(amount=val)
         await state.set_state(RefundBlankWizard.amount_words)
         await message.answer("Сумма прописью:", reply_markup=get_skip_back_kb())
@@ -248,6 +251,17 @@ async def handle_bank(message: types.Message, state: FSMContext):
         await message.answer("МФО банка:", reply_markup=get_skip_back_kb())
         return
     await state.update_data(bank_name=message.text)
+    await state.set_state(RefundBlankWizard.retention)
+    await message.answer("Есть ли удержание при возврате?", reply_markup=get_retention_kb())
+
+@router.message(RefundBlankWizard.retention)
+async def handle_retention(message: types.Message, state: FSMContext):
+    if message.text == _BACK:
+        await state.set_state(RefundBlankWizard.bank_name)
+        await message.answer("Название банка и филиал:", reply_markup=get_back_kb())
+        return
+    is_yes = message.text in ("Да", "Есть", "ДА", "yes", "+")
+    await state.update_data(retention=is_yes)
     await show_refund_summary(message, state)
 
 async def show_refund_summary(message: types.Message, state: FSMContext):
@@ -332,6 +346,7 @@ async def handle_refund_final_submit(message: types.Message, state: FSMContext):
                 bank_iin=data.get("bank_iin", ""),
                 bank_mfo=data.get("bank_mfo", ""),
                 bank_name=data.get("bank_name"),
+                retention=data.get("retention", False),
             )
         )
 

@@ -27,21 +27,25 @@ const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
   const [studentId, setStudentId] = useState("");
   const [studentIdError, setStudentIdError] = useState("");
   const [reason, setReason] = useState("");
+  const [reasonOther, setReasonOther] = useState("");
   const [reasonError, setReasonError] = useState("");
   const [amount, setAmount] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [cardError, setCardError] = useState("");
   const [amountError, setAmountError] = useState("");
+  const [retention, setRetention] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async () => {
+      const finalReason = reason === "Другое" ? `Другое: ${reasonOther}` : reason;
       const formData = new FormData();
       formData.append("user_id", localStorage.getItem("safina_user_id") || ""); // Web endpoint needs user_id
       formData.append("student_id", studentId);
-      formData.append("reason", reason);
+      formData.append("reason", finalReason);
       formData.append("amount", amount.replace(/[^\d]/g, ""));
       formData.append("card_number", cardNumber.replace(/\s/g, ""));
+      formData.append("retention", retention.toString());
       if (chatId) formData.append("chat_id", chatId);
 
       const token = localStorage.getItem("safina_token");
@@ -106,12 +110,16 @@ const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
     if (!reason.trim()) {
       setReasonError("Выберите или введите причину");
       hasError = true;
+    } else if (reason === "Другое" && !reasonOther.trim()) {
+      setReasonError("Укажите причину в поле ниже");
+      hasError = true;
     } else {
       setReasonError("");
     }
 
-    if (!amount) {
-      setAmountError("Введите сумму");
+    const amountNum = parseInt(amount.replace(/[^\d]/g, ""), 10);
+    if (!amount || isNaN(amountNum) || amountNum <= 0) {
+      setAmountError("Сумма должна быть положительной и больше нуля");
       hasError = true;
     }
 
@@ -194,6 +202,20 @@ const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
               placeholder="Переезд, отчисление и т.д." 
               className={`rounded-xl ${reasonError ? "border-destructive ring-1 ring-destructive" : ""}`} 
             />
+            {reason === "Другое" && (
+              <div className="animate-in fade-in slide-in-from-top-1 space-y-1">
+                <Label htmlFor="reasonOther" className={reasonError && !reasonOther ? "text-destructive text-xs" : "text-xs text-muted-foreground"}>
+                  Укажите причину (обязательно) *
+                </Label>
+                <Input
+                  id="reasonOther"
+                  value={reasonOther}
+                  onChange={(e) => { setReasonOther(e.target.value); if(e.target.value) setReasonError(""); }}
+                  placeholder="Опишите причину возврата..."
+                  className={`rounded-xl ${reasonError && !reasonOther ? "border-destructive ring-1 ring-destructive" : ""}`}
+                />
+              </div>
+            )}
             {reasonError && <p className="text-[10px] text-destructive italic">{reasonError}</p>}
           </div>
 
@@ -215,6 +237,20 @@ const SubmitRefund = ({ chatId }: SubmitRefundProps) => {
               placeholder="8600 0000 0000 0000"
               className={`rounded-xl font-bold tracking-widest ${cardError ? "border-destructive ring-1 ring-destructive" : ""}`} />
             {cardError && <p className="text-[10px] text-destructive italic">{cardError}</p>}
+          </div>
+
+          {/* Удержание */}
+          <div className="flex items-center gap-4 p-3 bg-muted/40 rounded-xl border">
+            <div className="flex-1">
+              <Label htmlFor="retention" className="text-sm font-medium cursor-pointer">Удержание</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">Есть ли удержание при возврате?</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch id="retention" checked={retention} onCheckedChange={setRetention} />
+              <span className={`text-xs font-bold w-16 ${retention ? "text-amber-700" : "text-muted-foreground"}`}>
+                {retention ? "ДА (ЕСТЬ)" : "НЕТ (БЕЗ)"}
+              </span>
+            </div>
           </div>
 
           <Button type="submit" className="w-full rounded-xl py-6 text-lg font-bold" disabled={mutation.isPending}>

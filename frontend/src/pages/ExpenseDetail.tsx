@@ -410,12 +410,12 @@ const ExpenseDetail = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
                 {[
                   { label: "ФИО Клиента", value: expense.refundData.client_name },
-                  { label: "Паспорт", value: `${expense.refundData.passport_series} ${expense.refundData.passport_number}` },
+                  { label: "Паспорт", value: [expense.refundData.passport_series, expense.refundData.passport_number].filter(Boolean).join(" ") || null },
                   { label: "Кем выдан", value: expense.refundData.passport_issued_by },
                   { label: "Дата выдачи", value: expense.refundData.passport_date },
                   { label: "Телефон", value: expense.refundData.phone },
-                  { label: "Договор/Оферта", value: `${expense.refundData.contract_number} от ${expense.refundData.contract_date}` },
-                  { label: "Причина", value: expense.refundData.reason },
+                  { label: "Договор/Оферта", value: [expense.refundData.contract_number && `№${expense.refundData.contract_number}`, expense.refundData.contract_date && `от ${expense.refundData.contract_date}`].filter(Boolean).join(" ") || null },
+                  { label: "Причина", value: expense.refundData.reason === "Другое" && expense.refundData.reason_other ? `Другое (${expense.refundData.reason_other})` : expense.refundData.reason },
                   { label: "Сумма возврата", value: `${Number(expense.refundData.amount || 0).toLocaleString()} UZS` },
                   { label: "Сумма прописью", value: expense.refundData.amount_words },
                   { label: "Владелец карты", value: expense.refundData.card_holder },
@@ -452,10 +452,14 @@ const ExpenseDetail = () => {
                     id="retention"
                     checked={retentionValue}
                     onCheckedChange={setRetentionValue}
+                    disabled={store.isSafina()}
                   />
                   <span className="text-[10px] font-bold text-amber-900 w-20">
                     {retentionValue ? "ДА (ЕСТЬ)" : "НЕТ (БЕЗ)"}
                   </span>
+                  {store.isSafina() && (
+                    <span className="text-[9px] text-amber-700/60 italic">(указывают админы)</span>
+                  )}
                 </div>
 
                 {/* Photo upload */}

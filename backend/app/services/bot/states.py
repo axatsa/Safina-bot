@@ -61,5 +61,6 @@ class RefundBlankWizard(StatesGroup):
     bank_iin = State()
     bank_mfo = State()
     bank_name = State()
+    retention = State()
     confirm = State()
 

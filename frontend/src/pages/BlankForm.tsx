@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -45,6 +46,7 @@ const BlankForm = () => {
     card_number: "",
     transit_account: "",
     bank_name: "",
+    retention: false,
   });
 
   const addItem = () => {
@@ -69,6 +71,21 @@ const BlankForm = () => {
 
     try {
       if (template === "refund") {
+        if (!refundData.client_name.trim()) {
+          toast.error("Укажите ФИО клиента");
+          setLoading(false);
+          return;
+        }
+        if (refundData.amount <= 0) {
+          toast.error("Сумма возврата должна быть больше нуля");
+          setLoading(false);
+          return;
+        }
+        if (refundData.reason === "Другое" && !refundData.reason_other.trim()) {
+          toast.error("Укажите причину при выборе 'Другое'");
+          setLoading(false);
+          return;
+        }
         const payload = {
           ...refundData,
           project_id: searchParams.get("project_id") || null,
@@ -247,8 +264,13 @@ const BlankForm = () => {
                 </div>
                 {refundData.reason === "Другое" && (
                   <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-1">
-                    <Label>Укажите причину</Label>
-                    <Input value={refundData.reason_other} onChange={(e) => setRefundData({...refundData, reason_other: e.target.value})} />
+                    <Label className="text-sm font-medium">Укажите причину <span className="text-destructive">*</span></Label>
+                    <Input 
+                      value={refundData.reason_other} 
+                      onChange={(e) => setRefundData({...refundData, reason_other: e.target.value})} 
+                      placeholder="Опишите причину возврата..."
+                      required
+                    />
                   </div>
                 )}
                 <div className="space-y-2">
@@ -274,6 +296,24 @@ const BlankForm = () => {
                 <div className="space-y-2">
                   <Label>Название банка и филиал</Label>
                   <Input value={refundData.bank_name} onChange={(e) => setRefundData({...refundData, bank_name: e.target.value})} />
+                </div>
+
+                {/* Удержание */}
+                <div className="md:col-span-2 flex items-center gap-4 p-3 bg-muted/40 rounded-xl border">
+                  <div className="flex-1">
+                    <Label className="text-sm font-medium cursor-pointer">Удержание</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Есть ли удержание при возврате?</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      id="retention-blank"
+                      checked={refundData.retention}
+                      onCheckedChange={(val) => setRefundData({...refundData, retention: val})}
+                    />
+                    <span className={`text-xs font-bold w-16 ${refundData.retention ? "text-amber-700" : "text-muted-foreground"}`}>
+                      {refundData.retention ? "ДА (ЕСТЬ)" : "НЕТ (БЕЗ)"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </>

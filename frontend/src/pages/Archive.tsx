@@ -84,8 +84,8 @@ const Archive = () => {
   return (
     <div className="p-6 space-y-6 animate-slide-in">
       <div>
-        <h1 className="text-2xl font-display font-bold text-foreground">Архив</h1>
-        <p className="text-sm text-muted-foreground mt-1">Просмотр завершенных заявок</p>
+        <h1 className="text-2xl font-display font-bold text-foreground">Отчёты</h1>
+        <p className="text-sm text-muted-foreground mt-1">Завершённые заявки и экспорт данных</p>
       </div>
 
       <FilterBar
@@ -149,8 +149,8 @@ const Archive = () => {
                 <td colSpan={6}>
                   <EmptyState 
                     icon={ArchiveIcon}
-                    title="Архив пуст"
-                    subtitle="Завершенные заявки появятся здесь после обработки"
+                    title="Отчёты пусты"
+                    subtitle="Завершённые заявки появятся здесь после обработки"
                   />
                 </td>
               </tr>

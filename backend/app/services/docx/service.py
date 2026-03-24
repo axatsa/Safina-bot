@@ -131,10 +131,11 @@ class DocxService:
             elif not data.get("branch"):
                 data["branch"] = ""
 
-            # Defaults for optional fields
+            # Defaults for optional fields — use underscores for document formatting
+            BLANK_UNDERSCORE = "________________________"
             for field in ["transit_account", "bank_iin", "bank_mfo", "amount_words"]:
                 if not data.get(field):
-                    data[field] = ""
+                    data[field] = BLANK_UNDERSCORE
 
             # Ensure some common keys are also available as top-level if needed by templates
             if "client_name" in rd:

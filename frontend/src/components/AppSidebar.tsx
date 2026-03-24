@@ -5,7 +5,7 @@ import { store } from "@/lib/store";
 
 const navItems = [
   { title: "Инвестиции", url: "/dashboard", icon: ClipboardList },
-  { title: "Архив", url: "/dashboard/archive", icon: Archive },
+  { title: "Отчёты", url: "/dashboard/archive", icon: Archive },
   { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen },
   { title: "Команда", url: "/dashboard/team", icon: Users },
 ];
@@ -33,7 +33,7 @@ const AppSidebar = () => {
     },
     { title: "Возвраты", url: "/dashboard/refunds", icon: RotateCcw, show: true },
     { title: "Статистика", url: "/dashboard/statistics", icon: BarChart, show: true },
-    { title: "Архив", url: "/dashboard/archive", icon: Archive, show: true },
+    { title: "Отчёты", url: "/dashboard/archive", icon: Archive, show: true },
     { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen, show: true },
     { title: "Команда", url: "/dashboard/team", icon: Users, show: true },
   ];
