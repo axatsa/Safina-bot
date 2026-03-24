@@ -98,6 +98,7 @@ async def create_refund(
     refund_data = schemas.RefundDataSchema(
         student_id=student_id,
         reason=reason,
+        amount=amount,
         card_number=cleaned_card,
         retention=retention,
         branch=branch,

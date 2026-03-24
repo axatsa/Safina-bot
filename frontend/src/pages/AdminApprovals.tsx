@@ -4,37 +4,35 @@ import { ExpenseStatus, STATUS_LABELS } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
-const ADMIN_COLUMNS = [
-  {
-    label: "📋 Очередь на проверку",
-    statuses: ["request", "review"] as ExpenseStatus[],
-    headerClass: "bg-gradient-to-br from-orange-500 to-amber-500 text-white border-transparent shadow-sm",
-  },
-  {
-    label: "На доработке",
-    statuses: ["revision"] as ExpenseStatus[],
-    headerClass: "bg-gradient-to-br from-violet-500 to-purple-600 text-white border-transparent shadow-sm",
-  },
-  {
-    label: "Согласование CFO",
-    statuses: ["pending_senior", "approved_senior", "rejected_senior"] as ExpenseStatus[],
-    headerClass: "bg-gradient-to-br from-blue-600 to-indigo-600 text-white border-transparent shadow-sm",
-  },
-  {
-    label: "Согласование CEO",
-    statuses: ["pending_ceo", "approved_ceo", "rejected_ceo"] as ExpenseStatus[],
-    headerClass: "bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-transparent shadow-sm",
-  },
-];
 
 const AdminApprovals = () => {
   const navigate = useNavigate();
+  const isFarrukh = store.isFarrukh();
+
+  const activeColumns = isFarrukh ? [
+    {
+      label: "⏳ На согласовании CEO",
+      statuses: ["pending_ceo", "approved_ceo", "rejected_ceo"] as ExpenseStatus[],
+      headerClass: "bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-transparent shadow-sm",
+    }
+  ] : [
+    {
+      label: "⏳ На согласовании CFO",
+      statuses: ["pending_senior", "approved_senior", "rejected_senior"] as ExpenseStatus[],
+      headerClass: "bg-gradient-to-br from-blue-600 to-indigo-600 text-white border-transparent shadow-sm",
+    },
+    {
+      label: "⏳ На согласовании CEO",
+      statuses: ["pending_ceo", "approved_ceo", "rejected_ceo"] as ExpenseStatus[],
+      headerClass: "bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-transparent shadow-sm",
+    }
+  ];
 
   const { data: expensesPage, isLoading } = useQuery({
-    queryKey: ["admin-expenses-approvals"],
+    queryKey: ["admin-expenses-approvals", isFarrukh],
     queryFn: () => store.getExpenses({ 
       limit: 100, 
-      status: ADMIN_COLUMNS.flatMap(c => c.statuses).join(',') as ExpenseStatus 
+      status: activeColumns.flatMap(c => c.statuses).join(',') as ExpenseStatus 
     }),
   });
   
@@ -74,8 +72,8 @@ const AdminApprovals = () => {
       </div>
 
       <div className="overflow-x-auto pb-4 -mx-6 px-6">
-        <div className="flex lg:grid lg:grid-cols-4 md:grid-cols-2 gap-4 min-w-max lg:min-w-0">
-          {ADMIN_COLUMNS.map((col) => {
+        <div className={`flex lg:grid lg:grid-cols-${activeColumns.length} md:grid-cols-2 gap-4 min-w-max lg:min-w-0`}>
+          {activeColumns.map((col) => {
             const items = expenses.filter((e) => col.statuses.includes(e.status));
             return (
               <div key={col.label} className="rounded-xl border bg-card overflow-hidden flex flex-col w-[280px] lg:w-auto shrink-0 lg:shrink">

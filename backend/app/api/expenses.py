@@ -182,9 +182,29 @@ async def web_submit_blank(
     data: dict, 
     background_tasks: BackgroundTasks, 
     db: Session = Depends(database.get_db), 
-    current_user: models.TeamMember = Depends(auth.get_current_user)
+    authorization: Optional[str] = Header(None)
 ):
     """Web-App endpoint: создаёт заявку-бланк (служебную записку)."""
+    user = None
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            user = auth.get_current_user_from_token(authorization.replace("Bearer ", ""), db)
+        except Exception:
+            pass
+
+    chat_id = data.get("chat_id")
+    if user is None and chat_id:
+        try:
+            chat_id_int = int(chat_id)
+            user = db.query(models.TeamMember).filter(
+                models.TeamMember.telegram_chat_id == chat_id_int
+            ).first()
+        except (ValueError, TypeError):
+            pass
+
+    if user is None:
+        raise HTTPException(status_code=401, detail="Не удалось определить пользователя. Войдите в систему или откройте через Telegram.")
+    current_user = user
     # Validation
     tpl = data.get("template")
     if not tpl:
@@ -232,9 +252,30 @@ async def web_submit_refund_application(
     data: dict, 
     background_tasks: BackgroundTasks, 
     db: Session = Depends(database.get_db), 
-    current_user: models.TeamMember = Depends(auth.get_current_user)
+    authorization: Optional[str] = Header(None)
 ):
     """Web-App endpoint: создаёт заявку на возврат клиента (blank_refund)."""
+    user = None
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            user = auth.get_current_user_from_token(authorization.replace("Bearer ", ""), db)
+        except Exception:
+            pass
+
+    chat_id = data.get("chat_id")
+    if user is None and chat_id:
+        try:
+            chat_id_int = int(chat_id)
+            user = db.query(models.TeamMember).filter(
+                models.TeamMember.telegram_chat_id == chat_id_int
+            ).first()
+        except (ValueError, TypeError):
+            pass
+
+    if user is None:
+        raise HTTPException(status_code=401, detail="Не удалось определить пользователя. Войдите в систему или откройте через Telegram.")
+    current_user = user
+
     purpose = f"Возврат: {data.get('client_name')} ({data.get('contract_number', 'б/н')})"
     amount = float(data.get("amount", 0))
     

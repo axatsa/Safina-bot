@@ -88,6 +88,7 @@ const BlankForm = () => {
         }
         const payload = {
           ...refundData,
+          chat_id: searchParams.get("chat_id") || null,
           project_id: searchParams.get("project_id") || null,
         };
         await store.submitRefundApplicationFromWeb(payload);
@@ -97,6 +98,7 @@ const BlankForm = () => {
           template,
           purpose,
           items,
+          chat_id: searchParams.get("chat_id") || null,
           project_id: searchParams.get("project_id") || null,
         };
         await store.submitBlankFromWeb(payload);

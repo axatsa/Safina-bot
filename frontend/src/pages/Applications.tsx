@@ -181,6 +181,11 @@ const Applications = () => {
   const approvedCount = filtered.filter(e => ['confirmed', 'approved_senior'].includes(e.status)).length;
 
   const isAdmin = store.isAdmin();
+  const isFarrukh = store.isFarrukh();
+
+  const activeStatuses = isFarrukh
+    ? (["pending_senior", "approved_senior", "rejected_senior", "confirmed", "declined"] as ExpenseStatus[])
+    : (["request", "review", "confirmed", "declined", "revision"] as ExpenseStatus[]);
 
   // ── JSX: standard kanban for admin / user ─────────────────────────────────
   return (
@@ -256,8 +261,8 @@ const Applications = () => {
         {/* Kanban board */}
         <div className="flex-1 min-w-0 overflow-x-auto pb-4 -mx-6 px-6">
           <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="flex lg:grid lg:grid-cols-5 gap-4 min-w-max lg:min-w-0">
-              {KANBAN_STATUSES.map((statusKey) => {
+            <div className={`flex lg:grid lg:grid-cols-${activeStatuses.length} gap-4 min-w-max lg:min-w-0`}>
+              {activeStatuses.map((statusKey) => {
                 const items = filtered.filter((e) => e.status === statusKey);
                 const isCollapsed = !!collapsedColumns[statusKey];
 
