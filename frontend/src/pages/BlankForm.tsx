@@ -102,7 +102,16 @@ const BlankForm = () => {
         await store.submitBlankFromWeb(payload);
         toast.success("Заявка успешно отправлена Сафине!");
       }
-      navigate("/dashboard/applications");
+      // Закрываем Telegram Mini-App или переходим в дашборд
+      // @ts-ignore
+      if (window.Telegram?.WebApp?.close) {
+        setTimeout(() => {
+          // @ts-ignore
+          window.Telegram.WebApp.close();
+        }, 1500);
+      } else {
+        navigate("/dashboard/applications");
+      }
     } catch (error) {
       console.error(error);
       toast.error("Ошибка при отправке заявки");
@@ -221,7 +230,7 @@ const BlankForm = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Телефон</Label>
-                  <Input value={refundData.phone} onChange={(e) => setRefundData({...refundData, phone: e.target.value})} />
+                  <Input inputMode="tel" value={refundData.phone} onChange={(e) => setRefundData({...refundData, phone: e.target.value})} placeholder="+998 xx xxx xx xx" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-2">
@@ -275,7 +284,7 @@ const BlankForm = () => {
                 )}
                 <div className="space-y-2">
                   <Label>Сумма цифрами</Label>
-                  <Input type="number" value={refundData.amount} onChange={(e) => setRefundData({...refundData, amount: Number(e.target.value)})} />
+                  <Input inputMode="numeric" type="number" min="1" value={refundData.amount || ""} onChange={(e) => setRefundData({...refundData, amount: Number(e.target.value)})} placeholder="1000000" />
                 </div>
                 <div className="space-y-2">
                   <Label>Сумма прописью</Label>
@@ -287,7 +296,7 @@ const BlankForm = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Номер карты</Label>
-                  <Input value={refundData.card_number} onChange={(e) => setRefundData({...refundData, card_number: e.target.value})} />
+                  <Input inputMode="numeric" maxLength={19} value={refundData.card_number} onChange={(e) => setRefundData({...refundData, card_number: e.target.value})} placeholder="8600 0000 0000 0000" />
                 </div>
                 <div className="space-y-2">
                   <Label>Транзитный счет банка (если есть)</Label>

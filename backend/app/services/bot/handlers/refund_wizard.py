@@ -6,7 +6,7 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 from app.core import database
 from ..states import RefundWizard
-from ..keyboards import get_reason_kb, get_back_kb, get_refund_confirm_markup, get_main_kb, get_currency_kb
+from ..keyboards import get_reason_kb, get_back_kb, get_refund_confirm_markup, get_main_kb, get_currency_kb, get_retention_kb
 from ..utils import _BACK, tashkent_now
 import re
 
@@ -88,12 +88,35 @@ async def process_refund_card(message: types.Message, state: FSMContext):
     reason_display = data['reason']
     if data['reason'] == 'Другое' and data.get('reason_other'):
         reason_display = f"Другое: {data['reason_other']}"
+    await message.answer(
+        f"Есть ли удержание при возврате?\n\n"
+        f"👤 ID: {data['student_id']}\n"
+        f"📝 Причина: {reason_display}\n"
+        f"💰 Сумма: {data['amount']:,.0f} UZS\n"
+        f"💳 Карта: {digits}",
+        reply_markup=get_retention_kb()
+    )
+    await state.set_state(RefundWizard.retention)
+
+@router.message(RefundWizard.retention)
+async def process_refund_retention(message: types.Message, state: FSMContext):
+    if message.text == _BACK:
+        await message.answer("Шаг 4/4 — Номер карты (16 цифр):", reply_markup=get_back_kb())
+        await state.set_state(RefundWizard.card_number)
+        return
+    is_yes = message.text in ("Да", "ДА", "Есть", "yes", "+")
+    await state.update_data(retention=is_yes)
+    data = await state.get_data()
+    reason_display = data['reason']
+    if data['reason'] == 'Другое' and data.get('reason_other'):
+        reason_display = f"Другое: {data['reason_other']}"
     text = (
         "✅ Проверьте данные:\n"
         f"👤 ID: {data['student_id']}\n"
         f"📝 Причина: {reason_display}\n"
         f"💰 Сумма: {data['amount']:,.0f} UZS\n"
-        f"💳 Карта: {digits}\n"
+        f"💳 Карта: {data['card_number']}\n"
+        f"🔁 Удержание: {'ДА ✅' if is_yes else 'НЕТ ❌'}\n"
     )
     await message.answer(text, reply_markup=get_refund_confirm_markup(""))
     await state.set_state(RefundWizard.confirm)
@@ -129,6 +152,7 @@ async def handle_refund_submit(callback: types.CallbackQuery, state: FSMContext)
                 reason=reason,
                 amount=data["amount"],
                 card_number=data["card_number"],
+                retention=data.get("retention", False),
                 user_id=data["user_id"],
                 branch=data.get("branch"),
                 team=data.get("team"),

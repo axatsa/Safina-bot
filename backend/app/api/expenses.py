@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Response, File, Form, UploadFile, Query
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Response, File, Form, UploadFile, Query, Header
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import io
 import re
 import csv
@@ -120,18 +120,41 @@ async def web_submit_expense(data: dict, background_tasks: BackgroundTasks, db: 
 async def web_submit_refund(
     background_tasks: BackgroundTasks,
     db: Session = Depends(database.get_db),
-    current_user: models.TeamMember = Depends(auth.get_current_user),
     student_id: str = Form(...),
     reason: str = Form(...),
     amount: float = Form(...),
     card_number: str = Form(...),
     retention: str = Form("false"),
+    chat_id: Optional[str] = Form(None),
+    authorization: Optional[str] = Header(None),
 ):
-    """Web-App endpoint: создаёт заявку возврата."""
-    user = current_user
-    user_id = user.id
-    branch = user.branch
-    team = user.team
+    """Web-App endpoint: создаёт заявку возврата.
+    Поддерживает два способа авторизации:
+    - JWT Bearer токен (веб-дашборд)
+    - chat_id (Telegram Mini-App, без токена)
+    """
+    user = None
+
+    # 1. Попытка авторизации через JWT
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            user = auth.get_current_user_from_token(authorization.replace("Bearer ", ""), db)
+        except Exception:
+            pass
+
+    # 2. Fallback: авторизация через Telegram chat_id
+    if user is None and chat_id:
+        try:
+            chat_id_int = int(chat_id)
+            user = db.query(models.TeamMember).filter(
+                models.TeamMember.telegram_chat_id == chat_id_int
+            ).first()
+        except (ValueError, TypeError):
+            pass
+
+    if user is None:
+        raise HTTPException(status_code=401, detail="Не удалось определить пользователя. Войдите в систему или откройте через Telegram.")
+
     retention_bool = retention.lower() == "true"
 
     try:
@@ -142,9 +165,9 @@ async def web_submit_refund(
             amount=amount,
             card_number=card_number,
             retention=retention_bool,
-            user_id=user_id,
-            branch=branch,
-            team=team,
+            user_id=user.id,
+            branch=user.branch,
+            team=user.team,
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))

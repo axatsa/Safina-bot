@@ -25,6 +25,7 @@ class RefundWizard(StatesGroup):
     reason_other = State()
     amount = State()
     card_number = State()
+    retention = State()
     confirm = State()
 
 class BlankWizard(StatesGroup):

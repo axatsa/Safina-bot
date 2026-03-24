@@ -142,7 +142,10 @@ class DocxService:
                 data["client"] = rd["client_name"]
             if "amount" in rd:
                 data["refund_amount"] = rd["amount"]
-                data["total_amount"] = Decimal(str(rd["amount"]))
+                try:
+                    data["total_amount"] = Decimal(str(rd["amount"]))
+                except Exception:
+                    data["total_amount"] = Decimal("0")
             
         return data
 

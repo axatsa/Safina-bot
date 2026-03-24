@@ -75,7 +75,19 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
         )
         
     return user
-    
+
+def get_current_user_from_token(token: str, db: Session):
+    """Decode a raw JWT token string and return the corresponding user (no FastAPI dependency)."""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        login: str = payload.get("sub")
+        if not login:
+            return None
+        user = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
+        return user
+    except JWTError:
+        return None
+
 def is_admin(user: models.TeamMember) -> bool:
     """Check if the user has admin privileges (Superuser or Financiers team)."""
     admins = [os.getenv("ADMIN_LOGIN", "safina"), "farrukh"]
