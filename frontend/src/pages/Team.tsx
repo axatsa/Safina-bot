@@ -162,9 +162,11 @@ const Team = () => {
   };
 
   // Compute project-inherited templates for the member being edited
-  const projectInheritedTemplates: string[] = editMember
+  const projectInheritedTemplates: string[] = editForm.projectIds
     ? [...new Set(
-        (editMember.projects || []).flatMap((p: Project) => p.templates || [])
+        projects
+            .filter((p: Project) => editForm.projectIds.includes(p.id))
+            .flatMap((p: Project) => p.templates || [])
       )]
     : [];
 
@@ -435,12 +437,37 @@ const Team = () => {
             <div className="space-y-5">
               {/* Block 1: project-inherited (read-only) */}
               <div>
+                <div className="space-y-4 mb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-4 h-4 text-primary" />
+                    <p className="text-sm font-semibold">Назначенные проекты</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg bg-muted/10">
+                    {projects.map((p: Project) => (
+                      <label key={p.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded cursor-pointer transition-colors">
+                        <Checkbox
+                          checked={editForm.projectIds.includes(p.id)}
+                          onCheckedChange={(checked) => {
+                            setEditForm(prev => ({
+                              ...prev,
+                              projectIds: checked
+                                ? [...prev.projectIds, p.id]
+                                : prev.projectIds.filter(id => id !== p.id)
+                            }));
+                          }}
+                        />
+                        <span className="text-sm truncate" title={p.name}>{p.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-2 mb-3">
                   <Lock className="w-4 h-4 text-muted-foreground" />
-                  <p className="text-sm font-semibold text-muted-foreground">Через проекты</p>
-                  <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">только просмотр</span>
+                  <p className="text-sm font-semibold text-muted-foreground">Формы из проектов</p>
+                  <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">автоматически</span>
                 </div>
-                <div className="space-y-2 p-3 border rounded-lg bg-muted/20">
+                <div className="space-y-2 p-3 border rounded-lg bg-muted/5">
                   {projectInheritedTemplates.length > 0 ? projectInheritedTemplates.map(tplId => {
                     const tpl = AVAILABLE_TEMPLATES.find(t => t.id === tplId);
                     return (
@@ -450,7 +477,7 @@ const Team = () => {
                       </div>
                     );
                   }) : (
-                    <p className="text-xs text-muted-foreground italic">Нет форм из проектов. Назначьте проект во вкладке «Основное».</p>
+                    <p className="text-xs text-muted-foreground italic">Нет форм из проектов. Выберите проекты выше.</p>
                   )}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1 italic">
