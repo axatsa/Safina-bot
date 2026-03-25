@@ -162,7 +162,7 @@ const Refunds = () => {
             return (
               <div 
                 key={column.id} 
-                className={`flex flex-col rounded-xl border bg-muted/30 shrink-0 transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-80'}`}
+                className={`flex flex-col rounded-xl border bg-muted/30 shrink-0 transition-all duration-300 ${isCollapsed ? 'w-12 basis-12' : 'w-80 lg:w-auto lg:flex-1 lg:min-w-[280px]'}`}
               >
                 <div 
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-t-xl border-b font-display font-bold text-xs uppercase tracking-wider ${column.headerClass} ${isCollapsed ? 'flex-col py-4' : ''}`}

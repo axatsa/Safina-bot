@@ -261,13 +261,16 @@ const Applications = () => {
         {/* Kanban board */}
         <div className="flex-1 min-w-0 overflow-x-auto pb-4 -mx-6 px-6">
           <DragDropContext onDragEnd={handleDragEnd}>
-            <div className={`flex lg:grid lg:grid-cols-${activeStatuses.length} gap-4 min-w-max lg:min-w-0`}>
+            <div className="flex gap-4 min-w-max lg:min-w-0">
               {activeStatuses.map((statusKey) => {
                 const items = filtered.filter((e) => e.status === statusKey);
                 const isCollapsed = !!collapsedColumns[statusKey];
 
                 return (
-                  <div key={statusKey} className="rounded-xl border bg-card overflow-hidden w-[280px] lg:w-auto shrink-0 lg:shrink">
+                  <div 
+                    key={statusKey} 
+                    className={`rounded-xl border bg-card overflow-hidden shrink-0 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-14' : 'w-[280px] lg:w-auto lg:flex-1 lg:min-w-[250px]'}`}
+                  >
                     <button
                       onClick={() => toggleColumn(statusKey)}
                       className={`flex items-center gap-2 px-3 py-2.5 w-full text-left ${kanbanColors[statusKey]}`}
