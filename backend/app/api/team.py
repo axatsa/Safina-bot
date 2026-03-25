@@ -98,3 +98,26 @@ def update_member_templates(
     db.commit()
     db.refresh(member)
     return member
+
+@router.patch("/{member_id}", response_model=schemas.TeamMemberSchema)
+def update_team_member(
+    member_id: str,
+    update: schemas.TeamMemberUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
+    if not auth.is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can update team members")
+    # Check login uniqueness if being changed
+    if update.login:
+        existing = db.query(models.TeamMember).filter(
+            models.TeamMember.login == update.login,
+            models.TeamMember.id != member_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Login already taken")
+    member = crud.update_team_member(db=db, member_id=member_id, update=update)
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    return member
+

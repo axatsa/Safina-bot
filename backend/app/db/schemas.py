@@ -210,3 +210,15 @@ class TeamMemberTemplatesUpdate(BaseModel):
         if invalid:
             raise ValueError(f"Неизвестные ключи: {invalid}")
         return list(dict.fromkeys(v))
+
+class TeamMemberUpdate(BaseModel):
+    last_name: Optional[str] = None
+    first_name: Optional[str] = None
+    position: Optional[str] = None
+    branch: Optional[str] = None
+    team: Optional[str] = None
+    login: Optional[str] = None
+    password: Optional[str] = None
+    project_ids: Optional[List[str]] = None
+    templates: Optional[List[str]] = None
+

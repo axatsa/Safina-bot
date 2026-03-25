@@ -131,6 +131,37 @@ def delete_team_member(db: Session, member_id: str):
         db.commit()
     return True
 
+def update_team_member(db: Session, member_id: str, update: schemas.TeamMemberUpdate):
+    member = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
+    if not member:
+        return None
+    if update.last_name is not None:
+        member.last_name = update.last_name
+    if update.first_name is not None:
+        member.first_name = update.first_name
+    if update.position is not None:
+        member.position = update.position
+    if update.branch is not None:
+        member.branch = update.branch
+    if update.team is not None:
+        member.team = update.team
+    if update.login is not None:
+        member.login = update.login
+    if update.password is not None:
+        member.password_hash = auth.get_password_hash(update.password)
+    if update.templates is not None:
+        member.templates = update.templates
+    if update.project_ids is not None:
+        member.projects.clear()
+        for project_id in update.project_ids:
+            project = db.query(models.Project).filter(models.Project.id == project_id).first()
+            if project:
+                member.projects.append(project)
+    db.commit()
+    db.refresh(member)
+    return member
+
+
 # Expenses
 def get_expenses(db: Session, project_id: str = None, status: str = None, user_id: str = None, skip: int = 0, limit: int = 100):
     query = db.query(models.ExpenseRequest)

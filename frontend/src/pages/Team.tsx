@@ -4,16 +4,9 @@ import { TeamMember, Project } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2, KeyRound, FileText, X } from "lucide-react";
+import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2, KeyRound, Pencil, Lock, PlusCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -37,8 +30,22 @@ const AVAILABLE_TEMPLATES = [
     { id: "refund", label: "Заявление на возврат" },
 ];
 
+// ── Edit dialog state type ──────────────────────────────────────────────────
+interface EditFormState {
+  lastName: string;
+  firstName: string;
+  position: string;
+  branch: string;
+  login: string;
+  password: string;
+  projectIds: string[];
+  templates: string[];
+}
+
 const Team = () => {
   const queryClient = useQueryClient();
+
+  // Add-member form
   const [formData, setFormData] = useState({
     lastName: "",
     firstName: "",
@@ -49,6 +56,15 @@ const Team = () => {
     branch: "",
     team: "",
   });
+
+  // Edit dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editMember, setEditMember] = useState<TeamMember | null>(null);
+  const [editForm, setEditForm] = useState<EditFormState>({
+    lastName: "", firstName: "", position: "", branch: "",
+    login: "", password: "", projectIds: [], templates: [],
+  });
+  const [editTab, setEditTab] = useState<"basic" | "forms">("basic");
 
   const { data: team = [], isLoading: isTeamLoading, isError: isTeamError } = useQuery({
     queryKey: ["team"],
@@ -79,32 +95,47 @@ const Team = () => {
     onError: () => toast.error("Ошибка при удалении")
   });
 
-  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
-  const [activeMember, setActiveMember] = useState<TeamMember | null>(null);
-
-  const updateTemplatesMutation = useMutation({
-    mutationFn: ({ memberId, templates }: { memberId: string; templates: string[] }) =>
-      store.updateTeamMemberTemplates(memberId, templates),
-    onSuccess: (updatedMember) => {
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<EditFormState> & { password?: string } }) =>
+      store.updateTeamMember(id, {
+        lastName: data.lastName,
+        firstName: data.firstName,
+        position: data.position,
+        branch: data.branch,
+        login: data.login,
+        password: data.password || undefined,
+        projectIds: data.projectIds,
+        templates: data.templates,
+      }),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team"] });
-      if (activeMember && updatedMember.id === activeMember.id) {
-        setActiveMember(updatedMember);
-      }
-      toast.success("Личные шаблоны обновлены");
-    }
+      setEditOpen(false);
+      toast.success("Данные обновлены");
+    },
+    onError: (error: any) => toast.error(error.message || "Ошибка при обновлении"),
   });
 
-  const handleTemplateToggle = (templateId: string) => {
-    if (!activeMember) return;
-    const currentTemplates = activeMember.templates || [];
-    const newTemplates = currentTemplates.includes(templateId)
-      ? currentTemplates.filter(id => id !== templateId)
-      : [...currentTemplates, templateId];
-    
-    updateTemplatesMutation.mutate({ 
-      memberId: activeMember.id, 
-      templates: newTemplates 
+  const openEdit = (member: TeamMember) => {
+    setEditMember(member);
+    setEditForm({
+      lastName: member.lastName,
+      firstName: member.firstName,
+      position: member.position || "",
+      branch: member.branch || "",
+      login: member.login,
+      password: "",
+      projectIds: member.projectIds || [],
+      templates: member.templates || [],
     });
+    setEditTab("basic");
+    setEditOpen(true);
+  };
+
+  const handleEditSave = () => {
+    if (!editMember) return;
+    const payload: any = { ...editForm };
+    if (!payload.password) delete payload.password;
+    updateMutation.mutate({ id: editMember.id, data: payload });
   };
 
   const generatePassword = () => {
@@ -130,6 +161,13 @@ const Team = () => {
     }));
   };
 
+  // Compute project-inherited templates for the member being edited
+  const projectInheritedTemplates: string[] = editMember
+    ? [...new Set(
+        (editMember.projects || []).flatMap((p: Project) => p.templates || [])
+      )]
+    : [];
+
   return (
     <div className="p-6 space-y-8 animate-slide-in">
       {isTeamLoading ? (
@@ -151,6 +189,7 @@ const Team = () => {
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+            {/* Add member form */}
             <div className="xl:col-span-1 glass-card p-6 rounded-2xl border space-y-6 h-fit">
               <h2 className="font-display font-bold text-lg flex items-center gap-2">
                 <Plus className="w-5 h-5 text-primary" />
@@ -159,42 +198,22 @@ const Team = () => {
               <form onSubmit={handleAddMember} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Фамилия</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    required
-                  />
+                  <Input id="lastName" value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="firstName">Имя</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    required
-                  />
+                  <Input id="firstName" value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="position">Должность</Label>
-                  <Input
-                    id="position"
-                    value={formData.position}
-                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                    placeholder="Например: Учитель, Бухгалтер..."
-                  />
+                  <Input id="position" value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} placeholder="Например: Учитель, Бухгалтер..." />
                   <p className="text-[11px] text-muted-foreground">
                     Для выдачи особых прав используйте системные роли: admin, senior_financier, ceo
                   </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="branch">Филиал</Label>
-                  <Input
-                    id="branch"
-                    value={formData.branch}
-                    onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                    placeholder="Садик, Школа..."
-                  />
+                  <Input id="branch" value={formData.branch} onChange={(e) => setFormData({ ...formData, branch: e.target.value })} placeholder="Садик, Школа..." />
                 </div>
                 <div className="space-y-2">
                   <Label>Проекты (Необязательно)</Label>
@@ -214,31 +233,13 @@ const Team = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="login">Логин</Label>
-                  <Input
-                    id="login"
-                    value={formData.login}
-                    onChange={(e) => setFormData({ ...formData, login: e.target.value })}
-                    required
-                  />
+                  <Input id="login" value={formData.login} onChange={(e) => setFormData({ ...formData, login: e.target.value })} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Пароль</Label>
                   <div className="flex gap-2">
-                    <Input
-                      id="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      required
-                      minLength={6}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="shrink-0"
-                      onClick={generatePassword}
-                      title="Сгенерировать случайный пароль"
-                    >
+                    <Input id="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required minLength={6} />
+                    <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={generatePassword} title="Сгенерировать случайный пароль">
                       <KeyRound className="w-4 h-4 text-muted-foreground" />
                     </Button>
                   </div>
@@ -250,46 +251,28 @@ const Team = () => {
               </form>
             </div>
 
+            {/* Team table */}
             <div className="xl:col-span-3">
               <div className="glass-card rounded-2xl border overflow-hidden">
                 {team.length === 0 ? (
                     <div className="py-20">
-                        <EmptyState 
-                            icon={Users}
-                            title="Команда пуста"
-                            subtitle="Добавьте первого участника, чтобы начать работу"
-                        />
+                        <EmptyState icon={Users} title="Команда пуста" subtitle="Добавьте первого участника, чтобы начать работу" />
                     </div>
                 ) : (
                     <table className="w-full text-left">
                     <thead>
                         <tr className="border-b bg-muted/30">
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                            Участник
-                        </th>
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                            Должность
-                        </th>
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                            Проекты
-                        </th>
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                            Филиал / Команда
-                        </th>
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                            Логин
-                        </th>
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                            Статус
-                        </th>
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider text-right">
-                            Действия
-                        </th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Участник</th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Должность</th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Проекты</th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Филиал</th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Логин</th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Статус</th>
+                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider text-right">Действия</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                        {team.map((member: TeamMember) => {
-                        return (
+                        {team.map((member: TeamMember) => (
                             <tr key={member.id} className="hover:bg-muted/10 transition-colors group">
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
@@ -297,71 +280,47 @@ const Team = () => {
                                     {(member.lastName || "?")[0]}{(member.firstName || "?")[0]}
                                 </div>
                                 <div>
-                                    <p className="font-display font-semibold text-sm">
-                                    {member.lastName} {member.firstName}
-                                    </p>
+                                    <p className="font-display font-semibold text-sm">{member.lastName} {member.firstName}</p>
                                 </div>
                                 </div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-muted-foreground">
-                                {member.position || "—"}
-                            </td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">{member.position || "—"}</td>
                             <td className="px-6 py-4">
                                 <div className="flex flex-wrap gap-1.5">
                                 {(member.projects || []).map(p => (
-                                    <span key={p.id} className="text-[10px] font-medium inline-flex items-center gap-1 bg-primary/5 text-primary px-2 py-0.5 rounded-full border border-primary/10">
-                                    {p.name}
-                                    </span>
+                                    <span key={p.id} className="text-[10px] font-medium inline-flex items-center gap-1 bg-primary/5 text-primary px-2 py-0.5 rounded-full border border-primary/10">{p.name}</span>
                                 ))}
                                 {(!member.projects || member.projects.length === 0) && <span className="text-xs text-muted-foreground">—</span>}
                                 </div>
                             </td>
+                            <td className="px-6 py-4 text-sm">{member.branch || "—"}</td>
                             <td className="px-6 py-4">
-                                <div className="flex flex-col gap-1">
-                                <span className="text-sm">{member.branch || "—"}</span>
-                                <span className="text-xs text-muted-foreground">{member.team || "—"}</span>
-                                </div>
-                            </td>
-                            <td className="px-6 py-4">
-                                <code className="text-xs bg-muted px-2 py-1 rounded">
-                                {member.login}
-                                </code>
+                                <code className="text-xs bg-muted px-2 py-1 rounded">{member.login}</code>
                             </td>
                             <td className="px-6 py-4">
                                 {member.status === "active" ? (
                                 <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                                    <ShieldCheck className="w-3 h-3" />
-                                    Активен
+                                    <ShieldCheck className="w-3 h-3" />Активен
                                 </div>
                                 ) : (
                                 <div className="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-100">
-                                    <ShieldAlert className="w-3 h-3" />
-                                    Заблокирован
+                                    <ShieldAlert className="w-3 h-3" />Заблокирован
                                 </div>
                                 )}
                             </td>
                             <td className="px-6 py-4 text-right space-x-1">
                                 <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-muted-foreground hover:text-indigo-600 transition-colors"
-                                onClick={() => {
-                                    setActiveMember(member);
-                                    setTemplateDialogOpen(true);
-                                }}
-                                title="Личные шаблоны"
+                                  variant="ghost" size="icon"
+                                  className="text-muted-foreground hover:text-indigo-600 transition-colors"
+                                  onClick={() => openEdit(member)}
+                                  title="Редактировать участника"
                                 >
-                                <FileText className="w-4 h-4" />
+                                  <Pencil className="w-4 h-4" />
                                 </Button>
-                                
+
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="text-muted-foreground hover:text-red-600 transition-colors"
-                                            title="Удалить участника"
-                                        >
+                                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-red-600 transition-colors" title="Удалить участника">
                                             <Trash2 className="w-4 h-4" />
                                         </Button>
                                     </AlertDialogTrigger>
@@ -369,25 +328,18 @@ const Team = () => {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Удалить участника?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                Вы уверены, что хотите удалить этого участника? Он потеряет доступ к системе.
-                                                Это действие нельзя отменить.
+                                                Вы уверены, что хотите удалить этого участника? Он потеряет доступ к системе. Это действие нельзя отменить.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                            <AlertDialogAction 
-                                                onClick={() => deleteMutation.mutate(member.id)}
-                                                className="bg-red-600 hover:bg-red-700"
-                                            >
-                                                Удалить
-                                            </AlertDialogAction>
+                                            <AlertDialogAction onClick={() => deleteMutation.mutate(member.id)} className="bg-red-600 hover:bg-red-700">Удалить</AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
                                 </AlertDialog>
                             </td>
                             </tr>
-                        );
-                        })}
+                        ))}
                     </tbody>
                     </table>
                 )}
@@ -397,35 +349,166 @@ const Team = () => {
         </>
       )}
 
-      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
-        <DialogContent className="max-w-md">
+      {/* ── Edit Member Dialog ─────────────────────────────────────────────── */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Личные шаблоны: {activeMember?.lastName} {activeMember?.firstName}</DialogTitle>
+            <DialogTitle>
+              Редактировать: {editMember?.lastName} {editMember?.firstName}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <Label className="text-sm font-medium">Выберите дополнительные шаблоны для этого сотрудника:</Label>
-            <div className="grid grid-cols-1 gap-3">
-              {AVAILABLE_TEMPLATES.map((tpl) => (
-                <div key={tpl.id} className="flex items-center space-x-3 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors">
-                  <Checkbox 
-                    id={`mtpl-${tpl.id}`}
-                    checked={(activeMember?.templates || []).includes(tpl.id)}
-                    onCheckedChange={() => handleTemplateToggle(tpl.id)}
-                  />
-                  <Label 
-                    htmlFor={`mtpl-${tpl.id}`}
-                    className="text-sm font-medium cursor-pointer flex-1"
-                  >
-                    {tpl.label}
-                    <span className="block text-[10px] text-muted-foreground mt-0.5">{tpl.id}</span>
-                  </Label>
-                </div>
-              ))}
-            </div>
-            <p className="text-[11px] text-muted-foreground italic mt-2">
-              * Эти шаблоны будут доступны сотруднику в Telegram боте ПОМИМО шаблонов его проектов.
-            </p>
+
+          {/* Tab switcher */}
+          <div className="flex bg-muted p-1 rounded-lg mb-4">
+            <button
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${editTab === 'basic' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              onClick={() => setEditTab('basic')}
+            >
+              Основное
+            </button>
+            <button
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${editTab === 'forms' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              onClick={() => setEditTab('forms')}
+            >
+              Доступ к формам
+            </button>
           </div>
+
+          {editTab === 'basic' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Фамилия</Label>
+                  <Input value={editForm.lastName} onChange={e => setEditForm(p => ({ ...p, lastName: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Имя</Label>
+                  <Input value={editForm.firstName} onChange={e => setEditForm(p => ({ ...p, firstName: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Должность</Label>
+                <Input value={editForm.position} onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))} placeholder="Учитель, admin, ceo..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Филиал</Label>
+                <Input value={editForm.branch} onChange={e => setEditForm(p => ({ ...p, branch: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Логин</Label>
+                <Input value={editForm.login} onChange={e => setEditForm(p => ({ ...p, login: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Новый пароль <span className="text-muted-foreground font-normal">(оставьте пустым, чтобы не менять)</span></Label>
+                <Input
+                  type="text"
+                  value={editForm.password}
+                  onChange={e => setEditForm(p => ({ ...p, password: e.target.value }))}
+                  placeholder="Минимум 6 символов"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Проекты</Label>
+                <div className="space-y-2 max-h-[160px] overflow-y-auto p-2 border rounded-md">
+                  {projects.map((p: Project) => (
+                    <label key={p.id} className="flex items-center gap-2 hover:bg-muted/50 p-1.5 rounded cursor-pointer transition-colors">
+                      <Checkbox
+                        checked={editForm.projectIds.includes(p.id)}
+                        onCheckedChange={(checked) => {
+                          setEditForm(prev => ({
+                            ...prev,
+                            projectIds: checked
+                              ? [...prev.projectIds, p.id]
+                              : prev.projectIds.filter(id => id !== p.id)
+                          }));
+                        }}
+                      />
+                      <span className="text-sm">{p.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {editTab === 'forms' && (
+            <div className="space-y-5">
+              {/* Block 1: project-inherited (read-only) */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Lock className="w-4 h-4 text-muted-foreground" />
+                  <p className="text-sm font-semibold text-muted-foreground">Через проекты</p>
+                  <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">только просмотр</span>
+                </div>
+                <div className="space-y-2 p-3 border rounded-lg bg-muted/20">
+                  {projectInheritedTemplates.length > 0 ? projectInheritedTemplates.map(tplId => {
+                    const tpl = AVAILABLE_TEMPLATES.find(t => t.id === tplId);
+                    return (
+                      <div key={tplId} className="flex items-center gap-3 opacity-60">
+                        <Checkbox checked disabled />
+                        <span className="text-sm">{tpl?.label || tplId}</span>
+                      </div>
+                    );
+                  }) : (
+                    <p className="text-xs text-muted-foreground italic">Нет форм из проектов. Назначьте проект во вкладке «Основное».</p>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1 italic">
+                  Управляется на странице «Проекты» → шаблоны проекта.
+                </p>
+              </div>
+
+              {/* Block 2: personal additional (editable) */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <PlusCircle className="w-4 h-4 text-primary" />
+                  <p className="text-sm font-semibold">Дополнительные личные формы</p>
+                </div>
+                <div className="space-y-2 p-3 border rounded-lg">
+                  {AVAILABLE_TEMPLATES.map(tpl => {
+                    const fromProject = projectInheritedTemplates.includes(tpl.id);
+                    return (
+                      <label
+                        key={tpl.id}
+                        className={`flex items-center gap-3 p-1.5 rounded-lg transition-colors ${fromProject ? 'opacity-40 cursor-not-allowed' : 'hover:bg-muted/50 cursor-pointer'}`}
+                      >
+                        <Checkbox
+                          checked={editForm.templates.includes(tpl.id)}
+                          disabled={fromProject}
+                          onCheckedChange={(checked) => {
+                            if (fromProject) return;
+                            setEditForm(prev => ({
+                              ...prev,
+                              templates: checked
+                                ? [...prev.templates, tpl.id]
+                                : prev.templates.filter(id => id !== tpl.id)
+                            }));
+                          }}
+                        />
+                        <div>
+                          <p className="text-sm font-medium">{tpl.label}</p>
+                          {fromProject && (
+                            <p className="text-[10px] text-muted-foreground">Уже включена через проект</p>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1 italic">
+                  * Эти формы доступны сотруднику в боте ПОМИМО форм его проектов.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Отмена</Button>
+            <Button onClick={handleEditSave} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Сохранить
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
