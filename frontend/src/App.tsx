@@ -16,6 +16,7 @@ import Refunds from "./pages/Refunds";
 import Approvals from "./pages/Approvals";
 import AdminApprovals from "./pages/AdminApprovals";
 import BlankForm from "./pages/BlankForm";
+import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,6 +63,7 @@ const App = () => {
                 <Route path="approvals" element={<Approvals />} />
                 <Route path="admin-approvals" element={<AdminApprovals />} />
                 <Route path="expense/:id" element={<ExpenseDetail />} />
+                <Route path="faq" element={<FAQ />} />
               </Route>
               <Route path="/submit" element={<SubmitExpense />} />
               <Route path="/blank" element={<BlankForm />} />

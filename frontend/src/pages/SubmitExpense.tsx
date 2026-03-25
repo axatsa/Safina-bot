@@ -11,23 +11,30 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Send, Loader2, ArrowLeft } from "lucide-react";
+import { 
+    Plus, 
+    Trash2, 
+    Send, 
+    Loader2, 
+    ArrowLeft, 
+    FilePlus, 
+    RotateCcw, 
+    FileText, 
+    Landmark, 
+    GraduationCap, 
+    Building2,
+    ArrowRight 
+} from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SubmitRefund from "./SubmitRefund";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /** Format a number as "1 000 000" with spaces */
 const formatAmount = (value: number): string => {
     if (!value && value !== 0) return "";
     return value.toLocaleString("ru-RU");
-};
-
-/** Parse a formatted string like "1 000 000" back to a number */
-const parseAmount = (value: string): number => {
-    const cleaned = value.replace(/\s/g, "").replace(/,/g, "");
-    const num = parseFloat(cleaned);
-    return isNaN(num) ? 0 : num;
 };
 
 const emptyItem = (currency: "UZS" | "USD" = "UZS"): ExpenseItem & { displayAmount: string } => ({
@@ -39,6 +46,117 @@ const emptyItem = (currency: "UZS" | "USD" = "UZS"): ExpenseItem & { displayAmou
 });
 
 type ItemWithDisplay = ExpenseItem & { displayAmount: string };
+
+const APPLICATION_TYPES = [
+    { 
+        id: "expense", 
+        title: "Инвестиция", 
+        desc: "Стандартный запрос на расход / закупку ТМЦ", 
+        icon: FilePlus, 
+        color: "text-blue-600", 
+        bg: "bg-blue-50",
+        path: "/submit?type=expense"
+    },
+    { 
+        id: "refund", 
+        title: "Возврат средств", 
+        desc: "Заявление на возврат денег клиенту", 
+        icon: RotateCcw, 
+        color: "text-rose-600", 
+        bg: "bg-rose-50",
+        path: "/submit?type=refund"
+    },
+    { 
+        id: "ls", 
+        title: "Служебная записка", 
+        desc: "Общий бланк служебной записки (LS)", 
+        icon: FileText, 
+        color: "text-amber-600", 
+        bg: "bg-amber-50",
+        path: "/blank?template=ls"
+    },
+    { 
+        id: "land", 
+        title: "Бланк LAND", 
+        desc: "Форма для проекта LAND", 
+        icon: Building2, 
+        color: "text-emerald-600", 
+        bg: "bg-emerald-50",
+        path: "/blank?template=land"
+    },
+    { 
+        id: "drujba", 
+        title: "Бланк DRUJBA", 
+        desc: "Форма для проекта DRUJBA", 
+        icon: Landmark, 
+        color: "text-indigo-600", 
+        bg: "bg-indigo-50",
+        path: "/blank?template=drujba"
+    },
+    { 
+        id: "school", 
+        title: "Бланк SCHOOL", 
+        desc: "Форма для общеобразовательной школы", 
+        icon: GraduationCap, 
+        color: "text-violet-600", 
+        bg: "bg-violet-50",
+        path: "/blank?template=school"
+    },
+];
+
+const SelectionScreen = ({ chatId }: { chatId: string | null }) => {
+    const navigate = useNavigate();
+    
+    return (
+        <div className="min-h-screen bg-background p-6 md:p-12 animate-fade-in pb-20">
+            <div className="max-w-4xl mx-auto space-y-10">
+                {!chatId && (
+                    <Button
+                        variant="ghost"
+                        className="gap-2 text-muted-foreground hover:text-foreground"
+                        onClick={() => navigate("/dashboard")}
+                    >
+                        <ArrowLeft className="w-4 h-4" /> В дашборд
+                    </Button>
+                )}
+                
+                <div className="text-center space-y-3">
+                    <h1 className="text-4xl font-display font-black text-foreground tracking-tight">Тип новой заявки</h1>
+                    <p className="text-muted-foreground text-lg">Выберите, какой документ вы хотите оформить сегодня</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {APPLICATION_TYPES.map((type) => (
+                        <Card 
+                            key={type.id} 
+                            className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-border hover:ring-primary/50 overflow-hidden relative"
+                            onClick={() => {
+                                const fullPath = chatId ? `${type.path}&chat_id=${chatId}` : type.path;
+                                navigate(fullPath);
+                            }}
+                        >
+                            <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full ${type.bg} opacity-50 group-hover:scale-150 transition-transform duration-500`} />
+                            <CardHeader className="relative pb-2">
+                                <div className={`w-12 h-12 rounded-2xl ${type.bg} flex items-center justify-center mb-2 group-hover:scale-110 transition-transform`}>
+                                    <type.icon className={`w-6 h-6 ${type.color}`} />
+                                </div>
+                                <CardTitle className="text-xl font-bold">{type.title}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="relative">
+                                <p className="text-sm text-muted-foreground leading-relaxed italic pr-4">
+                                    {type.desc}
+                                </p>
+                                <div className="mt-6 flex items-center text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest gap-2">
+                                    Начать заполнение <ArrowRight className="w-3 h-3" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const SubmitExpense = () => {
     const [searchParams] = useSearchParams();
@@ -192,6 +310,10 @@ const SubmitExpense = () => {
         mutation.mutate();
     };
 
+    if (!reqType) {
+        return <SelectionScreen chatId={chatId} />;
+    }
+
     if (reqType === "refund") {
         return <SubmitRefund chatId={chatId} />;
     }
@@ -215,7 +337,7 @@ const SubmitExpense = () => {
                     <Button
                         variant="ghost"
                         className="absolute top-4 left-4 gap-2 text-muted-foreground hover:text-foreground"
-                        onClick={() => navigate("/dashboard")}
+                        onClick={() => navigate("/submit")}
                     >
                         <ArrowLeft className="w-4 h-4" /> Назад
                     </Button>
