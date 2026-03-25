@@ -10,22 +10,26 @@ const AdminApprovals = () => {
   const navigate = useNavigate();
   const isFarrukh = store.isFarrukh();
 
-  const activeColumns = isFarrukh ? [
+  const activeColumns = [
     {
-      label: "⏳ На согласовании CEO",
-      statuses: ["pending_ceo", "approved_ceo", "rejected_ceo"] as ExpenseStatus[],
-      headerClass: "bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-transparent shadow-sm",
-    }
-  ] : [
-    {
-      label: "⏳ На согласовании CFO",
-      statuses: ["pending_senior", "approved_senior", "rejected_senior"] as ExpenseStatus[],
+      label: "⏳ Ожидает CFO",
+      statuses: ["pending_senior"] as ExpenseStatus[],
       headerClass: "bg-gradient-to-br from-blue-600 to-indigo-600 text-white border-transparent shadow-sm",
     },
     {
-      label: "⏳ На согласовании CEO",
-      statuses: ["pending_ceo", "approved_ceo", "rejected_ceo"] as ExpenseStatus[],
+      label: "📊 Результат CFO",
+      statuses: ["approved_senior", "rejected_senior"] as ExpenseStatus[],
+      headerClass: "bg-slate-100 dark:bg-slate-800 text-foreground border-transparent shadow-sm",
+    },
+    {
+      label: "⏳ Ожидает CEO",
+      statuses: ["pending_ceo"] as ExpenseStatus[],
       headerClass: "bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-transparent shadow-sm",
+    },
+    {
+      label: "📊 Результат CEO",
+      statuses: ["approved_ceo", "rejected_ceo"] as ExpenseStatus[],
+      headerClass: "bg-slate-100 dark:bg-slate-800 text-foreground border-transparent shadow-sm",
     }
   ];
 

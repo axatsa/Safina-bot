@@ -89,6 +89,13 @@ export interface ExpenseRequest {
   createdAt: Date;
 }
 
+export const REQUEST_TYPE_LABELS: Record<string, string> = {
+  application: "Заявка",
+  refund: "Возврат",
+  blank: "Бланк",
+  blank_refund: "Возврат (Бланк)",
+};
+
 export const STATUS_LABELS: Record<ExpenseStatus, string> = {
   request:          "Запрос",
   review:           "На рассмотрении",
