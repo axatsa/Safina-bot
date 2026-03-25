@@ -237,6 +237,44 @@ async def send_ceo_decision_notification(
     await _send_message(chat_id, text)
 
 
+async def send_refund_receipt_notification(
+    chat_ids: list[int],
+    request_id: str,
+    amount: float,
+    currency: str,
+    photo_path: str,
+    initiator_name: str,
+) -> None:
+    """Send refund confirmation with receipt photo to multiple recipients."""
+    bot = get_bot()
+    if not bot:
+        logger.warning("BOT_TOKEN not set, cannot send refund receipt notifications")
+        return
+
+    text = (
+        f"💳 *Подтверждение возврата*\n"
+        f"🆔 Инвестиция: {request_id}\n"
+        f"👤 Инициатор: {initiator_name}\n"
+        f"💰 Сумма: {amount:,.2f} {currency}\n"
+        f"✅ Возврат успешно завершен!\n"
+        f"📎 Чек прикреплен ниже."
+    )
+
+    from aiogram.types import FSInputFile
+    photo = FSInputFile(photo_path)
+
+    for chat_id in chat_ids:
+        try:
+            await bot.send_photo(
+                chat_id,
+                photo=photo,
+                caption=text,
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.error(f"Failed to send receipt to {chat_id}: {e}")
+
+
 # ---------------------------------------------------------------------------
 # DB helpers  (sync — safe to call from sync routes)
 # ---------------------------------------------------------------------------

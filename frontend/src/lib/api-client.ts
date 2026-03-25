@@ -1,11 +1,17 @@
 const API_BASE_URL = import.meta.env.VITE_APP_API_URL || "/api";
 
-export const getHeaders = () => {
+export const getHeaders = (body?: any) => {
   const token = localStorage.getItem("safina_token");
-  return {
-    "Content-Type": "application/json",
+  const headers: Record<string, string> = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+
+  // Only set Content-Type to application/json if body is NOT FormData
+  if (!(body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  return headers;
 };
 
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
@@ -13,7 +19,7 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   const response = await fetch(url, {
     ...options,
     headers: {
-      ...getHeaders(),
+      ...getHeaders(options.body),
       ...options.headers,
     },
   });

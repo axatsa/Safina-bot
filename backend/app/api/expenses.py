@@ -341,8 +341,10 @@ async def confirm_refund_with_receipt(
     expense_id: str,
     retention: str = Form(...),           # "true" or "false"
     receipt_photo: UploadFile = File(...),
+    recipient_ids: Optional[str] = Form(None), # JSON list of user IDs
     db: Session = Depends(database.get_db),
     current_user: models.TeamMember = Depends(auth.get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """Safina attaches receipt photo and sets retention flag on a refund request."""
     if not auth.is_admin(current_user):
@@ -368,6 +370,35 @@ async def confirm_refund_with_receipt(
     expense.status = "confirmed"
     db.commit()
     db.refresh(expense)
+
+    # Send notifications if recipients selected
+    if recipient_ids:
+        try:
+            import json
+            ids_list = json.loads(recipient_ids)
+            if ids_list:
+                # Resolve chat IDs
+                recipients = db.query(models.TeamMember).filter(
+                    models.TeamMember.id.in_(ids_list),
+                    models.TeamMember.telegram_chat_id.isnot(None)
+                ).all()
+                chat_ids = [r.telegram_chat_id for r in recipients]
+                
+                if chat_ids:
+                    from app.services.bot.notifications import send_refund_receipt_notification
+                    initiator_name = expense.created_by or "Неизвестный"
+                    background_tasks.add_task(
+                        send_refund_receipt_notification,
+                        chat_ids=chat_ids,
+                        request_id=expense.request_id,
+                        amount=float(expense.total_amount),
+                        currency=expense.currency,
+                        photo_path=receipt_path,
+                        initiator_name=initiator_name
+                    )
+        except Exception as e:
+            logger.error(f"Error processing refund notification recipients: {e}")
+
     return expense
 
 ALLOWED_TRANSITIONS = {

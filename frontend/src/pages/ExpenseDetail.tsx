@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft, Download, Clock, CheckCircle, XCircle,
   RotateCcw, Archive, Send, Loader2, FastForward, Crown,
-  HelpCircle, FileText, Camera
+  HelpCircle, FileText, Camera, Users, Check
 
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -108,12 +108,25 @@ const ExpenseDetail = () => {
   const [retentionValue, setRetentionValue] = useState(false);
   const [receiptPhoto, setReceiptPhoto] = useState<File | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [team, setTeam] = useState<any[]>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [recipientDialogOpen, setRecipientDialogOpen] = useState(false);
 
   useEffect(() => {
     if (expense?.internalComment) {
       setInternalComment(expense.internalComment);
     }
+    // Pre-select creator if expense loaded
+    if (expense?.createdById && selectedRecipients.length === 0) {
+        setSelectedRecipients([expense.createdById]);
+    }
   }, [expense]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      store.getTeam().then(setTeam).catch(console.error);
+    }
+  }, [isAdmin]);
 
   const statusMutation = useMutation({
     mutationFn: ({ status, comment }: { status: ExpenseStatus; comment?: string }) =>
@@ -193,19 +206,34 @@ const ExpenseDetail = () => {
   
   const handleConfirmRefund = async () => {
     if (!receiptPhoto || !expense) return;
+    
+    // Open recipient selection first
+    if (!recipientDialogOpen && selectedRecipients.length > 0) {
+        setRecipientDialogOpen(true);
+        return;
+    }
+
     setIsConfirming(true);
     try {
-      await store.confirmRefund(expense.id, retentionValue, receiptPhoto);
+      await store.confirmRefund(expense.id, retentionValue, receiptPhoto, selectedRecipients);
       toast.success("Возврат подтверждён!");
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense", id] });
       // Clear states
       setReceiptPhoto(null);
       setRetentionValue(false);
+      setRecipientDialogOpen(false);
     } catch (e: any) {
       toast.error(e.message || "Ошибка при подтверждении");
     } finally {
       setIsConfirming(false);
     }
+  };
+
+  const toggleRecipient = (id: string) => {
+    setSelectedRecipients(prev => 
+        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
   };
 
   const isArchived = expense.status === "archived";
@@ -592,6 +620,62 @@ const ExpenseDetail = () => {
             >
               {statusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               Отправить
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={recipientDialogOpen} onOpenChange={setRecipientDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" /> Кому отправить чек?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <p className="text-sm text-muted-foreground">
+              Выберите сотрудников, которым бот перешлет чек и информацию о возврате. 
+              Создатель возврата выбран по умолчанию.
+            </p>
+            
+            <div className="max-h-[300px] overflow-y-auto space-y-1 pr-2">
+                {/* Sort team: creator first, then others */}
+                {[...team]
+                    .sort((a, b) => (a.id === expense?.createdById ? -1 : b.id === expense?.createdById ? 1 : 0))
+                    .map((member) => (
+                    <div 
+                        key={member.id}
+                        onClick={() => toggleRecipient(member.id)}
+                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                            selectedRecipients.includes(member.id) 
+                            ? "bg-primary/5 border-primary/30" 
+                            : "hover:bg-muted/50 border-transparent"
+                        }`}
+                    >
+                        <div className="flex flex-col">
+                            <span className="text-sm font-medium">
+                                {member.lastName} {member.firstName}
+                                {member.id === expense?.createdById && (
+                                    <Badge variant="outline" className="ml-2 text-[8px] h-4 uppercase">Автор</Badge>
+                                )}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground uppercase">{member.position}</span>
+                        </div>
+                        {selectedRecipients.includes(member.id) && (
+                            <div className="bg-primary rounded-full p-1">
+                                <Check className="w-3 h-3 text-white" />
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            <Button
+              onClick={handleConfirmRefund}
+              disabled={isConfirming || selectedRecipients.length === 0}
+              className="w-full gap-2 mt-2"
+            >
+              {isConfirming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Подтвердить и отправить ({selectedRecipients.length})
             </Button>
           </div>
         </DialogContent>

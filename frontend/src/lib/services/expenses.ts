@@ -175,10 +175,13 @@ export const expensesService = {
     link.remove();
   },
 
-  confirmRefund: async (expenseId: string, retention: boolean, receiptPhoto: File): Promise<ExpenseRequest> => {
+  confirmRefund: async (expenseId: string, retention: boolean, receiptPhoto: File, recipientIds?: string[]): Promise<ExpenseRequest> => {
     const formData = new FormData();
     formData.append("retention", retention.toString());
     formData.append("receipt_photo", receiptPhoto);
+    if (recipientIds && recipientIds.length > 0) {
+      formData.append("recipient_ids", JSON.stringify(recipientIds));
+    }
 
     const token = localStorage.getItem("safina_token");
     const res = await apiFetch(`/expenses/${expenseId}/refund-confirm`, {
