@@ -33,6 +33,7 @@ __pycache__/
 # Database
 safina.db
 backend/safina.db
+backend/media/safina.db
 
 # Misc
 _obsolete

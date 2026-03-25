@@ -1,32 +1,29 @@
-# Checkpoint - Safina Bot Project
-Date: 2026-02-25
+# Checkpoint - Safina Bot Project (Frontend)
+Date: 2026-03-24
 
 ## 🛠 Tech Stack Summary
 
 ### Frontend
 - **Core:** React 18, TypeScript, Vite
-- **UI/Styling:** Tailwind CSS + Shadcn UI (Radix) + Lucide Icons
-- **State & API:** TanStack Query (React Query) v5
+- **UI/Styling:** Tailwind CSS + Shadcn UI (Radix) + Lucide Icons + Framer Motion (animations)
+- **State & API:** TanStack Query (React Query) v5, custom `useApi` hook
 - **Forms:** React Hook Form + Zod
-- **Features:** Analytics (Recharts), PDF Generation (jsPDF)
-
-### Backend
-- **Framework:** FastAPI (Python), SQLAlchemy ORM, Pydantic
-- **Database:** PostgreSQL (primary) / SQLite (local/test)
-- **Auth:** JWT + Bcrypt
-- **Docs:** docxtpl (docx generation)
-
-### Telegram Bot
-- **Framework:** aiogram (Async)
-- **Status:** Integrated with shared backend models and CRUD logic.
-
-### Infrastructure
-- **Deployment:** Docker / Docker Compose
-- **Web Server:** Nginx
-- **CI/CD:** GitLab CI
+- **Features:** 
+    - **Analytics**: Интерактивные графики расхода (Recharts).
+    - **PDF/Docx**: Генерация отчетов и экспорт данных.
+    - **Kanban**: Управление возвратами (`@hello-pangea/dnd`).
 
 ---
-## 📂 Project Structure
-- `/expense-tracker-pro`: Main frontend application.
-- `/expense-tracker-pro/finance-backend`: FastAPI server & shared logic.
-- `/expense-tracker-pro/finance-backend/bot`: Telegram bot implementation.
+## 📂 Key Pages & Components
+- `/dashboard`: Общая аналитика и статистика.
+- `/expenses`: Список всех расходов с фильтрацией.
+- `/refunds`: **[NEW]** Kanban-доска для управления возвратами.
+- `/applications`: **[NEW]** Очередь заявок для админа и финансиста.
+- `/blank-form`: Универсальная форма создания заявок.
+- `/admin-approvals`: Центр управления подтверждениями.
+
+---
+## 🚀 Current Status
+- Реализована полноценная ролевая модель (Admin / CFO / Staff).
+- Интегрирована автоматическая авторизация из Telegram Mini App.
+- Настроены Nginx прокси и лимиты для загрузки фото чеков.
