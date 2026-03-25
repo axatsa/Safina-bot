@@ -6,13 +6,11 @@ RUN corepack enable
 ARG VITE_APP_API_URL
 ENV VITE_APP_API_URL=$VITE_APP_API_URL
 
-COPY package.json pnpm-lock.yaml ./
-RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod false
+COPY package.json package-lock.json ./
+RUN npm ci
 
 COPY . .
-RUN pnpm rebuild esbuild
-RUN pnpm build
+RUN npm run build
 
 FROM nginx:stable-alpine AS runtime
 COPY --from=build-stage /app/dist /usr/share/nginx/html
