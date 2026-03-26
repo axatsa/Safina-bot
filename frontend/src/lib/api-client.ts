@@ -25,8 +25,16 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   });
 
   if (response.status === 401) {
-    localStorage.removeItem("safina_token");
-    window.location.href = "/";
+    // Only redirect to login for dashboard routes.
+    // Public forms (/submit, /blank) opened from Telegram must NOT be redirected
+    // to the login page — they handle the error with a toast instead.
+    const isPublicFormRoute =
+      window.location.pathname.startsWith("/submit") ||
+      window.location.pathname.startsWith("/blank");
+    if (!isPublicFormRoute) {
+      localStorage.removeItem("safina_token");
+      window.location.href = "/";
+    }
     throw new Error("Unauthorized");
   }
 

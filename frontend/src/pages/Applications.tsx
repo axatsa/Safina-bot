@@ -185,6 +185,7 @@ const Applications = () => {
 
   const activeStatuses = isFarrukh
     ? (["pending_senior", "approved_senior", "rejected_senior", "confirmed", "declined"] as ExpenseStatus[])
+    // Admin sees ALL actionable statuses including new «request» submissions
     : (["request", "review", "confirmed", "declined", "revision"] as ExpenseStatus[]);
 
   // ── JSX: standard kanban for admin / user ─────────────────────────────────

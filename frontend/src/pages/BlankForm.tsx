@@ -21,6 +21,7 @@ const BlankForm = () => {
   const template = searchParams.get("template") || searchParams.get("type") || "ls";
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   // Common fields (Service Notes)
   const [purpose, setPurpose] = useState("");
@@ -104,15 +105,17 @@ const BlankForm = () => {
         await store.submitBlankFromWeb(payload);
         toast.success("Заявка успешно отправлена Сафине!");
       }
-      // Закрываем Telegram Mini-App или переходим в дашборд
+
+      // Show success screen, then close Telegram Mini-App or go to dashboard
+      setSubmitted(true);
       // @ts-ignore
       if (window.Telegram?.WebApp?.close) {
         setTimeout(() => {
           // @ts-ignore
           window.Telegram.WebApp.close();
-        }, 1500);
+        }, 1800);
       } else {
-        navigate("/dashboard/applications");
+        setTimeout(() => navigate("/dashboard/applications"), 2000);
       }
     } catch (error) {
       console.error(error);
@@ -121,6 +124,22 @@ const BlankForm = () => {
       setLoading(false);
     }
   };
+
+  // ── Success screen ─────────────────────────────────────────────────────────
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center space-y-4 glass-card p-10 rounded-2xl border max-w-sm w-full animate-fade-in">
+          <div className="text-6xl">✅</div>
+          <h2 className="text-2xl font-display font-bold text-foreground">Заявка отправлена!</h2>
+          <p className="text-muted-foreground text-sm">
+            Когда бланк будет утверждён, вы получите уведомление.
+          </p>
+          <p className="text-xs text-muted-foreground">Окно закрывается...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8 animate-fade-in">
