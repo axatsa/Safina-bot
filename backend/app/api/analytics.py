@@ -81,7 +81,7 @@ def get_analytics(
         if date_str not in timeline_data:
             timeline_data[date_str] = {"date": date_str, "expenses": 0, "refunds": 0}
             
-        if req_type == "refund":
+        if req_type in ["refund", "blank_refund"]:
             timeline_data[date_str]["refunds"] += amount
         else:
             timeline_data[date_str]["expenses"] += amount

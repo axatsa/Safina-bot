@@ -17,10 +17,22 @@ def populate_test_data():
 
         print("Получение пользователей и проектов...")
         users = db.query(models.TeamMember).filter(models.TeamMember.login != "admin").all()
-        projects = db.query(models.Project).all()
         
         if not users:
-            print("Пользователи не найдены. Сначала создайте пользователей.")
+            print("Пользователи не найдены. Выполняю сидирование...")
+            from app.db import seed
+            seed.seed_users()
+            users = db.query(models.TeamMember).filter(models.TeamMember.login != "admin").all()
+
+        projects = db.query(models.Project).all()
+        if not projects:
+            print("Проекты не найдены. Создаю тестовый проект...")
+            from app.db.crud import create_project
+            create_project(db, schemas.ProjectCreate(name="Тестовый проект", code="TST", templates=["land", "drujba", "management", "school"]))
+            projects = db.query(models.Project).all()
+        
+        if not users:
+            print("Не удалось создать пользователей. Проверьте настройки.")
             return
 
         print("Генерация тестовых данных через CRUD...")
@@ -39,19 +51,25 @@ def populate_test_data():
         types = ["expense", "refund", "blank", "blank_refund"]
         currencies = [schemas.CurrencyEnum.UZS, schemas.CurrencyEnum.USD]
         
-        for i in range(30):
+        for i in range(100):
             user = random.choice(users)
             project = random.choice(projects) if random.random() > 0.2 and projects else None
             req_type = random.choice(types)
-            status = random.choice(statuses)
+            
+            # Bias toward approved/confirmed statuses for better charts (70% probability)
+            if random.random() < 0.7:
+                status = random.choice([schemas.ExpenseStatusEnum.confirmed, schemas.ExpenseStatusEnum.approved_senior])
+            else:
+                status = random.choice(statuses)
+                
             currency = random.choice(currencies)
             
             items = []
-            for j in range(random.randint(1, 3)):
-                amount = round(random.uniform(10, 500) if currency == schemas.CurrencyEnum.USD else random.uniform(50000, 500000), 2)
+            for j in range(random.randint(1, 4)):
+                amount = round(random.uniform(10, 500) if currency == schemas.CurrencyEnum.USD else random.uniform(50000, 2000000), 2)
                 items.append(schemas.ExpenseItemSchema(
                     name=f"Тестовый товар {i}-{j}",
-                    quantity=Decimal(random.randint(1, 10)),
+                    quantity=Decimal(random.randint(1, 5)),
                     amount=Decimal(str(amount)),
                     currency=currency
                 ))
@@ -69,13 +87,18 @@ def populate_test_data():
                     amount=float(total_amount)
                 )
 
+            # Spread dates more evenly over the month
+            # Ensure at least 3-4 items per day for a visible line
+            day_offset = random.randint(0, 30)
+            req_date = datetime.datetime.now() - datetime.timedelta(days=day_offset)
+
             expense_in = schemas.ExpenseRequestCreate(
                 purpose=f"Тестовая заявка {i} (Бот: {'Да' if is_bot else 'Нет'})",
                 items=items,
                 project_id=project.id if project else None,
                 total_amount=total_amount,
                 currency=currency,
-                date=datetime.datetime.now() - datetime.timedelta(days=random.randint(0, 30)),
+                date=req_date,
                 request_type=req_type,
                 template_key=random.choice(["land", "drujba", "management", "school", "refund", None]),
                 receipt_photo_file_id=file_id,
@@ -84,7 +107,7 @@ def populate_test_data():
             
             usd_rate = Decimal("12800.0") if currency == schemas.CurrencyEnum.USD else None
 
-            # Создаем заявку через функцию crud (как это делают бот и веб-форма)
+            # Создаем заявку
             new_req = create_expense_request(
                 db=db,
                 expense=expense_in,
@@ -92,7 +115,7 @@ def populate_test_data():
                 usd_rate=usd_rate
             )
             
-            # Если нужно сменить статус, используем crud функцию обновления статуса
+            # Обновляем статус
             if status != schemas.ExpenseStatusEnum.request:
                 status_update = schemas.ExpenseStatusUpdate(
                     status=status,
