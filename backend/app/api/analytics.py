@@ -11,6 +11,7 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 def get_analytics(
     period: str = "1m", 
     segment: str = "global", 
+    type: str = "all",
     db: Session = Depends(database.get_db), 
     current_user: models.TeamMember = Depends(auth.get_current_user)
 ):
@@ -46,6 +47,14 @@ def get_analytics(
         branch = expense_tuple[1]
         team = expense_tuple[2]
         
+        req_type = expense.request_type # 'expense', 'refund', 'blank', 'blank_refund'
+        is_refund = req_type in ["refund", "blank_refund"]
+        
+        if type == "refund" and not is_refund:
+            continue
+        if type == "expense" and is_refund:
+            continue
+
         if not expense.date:
             continue
             
@@ -68,8 +77,7 @@ def get_analytics(
         amount = Decimal(str(expense.total_amount)) if expense.total_amount else Decimal("0")
         if expense.currency == "USD" and expense.usd_rate:
             amount *= Decimal(str(expense.usd_rate))
-        req_type = expense.request_type # 'expense' or 'refund'
-        
+            
         if date_str not in timeline_data:
             timeline_data[date_str] = {"date": date_str, "expenses": 0, "refunds": 0}
             
@@ -88,9 +96,7 @@ def get_analytics(
         if key not in distribution_data:
             distribution_data[key] = {"name": key, "value": 0}
             
-        # aggregate both expenses and refunds or just expenses? usually expenses
-        if req_type == "expense":
-            distribution_data[key]["value"] += amount
+        distribution_data[key]["value"] += amount
             
     sorted_timeline = [timeline_data[k] for k in sorted(timeline_data.keys())]
     

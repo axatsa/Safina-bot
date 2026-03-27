@@ -4,6 +4,7 @@ import { store } from "@/lib/store";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, TrendingUp, AlertCircle, FileText, CheckCircle } from "lucide-react";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
@@ -11,10 +12,11 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'
 const Statistics = () => {
     const [period, setPeriod] = useState("1m");
     const [segment, setSegment] = useState("global");
+    const [requestType, setRequestType] = useState("all");
 
     const { data: analytics, isLoading } = useQuery({
-        queryKey: ["analytics", period, segment],
-        queryFn: () => store.getAnalytics({ period, segment }),
+        queryKey: ["analytics", period, segment, requestType],
+        queryFn: () => store.getAnalytics({ period, segment, type: requestType }),
     });
 
     if (isLoading) {
@@ -33,6 +35,16 @@ const Statistics = () => {
                 <div>
                     <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Статистика и Аналитика</h1>
                     <p className="text-muted-foreground mt-2">Финансовые показатели, расходы и статистика возвратов</p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
+                    <Tabs defaultValue="all" value={requestType} onValueChange={setRequestType} className="w-full sm:w-auto">
+                        <TabsList className="bg-muted/50 border mb-0">
+                            <TabsTrigger value="all">Все заявки</TabsTrigger>
+                            <TabsTrigger value="expense">Расходы</TabsTrigger>
+                            <TabsTrigger value="refund">Возвраты</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
