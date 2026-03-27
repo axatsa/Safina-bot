@@ -218,7 +218,7 @@ async def handle_filling_method(message: types.Message, state: FSMContext):
         template = data.get("template")
         # Для WebApp передаем project_id и template
         base_url = os.getenv("WEB_APP_URL", "https://finance.thompson.uz")
-        url = f"{base_url}/blank?template={template}&project_id={data.get('project_id', '')}"
+        url = f"{base_url}/blank?template={template}&project_id={data.get('project_id', '')}&chat_id={message.from_user.id}"
         
         builder = ReplyKeyboardBuilder()
         builder.button(text="Открыть форму", web_app=types.WebAppInfo(url=url))

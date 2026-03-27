@@ -86,12 +86,44 @@ async def create_expense(expense: schemas.ExpenseRequestCreate, background_tasks
     return expense_req
 
 @router.post("/web-submit", response_model=schemas.ExpenseRequestSchema)
-async def web_submit_expense(data: dict, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    # chat_id validation removed
-    
-    chat_id_int = current_user.telegram_chat_id or 0
-    user = current_user
-    
+async def web_submit_expense(
+    data: dict,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(database.get_db),
+    authorization: Optional[str] = Header(None)
+):
+    """Web-App endpoint: creates an investment request.
+    Supports two auth methods:
+    - JWT Bearer token (web dashboard)
+    - chat_id in request body (Telegram Mini-App, no token needed)
+    """
+    user = None
+
+    # 1. Try JWT auth
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            user = auth.get_current_user_from_token(authorization.replace("Bearer ", ""), db)
+        except Exception:
+            pass
+
+    # 2. Fallback: chat_id from request body
+    if user is None:
+        chat_id = data.get("chat_id")
+        if chat_id:
+            try:
+                chat_id_int = int(chat_id)
+                user = db.query(models.TeamMember).filter(
+                    models.TeamMember.telegram_chat_id == chat_id_int
+                ).first()
+            except (ValueError, TypeError):
+                pass
+
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Не удалось определить пользователя. Войдите в систему или откройте через Telegram."
+        )
+
     items = []
     for item in data.get("items", []):
         items.append(schemas.ExpenseItemSchema(
@@ -100,21 +132,22 @@ async def web_submit_expense(data: dict, background_tasks: BackgroundTasks, db: 
             amount=item.get("amount"),
             currency=item.get("currency")
         ))
-    
+
     expense_create = schemas.ExpenseRequestCreate(
         project_id=data.get("project_id"),
         purpose=data.get("purpose"),
         items=items,
         currency=items[0].currency if items else "UZS"
     )
-    
+
     usd_rate = await currency_service.get_usd_rate()
     expense_req = crud.create_expense_request(db=db, expense=expense_create, user_id=user.id, usd_rate=usd_rate)
-    
+
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:
         background_tasks.add_task(send_admin_notification, get_expense_dict(expense_req), admin_chat_id)
     return expense_req
+
 
 @router.post("/refund/web-submit", response_model=schemas.ExpenseRequestSchema)
 async def web_submit_refund(
