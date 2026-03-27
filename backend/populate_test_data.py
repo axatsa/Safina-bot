@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.db import models, schemas
 from app.db.crud import create_expense_request, update_expense_status
+from app.core import auth
 import random
 from decimal import Decimal
 import datetime
@@ -15,14 +16,11 @@ def populate_test_data():
         db.query(models.ProjectCounter).update({"counter": 0})
         db.commit()
 
-        print("Получение пользователей и проектов...")
-        users = db.query(models.TeamMember).filter(models.TeamMember.login != "admin").all()
+        print("Обновление системных пользователей...")
+        from app.db import seed
+        seed.seed_users()
         
-        if not users:
-            print("Пользователи не найдены. Выполняю сидирование...")
-            from app.db import seed
-            seed.seed_users()
-            users = db.query(models.TeamMember).filter(models.TeamMember.login != "admin").all()
+        users = db.query(models.TeamMember).filter(models.TeamMember.login != "admin").all()
 
         projects = db.query(models.Project).all()
         if not projects:
@@ -34,6 +32,29 @@ def populate_test_data():
         if not users:
             print("Не удалось создать пользователей. Проверьте настройки.")
             return
+
+        # Создаем еще несколько случайных сотрудников для разнообразия филиалов
+        additional_branches = ["Школа", "Детский сад", "СПАРТА", "Администрация"]
+        for i in range(len(additional_branches)):
+            login = f"staff_{i+1}"
+            branch = additional_branches[i]
+            existing = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
+            if not existing:
+                print(f"Создание сотрудника для филиала: {branch}...")
+                new_staff = models.TeamMember(
+                    login=login,
+                    password_hash=auth.get_password_hash("password123"),
+                    first_name=f"Сотрудник",
+                    last_name=f"{branch}",
+                    position="staff",
+                    branch=branch,
+                    status="active"
+                )
+                db.add(new_staff)
+                db.commit()
+        
+        # Обновляем список пользователей для генерации
+        users = db.query(models.TeamMember).filter(models.TeamMember.login != "admin").all()
 
         print("Генерация тестовых данных через CRUD...")
         

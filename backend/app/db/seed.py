@@ -19,6 +19,7 @@ SEEDED_USERS = [
         "first_name": "Фаррух",
         "last_name": "Носиров",
         "position": "senior_financier",
+        "branch": "Центральный Офис",
         "status": "active",
     },
     {
@@ -29,6 +30,7 @@ SEEDED_USERS = [
         "first_name": "Ганиев",
         "last_name": "CEO",
         "position": "ceo",
+        "branch": "Центральный Офис",
         "status": "active",
     },
     {
@@ -40,6 +42,7 @@ SEEDED_USERS = [
         "last_name": "Команда",
         "position": "admin",
         "team": "Финансисты",
+        "branch": "Бухгалтерия",
         "status": "active",
     },
 ]
@@ -69,17 +72,35 @@ def _seed_user(db: Session, user_data: dict) -> None:
             first_name=user_data["first_name"],
             last_name=user_data["last_name"],
             position=user_data["position"],
+            branch=user_data.get("branch"),
+            team=user_data.get("team"),
             status=user_data["status"],
         )
         db.add(new_user)
         db.commit()
         logger.info(f"User '{login}' created successfully.")
     else:
+        # Update fields from SEEDED_USERS if needed
+        updated = False
+        if user.position != user_data["position"]:
+            user.position = user_data["position"]
+            updated = True
+        if user_data.get("branch") and user.branch != user_data["branch"]:
+            user.branch = user_data["branch"]
+            updated = True
+        if user_data.get("team") and user.team != user_data["team"]:
+            user.team = user_data["team"]
+            updated = True
+        
         # Update password from env if it has changed
         if not auth.verify_password(password, user.password_hash):
             user.password_hash = hashed_password
-            db.commit()
+            updated = True
             logger.info(f"User '{login}' password updated from .env.")
+            
+        if updated:
+            db.commit()
+            logger.info(f"User '{login}' information updated.")
         else:
             logger.info(f"User '{login}' already exists, no changes needed.")
 
