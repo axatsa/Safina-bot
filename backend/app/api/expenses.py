@@ -9,6 +9,7 @@ import datetime
 import os
 import uuid
 import shutil
+from urllib.parse import quote
 from app.db import models, schemas, crud
 from app.core import auth, database
 from app.core.logging_config import get_logger
@@ -363,10 +364,11 @@ def export_refund_application(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    encoded_filename = quote(fname)
     return StreamingResponse(
         stream,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{fname}"},
+        headers={"Content-Disposition": f"attachment; filename*=utf-8''{encoded_filename}"},
     )
 
 @router.patch("/{expense_id}/refund-confirm", response_model=schemas.ExpenseRequestSchema)
@@ -660,10 +662,12 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
     
     content = output.getvalue()
     bom = "\ufeff"
+    filename = "expenses_export.csv"
+    encoded_filename = quote(filename)
     return Response(
         content=bom + content,
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=expenses_export.csv"}
+        headers={"Content-Disposition": f"attachment; filename*=utf-8''{encoded_filename}"}
     )
 
 @router.get("/export-xlsx")
@@ -706,10 +710,12 @@ def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: st
     expenses = query.all()
     output = export_service.generate_expenses_xlsx(expenses)
     
+    filename = f"expenses_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    encoded_filename = quote(filename)
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename=expenses_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"}
+        headers={"Content-Disposition": f"attachment; filename*=utf-8''{encoded_filename}"}
     )
 
 
@@ -721,10 +727,12 @@ def export_expense_docx(expense_id: str, db: Session = Depends(database.get_db),
         
     try:
         file_stream = docx_service.generate_expense_docx(expense)
+        filename = f"smeta_{expense.request_id}.docx"
+        encoded_filename = quote(filename)
         return StreamingResponse(
             file_stream,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={"Content-Disposition": f"attachment; filename=smeta_{expense.request_id}.docx"}
+            headers={"Content-Disposition": f"attachment; filename*=utf-8''{encoded_filename}"}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -753,11 +761,12 @@ def export_blank_docx(
         # Choose filename based on template or request_id
         tpl_label = expense.template_key.upper() if expense.template_key else "BLANK"
         filename = f"{tpl_label}_{expense.request_id}.docx"
+        encoded_filename = quote(filename)
         
         return StreamingResponse(
             file_stream,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"}
+            headers={"Content-Disposition": f"attachment; filename*=utf-8''{encoded_filename}"}
         )
     except Exception as e:
         logger.error(f"Error generating blank DOCX: {e}")

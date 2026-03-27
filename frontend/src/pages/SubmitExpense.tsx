@@ -28,7 +28,6 @@ import {
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import SubmitRefund from "./SubmitRefund";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /** Format a number as "1 000 000" with spaces */
@@ -59,12 +58,12 @@ const APPLICATION_TYPES = [
     },
     { 
         id: "refund", 
-        title: "Возврат средств", 
-        desc: "Заявление на возврат денег клиенту", 
+        title: "Заявление на возврат", 
+        desc: "Форма заявления на возврат денег клиенту", 
         icon: RotateCcw, 
         color: "text-rose-600", 
         bg: "bg-rose-50",
-        path: "/submit?type=refund"
+        path: "/blank?template=refund"
     },
     { 
         id: "ls", 
@@ -312,10 +311,6 @@ const SubmitExpense = () => {
 
     if (!reqType) {
         return <SelectionScreen chatId={chatId} />;
-    }
-
-    if (reqType === "refund") {
-        return <SubmitRefund chatId={chatId} />;
     }
 
     if (submitted) {

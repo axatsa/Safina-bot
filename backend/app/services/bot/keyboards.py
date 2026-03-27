@@ -33,9 +33,7 @@ def get_main_kb(is_ceo: bool = False, is_senior: bool = False):
         b.button(text="🔄 Проверить новые заявки")
     else:
         b.button(text="Создать инвестицию (в боте)")
-        b.button(text="Оформить возврат (в боте)")
         b.button(text="Создать инвестицию (Web-App)")
-        b.button(text="Создать возврат (Web-App)")
         b.button(text="📋 Заполнить бланк")
     b.adjust(1)
     return b.as_markup(resize_keyboard=True)
