@@ -9,6 +9,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 
 const Archive = () => {
@@ -17,6 +19,7 @@ const Archive = () => {
   const [selectedUser, setSelectedUser] = useState("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
 
   const { data: expensesPage, isLoading, isError } = useQuery({
     queryKey: ["expenses", { limit: 100, status: "archived" }],
@@ -39,6 +42,14 @@ const Archive = () => {
     // Note: status filter is now redundant if we filter on backend, 
     // but kept for safety if backend doesn't support status param.
     if (e.status !== "archived") return false;
+    
+    // Filter by tab 
+    if (activeTab === "refunds") {
+      if (e.requestType !== "refund" && e.requestType !== "blank_refund") return false;
+    } else if (activeTab === "expenses") {
+      if (e.requestType === "refund" || e.requestType === "blank_refund") return false;
+    }
+    
     if (selectedProject !== "all" && e.projectId !== selectedProject) return false;
     if (selectedUser !== "all" && e.createdById !== selectedUser) return false;
     if (dateRange.from && new Date(e.date) < dateRange.from) return false;
@@ -50,6 +61,8 @@ const Archive = () => {
     if (searchQuery && !e.requestId.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
+
+  const totalRefundAmount = filtered.reduce((acc, curr) => acc + Number(curr.totalAmount || 0), 0);
 
   const handleExport = (allStatuses: boolean) => {
     store.exportXLSX({
@@ -87,6 +100,42 @@ const Archive = () => {
         <h1 className="text-2xl font-display font-bold text-foreground">Отчёты</h1>
         <p className="text-sm text-muted-foreground mt-1">Завершённые заявки и экспорт данных</p>
       </div>
+
+      <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-4 bg-muted/50 p-1 border">
+          <TabsTrigger value="all" className="rounded-md">Все отчёты</TabsTrigger>
+          <TabsTrigger value="expenses" className="rounded-md">Только расходы</TabsTrigger>
+          <TabsTrigger value="refunds" className="rounded-md">Возвраты</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {activeTab === "refunds" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="bg-gradient-to-br from-rose-500 to-red-600 text-white border-0 shadow-md">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-white/80">Общая сумма возвратов</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold font-display">
+                {totalRefundAmount.toLocaleString()} UZS
+              </div>
+              <p className="text-xs text-white/70 mt-1">За выбранный период и фильтры</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-slate-800 to-slate-900 text-white border-0 shadow-md">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-white/80">Количество возвратов</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold font-display">
+                {filtered.length}
+              </div>
+              <p className="text-xs text-white/70 mt-1">Завершенных заявок на возврат</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <FilterBar
         projects={projects}
