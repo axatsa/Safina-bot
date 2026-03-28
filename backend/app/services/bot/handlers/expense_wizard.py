@@ -31,7 +31,7 @@ async def start_wizard_selection(message: types.Message, state: FSMContext):
         else:
             user_id = user.id
             # Capture project data while session is open to avoid DetachedInstanceError
-            projects_data = [{"id": p.id, "name": p.name} for p in (user.projects or [])]
+            projects_data = [{"id": p.id, "name": p.name, "code": p.code} for p in (user.projects or [])]
             if not projects_data:
                 no_projects = True
 
