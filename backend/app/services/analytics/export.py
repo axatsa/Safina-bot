@@ -7,16 +7,6 @@ from sqlalchemy.orm import Session
 from app.db import models
 from openpyxl.styles import PatternFill, Border, Side, Font, Alignment
 
-# Constants shared with API
-EXPORTABLE_STATUSES = [
-    "confirmed",
-    "approved_senior",
-    "approved_ceo",
-    "declined",
-    "revision",
-]
-EXCLUDED_FROM_EXPORT = {"pending_senior", "pending_ceo", "archived"}
-
 STATUS_MAP = {
     "request": "Запрос",
     "review": "На рассмотрении",
@@ -85,7 +75,13 @@ def generate_expenses_xlsx(expenses: list[models.ExpenseRequest]) -> io.BytesIO:
         # Auto-adjust columns width
         for idx, col in enumerate(df.columns):
             if not df.empty:
-                max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
+                # Robustly calculate max string length in column
+                series = df[col].dropna().astype(str)
+                if not series.empty:
+                    max_content_len = series.apply(len).max()
+                else:
+                    max_content_len = 0
+                max_len = max(max_content_len, len(str(col))) + 2
                 worksheet.column_dimensions[chr(65 + idx)].width = min(max_len, 50)
             
         # Add SUM formulas if not empty
@@ -102,3 +98,4 @@ def generate_expenses_xlsx(expenses: list[models.ExpenseRequest]) -> io.BytesIO:
 
     output.seek(0)
     return output
+

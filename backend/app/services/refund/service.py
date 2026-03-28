@@ -34,7 +34,7 @@ EXPORTABLE_STATUSES = [
     "revision",
 ]
 
-EXCLUDED_FROM_EXPORT = {"pending_senior", "pending_ceo", "archived"}
+EXCLUDED_FROM_EXPORT = {"pending_senior", "pending_ceo"}
 
 
 # ---------------------------------------------------------------------------
