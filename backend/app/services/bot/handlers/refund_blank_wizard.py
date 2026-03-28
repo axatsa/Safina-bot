@@ -1,13 +1,15 @@
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
-
-from app.core import database
-from app.db import models
+from aiogram.types import WebAppInfo
+from sqlalchemy.orm import joinedload
+from app.core import database, auth
+from app.db import models, schemas, crud
 from ..states import RefundBlankWizard
 from ..keyboards import (
     get_main_kb, get_fill_method_kb, get_back_kb, 
-    get_skip_back_kb, get_refund_reasons_kb, get_retention_kb
+    get_skip_back_kb, get_refund_reasons_kb, get_retention_kb,
+    get_projects_kb
 )
 from ..utils import _BACK
 import os
@@ -16,8 +18,80 @@ from decimal import Decimal
 
 router = Router()
 
-# Removed manual start, now started from BlankWizard
+@router.message(F.text == "Заявление на возврат (в боте)")
+async def start_direct_refund_bot(message: types.Message, state: FSMContext):
+    await state.clear()
+    projects_data = []
+    user_id = None
+    
+    with database.database_session() as db:
+        user = db.query(models.TeamMember).options(
+            joinedload(models.TeamMember.projects)
+        ).filter(
+            models.TeamMember.telegram_chat_id == message.from_user.id
+        ).first()
+        
+        if not user:
+            await message.answer("Ошибка: вы не зарегистрированы в системе.")
+            return
+            
+        user_id = user.id
+        for p in user.projects:
+            projects_data.append({
+                "id": p.id,
+                "name": p.name,
+                "code": p.code
+            })
 
+    await state.update_data(user_id=user_id)
+    
+    if not projects_data:
+        await message.answer("У вас нет привязанных проектов. Обратитесь к Сафине.")
+        return
+
+    if len(projects_data) > 1:
+        await state.set_state(RefundBlankWizard.project_selection)
+        await message.answer("Для какого проекта возврат?", reply_markup=get_projects_kb(projects_data))
+    else:
+        # 1 проект — переходим сразу к заполнению
+        await state.update_data(project_id=projects_data[0]["id"])
+        await state.set_state(RefundBlankWizard.client_name)
+        await message.answer("ФИО клиента (родителя):", reply_markup=get_back_kb())
+
+@router.message(RefundBlankWizard.project_selection)
+async def handle_refund_project_selection(message: types.Message, state: FSMContext):
+    if message.text == _BACK:
+        await state.clear()
+        await message.answer("Главное меню", reply_markup=get_main_kb())
+        return
+
+    project_id = None
+    with database.database_session() as db:
+        projects = db.query(models.Project).all()
+        selected = next((p for p in projects if f"{p.name} ({p.code})" == message.text), None)
+        if selected:
+            project_id = selected.id
+
+    if not project_id:
+        await message.answer("Выберите проект из списка кнопок.")
+        return
+
+    await state.update_data(project_id=project_id)
+    await state.set_state(RefundBlankWizard.client_name)
+    await message.answer("ФИО клиента (родителя):", reply_markup=get_back_kb())
+
+@router.message(F.text == "Заявление на возврат (Web-App)")
+async def open_direct_refund_webapp(message: types.Message):
+    base_url = os.getenv("WEB_APP_URL", "https://finance.thompson.uz")
+    url = f"{base_url}/blank?template=refund&chat_id={message.from_user.id}"
+    builder = ReplyKeyboardBuilder()
+    builder.button(text="💸 Открыть форму возврата", web_app=WebAppInfo(url=url))
+    builder.button(text="◀️ Назад")
+    builder.adjust(1)
+    await message.answer(
+        "Нажмите кнопку ниже, чтобы открыть форму возврата:",
+        reply_markup=builder.as_markup(resize_keyboard=True)
+    )
 @router.message(RefundBlankWizard.filling_method)
 async def handle_filling_method(message: types.Message, state: FSMContext):
     if message.text == _BACK:

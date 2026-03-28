@@ -44,6 +44,7 @@ class BlankWizard(StatesGroup):
     confirm = State()
 
 class RefundBlankWizard(StatesGroup):
+    project_selection = State()
     filling_method = State()
     client_name = State()
     passport_series = State()
