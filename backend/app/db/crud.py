@@ -163,33 +163,78 @@ def update_team_member(db: Session, member_id: str, update: schemas.TeamMemberUp
 
 
 # Expenses
-def get_expenses(db: Session, project_id: str = None, status: str = None, user_id: str = None, skip: int = 0, limit: int = 100):
+def get_expenses(
+    db: Session, 
+    project_id: str = None, 
+    status: str = None, 
+    user_id: str = None, 
+    request_type: str = None,
+    branch: str = None,
+    team: str = None,
+    skip: int = 0, 
+    limit: int = 100
+):
     query = db.query(models.ExpenseRequest)
-    if project_id:
-        query = query.filter(models.ExpenseRequest.project_id == project_id)
+    
+    # Filter by user or branch/team (requires join)
+    if branch or team:
+        query = query.join(models.TeamMember, models.ExpenseRequest.created_by_id == models.TeamMember.id)
+        if branch:
+            query = query.filter(models.TeamMember.branch == branch)
+        if team:
+            query = query.filter(models.TeamMember.team == team)
+            
     if user_id:
         query = query.filter(models.ExpenseRequest.created_by_id == user_id)
+        
+    if project_id:
+        query = query.filter(models.ExpenseRequest.project_id == project_id)
+        
+    if request_type:
+        types = [t.strip() for t in request_type.split(",")]
+        if len(types) > 1:
+            query = query.filter(models.ExpenseRequest.request_type.in_(types))
+        else:
+            query = query.filter(models.ExpenseRequest.request_type == request_type)
+
     if status:
         statuses = [s.strip() for s in status.split(",")]
         if len(statuses) > 1:
             query = query.filter(models.ExpenseRequest.status.in_(statuses))
         else:
             query = query.filter(models.ExpenseRequest.status == status)
+            
     return query.order_by(models.ExpenseRequest.date.desc()).offset(skip).limit(limit).all()
 
 def count_expenses(
     db: Session,
     project_id: str = None,
     status: str = None,
-    user_id: str = None
+    user_id: str = None,
+    request_type: str = None,
+    branch: str = None,
+    team: str = None
 ) -> int:
     """Считает количество заявок по тем же фильтрам что get_expenses."""
     query = db.query(models.ExpenseRequest)
+
+    if branch or team:
+        query = query.join(models.TeamMember, models.ExpenseRequest.created_by_id == models.TeamMember.id)
+        if branch:
+            query = query.filter(models.TeamMember.branch == branch)
+        if team:
+            query = query.filter(models.TeamMember.team == team)
 
     if user_id:
         query = query.filter(models.ExpenseRequest.created_by_id == user_id)
     if project_id:
         query = query.filter(models.ExpenseRequest.project_id == project_id)
+    if request_type:
+        types = [t.strip() for t in request_type.split(",")]
+        if len(types) > 1:
+            query = query.filter(models.ExpenseRequest.request_type.in_(types))
+        else:
+            query = query.filter(models.ExpenseRequest.request_type == request_type)
     if status:
         statuses = [s.strip() for s in status.split(",")]
         if len(statuses) > 1:

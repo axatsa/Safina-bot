@@ -55,14 +55,38 @@ router = APIRouter(prefix="/expenses", tags=["expenses"])
 def read_expenses(
     project: str = None,
     status: str = None,
+    user_id: str = None,
+    request_type: str = None,
+    branch: str = None,
+    team: str = None,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=5000),
     db: Session = Depends(database.get_db),
     current_user: models.TeamMember = Depends(auth.get_current_user)
 ):
-    user_id = None if auth.is_admin(current_user) else current_user.id
-    items = crud.get_expenses(db, project_id=project, status=status, user_id=user_id, skip=skip, limit=limit)
-    total = crud.count_expenses(db, project_id=project, status=status, user_id=user_id)
+    # Если зашел не админ, он видит только свои заявки
+    effective_user_id = user_id if auth.is_admin(current_user) else current_user.id
+    
+    items = crud.get_expenses(
+        db, 
+        project_id=project, 
+        status=status, 
+        user_id=effective_user_id, 
+        request_type=request_type,
+        branch=branch,
+        team=team,
+        skip=skip, 
+        limit=limit
+    )
+    total = crud.count_expenses(
+        db, 
+        project_id=project, 
+        status=status, 
+        user_id=effective_user_id,
+        request_type=request_type,
+        branch=branch,
+        team=team
+    )
     
     return {
         "items": items,
@@ -578,29 +602,55 @@ def update_internal_comment(expense_id: str, update: schemas.InternalCommentUpda
     return {"status": "success"}
 
 @router.get("/export")
-def export_expenses(project: str = None, user_id: str = None, from_date: str = None, to_date: str = None, allStatuses: bool = False, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    query = db.query(models.ExpenseRequest)
+def export_expenses(
+    project: str = None, 
+    user_id: str = None, 
+    from_date: str = None, 
+    to_date: str = None, 
+    allStatuses: bool = False, 
+    request_type: str = None,
+    branch: str = None,
+    team: str = None,
+    db: Session = Depends(database.get_db), 
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
+    # Если фильтры не заданы вообще (пустой запрос из "Возвратов"),
+    # то по умолчанию отдаем все возвраты (включая архивные)
+    active_filters = any([project, user_id, from_date, to_date, branch, team, request_type])
     
-    # Ограничение по пользователю
-    is_admin = auth.is_admin(current_user)
-    if not is_admin:
-        query = query.filter(models.ExpenseRequest.created_by_id == current_user.id)
-    elif user_id:
-        query = query.filter(models.ExpenseRequest.created_by_id == user_id)
-
-    if project:
-        query = query.filter(models.ExpenseRequest.project_id == project)
-
-    # Фильтр статусов: pending_* и archived никогда не попадают в экспорт
-    if allStatuses:
-        query = query.filter(~models.ExpenseRequest.status.in_(list(EXCLUDED_FROM_EXPORT)))
-    else:
-        query = query.filter(models.ExpenseRequest.status.in_(EXPORTABLE_STATUSES))
+    if not active_filters:
+        # Режим "по умолчанию" для раздела возвратов
+        request_type = "refund,blank_refund"
+        allStatuses = True
     
+    # Результирующий статус
+    final_status = None
+    if not allStatuses:
+        final_status = ",".join(EXPORTABLE_STATUSES)
+    elif active_filters:
+        # Если "все статусы" выбраны явно с фильтрами, исключаем только черновики
+        # Но для режима "по умолчанию" (выше) мы оставили final_status = None (все)
+        pass
+
+    # Права доступа
+    effective_user_id = user_id if auth.is_admin(current_user) else current_user.id
+    
+    expenses = crud.get_expenses(
+        db,
+        project_id=project,
+        user_id=effective_user_id,
+        status=final_status,
+        request_type=request_type,
+        branch=branch,
+        team=team,
+        limit=5000 # Лимит для экспорта
+    )
+
+    # Дальнейшая фильтрация по датам (т.к. в CRUD пока нет фильтра по датам)
     if from_date:
         try:
             from_dt = datetime.datetime.fromisoformat(from_date.replace("Z", "+00:00"))
-            query = query.filter(models.ExpenseRequest.date >= from_dt)
+            expenses = [e for e in expenses if e.date >= from_dt]
         except ValueError:
             pass
     if to_date:
@@ -609,11 +659,9 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
                 to_dt = datetime.datetime.fromisoformat(to_date) + datetime.timedelta(days=1)
             else:
                 to_dt = datetime.datetime.fromisoformat(to_date.replace("Z", "+00:00"))
-            query = query.filter(models.ExpenseRequest.date <= to_dt)
+            expenses = [e for e in expenses if e.date <= to_dt]
         except ValueError:
             pass
-        
-    expenses = query.all()
     
     output = io.StringIO()
     writer = csv.writer(output)
@@ -671,30 +719,47 @@ def export_expenses(project: str = None, user_id: str = None, from_date: str = N
     )
 
 @router.get("/export-xlsx")
-def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: str = None, to_date: str = None, allStatuses: bool = False, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+def export_expenses_xlsx(
+    project: str = None, 
+    user_id: str = None, 
+    from_date: str = None, 
+    to_date: str = None, 
+    allStatuses: bool = False, 
+    request_type: str = None,
+    branch: str = None,
+    team: str = None,
+    db: Session = Depends(database.get_db), 
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
     from app.services.analytics import export as export_service
     
-    query = db.query(models.ExpenseRequest)
+    # Аналогичная логика "по умолчанию"
+    active_filters = any([project, user_id, from_date, to_date, branch, team, request_type])
+    if not active_filters:
+        request_type = "refund,blank_refund"
+        allStatuses = True
     
-    is_admin = auth.is_admin(current_user)
-    if not is_admin:
-        query = query.filter(models.ExpenseRequest.created_by_id == current_user.id)
-    elif user_id:
-        query = query.filter(models.ExpenseRequest.created_by_id == user_id)
+    final_status = None
+    if not allStatuses:
+        final_status = ",".join(EXPORTABLE_STATUSES)
 
-    if project:
-        query = query.filter(models.ExpenseRequest.project_id == project)
-
-    # Фильтр статусов: pending_* и archived никогда не попадают в экспорт
-    if allStatuses:
-        query = query.filter(~models.ExpenseRequest.status.in_(list(EXCLUDED_FROM_EXPORT)))
-    else:
-        query = query.filter(models.ExpenseRequest.status.in_(EXPORTABLE_STATUSES))
+    effective_user_id = user_id if auth.is_admin(current_user) else current_user.id
     
+    expenses = crud.get_expenses(
+        db,
+        project_id=project,
+        user_id=effective_user_id,
+        status=final_status,
+        request_type=request_type,
+        branch=branch,
+        team=team,
+        limit=5000
+    )
+
     if from_date:
         try:
             from_dt = datetime.datetime.fromisoformat(from_date.replace("Z", "+00:00"))
-            query = query.filter(models.ExpenseRequest.date >= from_dt)
+            expenses = [e for e in expenses if e.date >= from_dt]
         except ValueError:
             pass
     if to_date:
@@ -703,11 +768,9 @@ def export_expenses_xlsx(project: str = None, user_id: str = None, from_date: st
                 to_dt = datetime.datetime.fromisoformat(to_date) + datetime.timedelta(days=1)
             else:
                 to_dt = datetime.datetime.fromisoformat(to_date.replace("Z", "+00:00"))
-            query = query.filter(models.ExpenseRequest.date <= to_dt)
+            expenses = [e for e in expenses if e.date <= to_dt]
         except ValueError:
             pass
-        
-    expenses = query.all()
     output = export_service.generate_expenses_xlsx(expenses)
     
     filename = f"expenses_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
