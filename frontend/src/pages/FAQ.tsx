@@ -223,7 +223,67 @@ const FAQ = () => {
           </AccordionContent>
         </AccordionItem>
 
-        {/* 4. Как проходит процесс */}
+        {/* 4. Выгрузка отчетов и фильтры */}
+        <AccordionItem value="reports" className="border-0 rounded-3xl px-6 bg-card/50 backdrop-blur-md shadow-sm border border-white/10">
+          <AccordionTrigger className="hover:no-underline py-8">
+            <div className="flex items-center gap-5 text-left">
+              <div className="p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 shadow-inner">
+                <BarChart3 className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-bold text-xl tracking-tight">Выгрузка отчетов и фильтры</p>
+                <p className="text-sm font-normal text-muted-foreground">Как правильно пользоваться кнопкой «Скачать расходы»</p>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pb-8 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-2">
+              <div className="space-y-4">
+                <h4 className="font-bold text-md flex items-center gap-2 text-foreground">
+                  <Download className="w-4 h-4 text-emerald-600" /> Общие отчеты (Excel / CSV)
+                </h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  При нажатии «Скачать расходы» система генерирует таблицу со всеми деталями. Если фильтры (Проект, Сотрудник, Даты) <strong>пустые</strong> — скачается вся база за всё время.
+                </p>
+                <ul className="space-y-3">
+                  <li className="flex gap-3 text-sm items-start">
+                    <div className="mt-1 p-1 bg-emerald-500/20 rounded text-emerald-600"><CheckIcon size={12} /></div>
+                    <span><strong className="text-foreground">Детализация:</strong> Каждая позиция товара или услуги идет отдельной строкой.</span>
+                  </li>
+                  <li className="flex gap-3 text-sm items-start">
+                    <div className="mt-1 p-1 bg-emerald-500/20 rounded text-emerald-600"><CheckIcon size={12} /></div>
+                    <span><strong className="text-foreground">Курсы валют:</strong> Суммы переводятся в сумы (UZS) по курсу <strong>на день подачи заявки</strong>.</span>
+                  </li>
+                  <li className="flex gap-3 text-sm items-start">
+                    <div className="mt-1 p-1 bg-emerald-500/20 rounded text-emerald-600"><CheckIcon size={12} /></div>
+                    <span><strong className="text-foreground">Итоговые суммы:</strong> В Excel уже встроены формулы суммы — при правке файла итог пересчитается сам.</span>
+                  </li>
+                </ul>
+              </div>
+              <div className="bg-muted/30 p-5 rounded-2xl border border-dashed border-muted-foreground/20 space-y-4">
+                <h4 className="font-bold text-sm">Фильтрация по статусам</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  По умолчанию скачиваются только «финальные» заявки (Подтвержденные, Одобренные). Те, что сейчас на подписи у CEO/CFO, не попадают в отчет, чтобы не путать баланс.
+                </p>
+                <div className="p-3 bg-background rounded-xl border text-xs space-y-2">
+                  <p className="font-bold text-primary flex items-center gap-1"><Lightbulb size={12} /> Совет:</p>
+                  <p>Хотите выгрузить абсолютно всё (включая архив)? Поставьте галочку <strong>«Все статусы»</strong>.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6 p-4 bg-orange-500/5 rounded-2xl border border-orange-500/10">
+              <h4 className="font-bold text-sm text-orange-800 dark:text-orange-400 mb-2 flex items-center gap-2">
+                <FileText className="w-4 h-4" /> Официальные документы (Word)
+              </h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Кнопки скачивания в самой заявке формируют готовые сметы и заявления. Система сама выбирает нужный бланк (School/LAND) и вписывает все фамилии директоров и ответственных.
+              </p>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* 5. Как проходит процесс */}
         <AccordionItem value="flow" className="border-0 rounded-3xl px-6 bg-card/50 backdrop-blur-md shadow-sm border border-white/10">
           <AccordionTrigger className="hover:no-underline py-8">
             <div className="flex items-center gap-5 text-left">
