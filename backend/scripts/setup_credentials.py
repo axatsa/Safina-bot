@@ -53,4 +53,20 @@ if __name__ == "__main__":
     print(f"Логин: farrukh")
     print(f"Пароль: {sf_pass}")
     print("="*50 + "\n")
-    print("Подсказка: Для применения учетных данных Старшего Финансиста, перезапустите приложение (seed.py обновит базу данных).")
+    
+    # Теперь запускаем наполнение базы данных
+    print("Запуск наполнения базы данных тестовыми данными...")
+    import sys
+    sys.path.append(base_dir)
+    
+    try:
+        from populate_test_data import populate_test_data
+        populate_test_data()
+        print("\n" + "="*50)
+        print("БАЗА ДАННЫХ УСПЕШНО НАПОЛНЕНА ПОЛНЫМИ ТЕСТОВЫМИ ДАННЫМИ")
+        print("="*50)
+    except Exception as e:
+        print(f"Ошибка при наполнении базы данных: {e}")
+        print("Вы можете запустить наполнение вручную: python populate_test_data.py")
+
+    print("\nПодсказка: Для применения новых учетных данных, перезапустите приложение.")

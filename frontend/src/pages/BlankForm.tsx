@@ -66,6 +66,18 @@ const BlankForm = () => {
     setItems(newItems);
   };
 
+  const handleAmountChange = (index: number, val: string) => {
+    const digits = val.replace(/\D/g, "");
+    const num = digits === "" ? 0 : parseInt(digits, 10);
+    updateItem(index, "amount", num);
+  };
+
+  const handleRefundAmountChange = (val: string) => {
+    const digits = val.replace(/\D/g, "");
+    const num = digits === "" ? 0 : parseInt(digits, 10);
+    setRefundData({ ...refundData, amount: num });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -208,9 +220,11 @@ const BlankForm = () => {
                           <div className="space-y-1">
                             <Label className="text-xs">Сумма</Label>
                             <Input
-                              type="number"
-                              value={item.amount}
-                              onChange={(e) => updateItem(index, "amount", Number(e.target.value))}
+                              type="text"
+                              inputMode="numeric"
+                              value={item.amount === 0 ? "" : item.amount.toLocaleString("ru-RU")}
+                              onChange={(e) => handleAmountChange(index, e.target.value)}
+                              placeholder="0"
                             />
                           </div>
                           <div className="space-y-1">
@@ -305,7 +319,13 @@ const BlankForm = () => {
                 )}
                 <div className="space-y-2">
                   <Label>Сумма цифрами</Label>
-                  <Input inputMode="numeric" type="number" min="1" value={refundData.amount || ""} onChange={(e) => setRefundData({...refundData, amount: Number(e.target.value)})} placeholder="1000000" />
+                  <Input 
+                    type="text"
+                    inputMode="numeric" 
+                    value={refundData.amount === 0 ? "" : refundData.amount.toLocaleString("ru-RU")} 
+                    onChange={(e) => handleRefundAmountChange(e.target.value)} 
+                    placeholder="1 000 000" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Сумма прописью</Label>
