@@ -26,7 +26,7 @@ const AppSidebar = () => {
 
   const menuItems = [
     { title: "Заявки", url: "/dashboard/applications", icon: ClipboardList, show: true },
-    { title: "Новая заявка", url: "/submit", icon: Send, show: true },
+    { title: "Новая заявка", url: "/submit", icon: Send, show: false },
     { 
       title: "Очередь обработки", 
       url: "/dashboard/admin-approvals", 
@@ -56,7 +56,7 @@ const AppSidebar = () => {
       </div>
 
       <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-        {menuItems.map((item) => (
+        {menuItems.filter(item => item.show).map((item) => (
           <NavLink
             key={item.url}
             to={item.url}
