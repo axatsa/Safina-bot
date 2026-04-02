@@ -1,417 +1,263 @@
-import { 
-  HelpCircle, 
-  BookOpen, 
-  Bot, 
-  Monitor, 
-  Lightbulb, 
-  FileText, 
-  BarChart3, 
-  DollarSign, 
-  AlertTriangle,
-  ArrowRight,
-  ShieldCheck,
-  Download,
-  Calendar,
-  Layers,
-  Users,
-  Workflow,
-  Cpu,
-  Code2,
-  ExternalLink
-} from "lucide-react";
-import { 
-  Accordion, 
-  AccordionContent, 
-  AccordionItem, 
-  AccordionTrigger 
-} from "@/components/ui/accordion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import React from "react";
+import { ExternalLink, CheckSquare, Settings, FileText, Download, Activity, Key, Users } from "lucide-react";
 
 const FAQ = () => {
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-12 animate-fade-in pb-20">
-      {/* Шапка (Header) */}
-      <div className="text-center space-y-4 relative py-10">
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/5 to-transparent rounded-3xl blur-3xl opacity-50" />
-        <div className="inline-flex items-center justify-center p-4 bg-primary/10 rounded-3xl mb-4 backdrop-blur-sm border border-primary/20 shadow-lg animate-float">
-          <BookOpen className="w-10 h-10 text-primary" />
+    <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-10 p-6 lg:p-12 pb-24 animate-fade-in relative items-start">
+      {/* Table of Contents - Sidebar */}
+      <aside className="w-full md:w-72 shrink-0 md:sticky md:top-24 bg-card border rounded-xl shadow-sm p-6">
+        <h2 className="text-lg font-bold border-b pb-4 mb-4 text-foreground tracking-tight">
+          Содержание
+        </h2>
+        <nav className="flex flex-col space-y-1 text-sm font-medium text-muted-foreground">
+          <a href="#purpose" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight">
+            1. Назначение системы
+          </a>
+          <a href="#roles" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight">
+            2. Роли и уровни доступа
+          </a>
+          <a href="#automation" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight">
+            3. Автоматизация документов
+          </a>
+          <a href="#reports" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight">
+            4. Выгрузка отчетов и фильтры
+          </a>
+          <a href="#flow" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight">
+            5. Путь заявки
+          </a>
+          <a href="#statuses" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight">
+            6. Статусы: правила и переходы
+          </a>
+          <a href="#best-practices" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight">
+            7. Золотые правила бухгалтера
+          </a>
+          <a href="#developers" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight">
+            8. Технический раздел
+          </a>
+        </nav>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 min-w-0">
+        <div className="mb-14 border-b pb-10">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-4">
+            Руководство пользователя
+          </h1>
+          <p className="text-xl text-muted-foreground leading-relaxed">
+            Официальная инструкция по работе с системой заявок Thompson Finance (Safina). Разработано для финансистов, руководителей и инициаторов.
+          </p>
         </div>
-        <h1 className="text-5xl font-display font-bold text-foreground tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-          База знаний и FAQ
-        </h1>
-        <p className="text-muted-foreground text-xl max-w-2xl mx-auto leading-relaxed">
-          Подробное руководство по системе Thompson Finance / Safina для финансистов и администрации.
-        </p>
-      </div>
 
-      {/* Обзор системы (Core Systems Overview) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="glass-card overflow-hidden group hover:border-primary/50 transition-all duration-300">
-          <CardHeader className="pb-2 space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
-              <Bot className="w-6 h-6 text-indigo-600" />
+        <div className="space-y-16">
+          {/* Section 1 */}
+          <section id="purpose" className="scroll-mt-32 space-y-6">
+            <h2 className="text-2xl font-bold text-foreground border-b pb-2">
+              1. Назначение системы
+            </h2>
+            <div className="text-foreground/80 leading-relaxed space-y-4">
+              <p>Платформа создана для замены бумажной волокиты и хаоса в рабочих чатах. Система стандартизирует и автоматизирует три ключевых направления:</p>
+              <ul className="list-disc pl-6 space-y-2 mt-2">
+                <li><strong>Контроль расходов:</strong> Многоуровневое согласование, исключающее ошибки (Сотрудник → На рассмотрении → CFO → CEO).</li>
+                <li><strong>Управление возвратами:</strong> Визуальная Канбан-доска для отслеживания движения денег клиентов на каждом этапе.</li>
+                <li><strong>Авто-документы:</strong> Автоматическая генерация файлов Word/Excel (заявления, сметы) на основе введённых данных.</li>
+              </ul>
+              <h3 className="font-semibold text-lg mt-6 mb-2">Архитектура простыми словами</h3>
+              <p>Система состоит из единой защищенной <strong>Базы данных</strong>, интегрированной с двумя интерфейсами: Telegram-ботом (для быстрой подачи заявок «в полях») и Веб-панелью (для контроля, утверждения и детального анализа).</p>
             </div>
-            <CardTitle className="text-lg font-bold">Бот @safina_expense_bot</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground leading-relaxed">
-            Мобильный пульт управления для сотрудников «в полях». Используется для подачи заявок, мгновенных уведомлений и быстрых одобрений.
-          </CardContent>
-          <div className="h-1 bg-indigo-500/20 w-full mt-4" />
-        </Card>
-        
-        <Card className="glass-card overflow-hidden group hover:border-primary/50 transition-all duration-300">
-          <CardHeader className="pb-2 space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
-              <Monitor className="w-6 h-6 text-emerald-600" />
-            </div>
-            <CardTitle className="text-lg font-bold">Веб-панель (Админка)</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground leading-relaxed">
-            Полноценный рабочий стол для глубокого анализа, работы с большими таблицами, архивом и финансовыми отчетами.
-          </CardContent>
-          <div className="h-1 bg-emerald-500/20 w-full mt-4" />
-        </Card>
+          </section>
 
-        <Card className="glass-card overflow-hidden group hover:border-primary/50 transition-all duration-300">
-          <CardHeader className="pb-2 space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
-              <ShieldCheck className="w-6 h-6 text-amber-600" />
+          {/* Section 2 */}
+          <section id="roles" className="scroll-mt-32 space-y-6">
+            <h2 className="text-2xl font-bold text-foreground border-b pb-2">
+              2. Роли и уровни доступа
+            </h2>
+            <div className="text-foreground/80 leading-relaxed overflow-hidden border rounded-lg">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-muted text-muted-foreground">
+                  <tr>
+                    <th className="px-5 py-3 font-medium">Роль</th>
+                    <th className="px-5 py-3 font-medium">Пример должности</th>
+                    <th className="px-5 py-3 font-medium">Зона ответственности</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  <tr className="hover:bg-muted/30">
+                    <td className="px-5 py-4 font-semibold">Инициатор</td>
+                    <td className="px-5 py-4 text-muted-foreground">Сотрудник филиала</td>
+                    <td className="px-5 py-4">Создает заявки на расходы или возвраты через бот. Видит только свои заявки.</td>
+                  </tr>
+                  <tr className="hover:bg-muted/30">
+                    <td className="px-5 py-4 font-semibold">Финансист (CFO)</td>
+                    <td className="px-5 py-4 text-muted-foreground">Главный бухгалтер</td>
+                    <td className="px-5 py-4">Осуществляет первый этап проверки: контроль лимитов, ведение учета, выгрузка сводных отчетов.</td>
+                  </tr>
+                  <tr className="hover:bg-muted/30">
+                    <td className="px-5 py-4 font-semibold">Директор (Admin/CEO)</td>
+                    <td className="px-5 py-4 text-muted-foreground">Руководитель сети</td>
+                    <td className="px-5 py-4">Финальное согласование выплат. Имеет полный доступ ко всем настройкам, правам сотрудников и аналитике.</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-            <CardTitle className="text-lg font-bold">Прозрачность и Учет</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground leading-relaxed">
-            Каждое действие записывается в «Историю» (Timeline) с цифровой подписью. Ни одно решение не останется незамеченным.
-          </CardContent>
-          <div className="h-1 bg-amber-500/20 w-full mt-4" />
-        </Card>
-      </div>
+          </section>
 
-      <Accordion type="single" collapsible className="w-full space-y-6">
-        
-        {/* 1. Назначение системы */}
-        <AccordionItem value="purpose" className="border-0 rounded-3xl px-6 bg-card/50 backdrop-blur-md shadow-sm border border-white/10">
-          <AccordionTrigger className="hover:no-underline py-8">
-            <div className="flex items-center gap-5 text-left">
-              <div className="p-3 bg-blue-500/10 rounded-2xl border border-blue-500/20 shadow-inner">
-                <Layers className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-bold text-xl tracking-tight">Зачем нужна эта система?</p>
-                <p className="text-sm font-normal text-muted-foreground">Основные задачи и преимущества</p>
-              </div>
+          {/* Section 3 */}
+          <section id="automation" className="scroll-mt-32 space-y-6">
+            <h2 className="text-2xl font-bold text-foreground border-b pb-2">
+              3. Автоматизация документов
+            </h2>
+            <div className="text-foreground/80 leading-relaxed space-y-4">
+              <h3 className="font-semibold text-lg">Сбор данных (Бот)</h3>
+              <p>Telegram-бот опрашивает сотрудника шаг за шагом. Как только ввод всей необходимой информации завершён, данные мгновенно отправляются на сервер, исключая потерю сообщений.</p>
+              
+              <h3 className="font-semibold text-lg mt-4">Генерация файлов (Веб-панель)</h3>
+              <p>Система автоматически берёт готовые утверждённые шаблоны Word и заполняет их введенными данными. Готовые документы (.docx с подставленными фамилиями и суммами) можно скачать двумя кликами прямо из интерфейса заявки.</p>
             </div>
-          </AccordionTrigger>
-          <AccordionContent className="pb-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-2">
-              <div className="space-y-4">
-                <h4 className="font-bold text-md flex items-center gap-2 text-foreground">
-                  <Workflow className="w-4 h-4 text-blue-600" /> Единый рабочий процесс
-                </h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Платформа заменяет бумажную волокиту и хаос в чатах тремя ключевыми решениями:
-                </p>
-                <ul className="space-y-3">
-                  <li className="flex gap-3 text-sm items-start">
-                    <div className="mt-1 p-1 bg-blue-500/20 rounded text-blue-600"><CheckIcon size={12} /></div>
-                    <span><strong className="text-foreground">Контроль расходов:</strong> Двухэтапное согласование (Финдиректор → Директор) исключает ошибки.</span>
-                  </li>
-                  <li className="flex gap-3 text-sm items-start">
-                    <div className="mt-1 p-1 bg-blue-500/20 rounded text-blue-600"><CheckIcon size={12} /></div>
-                    <span><strong className="text-foreground">Управление возвратами:</strong> Простая доска (Канбан) для контроля денег клиентов на каждом этапе.</span>
-                  </li>
-                  <li className="flex gap-3 text-sm items-start">
-                    <div className="mt-1 p-1 bg-blue-500/20 rounded text-blue-600"><CheckIcon size={12} /></div>
-                    <span><strong className="text-foreground">Авто-документы:</strong> Система сама создает Word и Excel файлы на основе введенных данных.</span>
-                  </li>
+          </section>
+
+          {/* Section 4 */}
+          <section id="reports" className="scroll-mt-32 space-y-6">
+            <h2 className="text-2xl font-bold text-foreground border-b pb-2">
+              4. Выгрузка отчетов и фильтры
+            </h2>
+            <div className="text-foreground/80 leading-relaxed space-y-4">
+              <p>Функция <strong>«Скачать расходы»</strong> собирает все заявки, соответствующие текущим фильтрам интерфейса.</p>
+              
+              <div className="bg-muted/30 border rounded-lg p-5 mt-4 space-y-3">
+                <h4 className="font-semibold">Правила работы выгрузки (Excel/CSV):</h4>
+                <ul className="list-disc pl-5 space-y-1 text-sm">
+                  <li>Без фильтров: скачивается вся база за всё время (возможно ограничение до 5000 строк).</li>
+                  <li>Детализация: каждая затрата (позиция, количество) идёт отдельной строкой.</li>
+                  <li>Курсы валют: иностранные валюты автоматически конвертируются в UZS по курсу на день подачи заявки.</li>
+                  <li>Фильтрация статусов: по умолчанию скачиваются только <em>финальные</em> статусы (Одобрено, Подтверждено), чтобы не искажать текущий баланс ожидаемыми выплатами. Для полной выгрузки выберите параметр «Все статусы».</li>
                 </ul>
               </div>
-              <div className="bg-muted/30 p-5 rounded-2xl border border-dashed border-muted-foreground/20">
-                <h4 className="font-bold text-sm mb-3">Простыми словами об устройстве</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                  Система состоит из «мозга» (сервера), который хранит все данные, и двух «рук»: Телеграм-бота для быстрой работы и Веб-панели для детального анализа.
-                </p>
-                <div className="space-y-3 text-xs text-muted-foreground font-mono">
-                  <div className="flex justify-between items-center bg-background/50 p-2 rounded border">
-                    <span>Сайт</span>
-                    <Badge variant="outline" className="text-[10px]">Удобный интерфейс</Badge>
-                  </div>
-                  <div className="flex justify-between items-center bg-background/50 p-2 rounded border">
-                    <span>База данных</span>
-                    <Badge variant="outline" className="text-[10px]">Надежное хранение</Badge>
-                  </div>
-                  <div className="flex justify-between items-center bg-background/50 p-2 rounded border">
-                    <span>Синхронизация</span>
-                    <Badge variant="outline" className="text-[10px]">Мгновенно везде</Badge>
+            </div>
+          </section>
+
+          {/* Section 5 */}
+          <section id="flow" className="scroll-mt-32 space-y-6">
+            <h2 className="text-2xl font-bold text-foreground border-b pb-2">
+              5. Путь заявки (от создания до оплаты)
+            </h2>
+            <div className="text-foreground/80 leading-relaxed">
+              <div className="space-y-6 pl-2">
+                <div className="flex gap-4 relative">
+                  <div className="w-8 h-8 shrink-0 bg-primary/10 text-primary border border-primary/20 rounded-full flex items-center justify-center font-bold font-mono">1</div>
+                  <div className="pb-6">
+                    <h4 className="font-bold text-foreground">Подача</h4>
+                    <p className="text-sm mt-1 text-muted-foreground">Инициатор заполняет все поля в интерфейсе бота или на сайте. Заявка создается в статусе «Запрос».</p>
                   </div>
                 </div>
-              </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        {/* 2. Роли и доступы */}
-        <AccordionItem value="roles" className="border-0 rounded-3xl px-6 bg-card/50 backdrop-blur-md shadow-sm border border-white/10">
-          <AccordionTrigger className="hover:no-underline py-8">
-            <div className="flex items-center gap-5 text-left">
-              <div className="p-3 bg-purple-500/10 rounded-2xl border border-purple-500/20 shadow-inner">
-                <Users className="w-6 h-6 text-purple-600" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-bold text-xl tracking-tight">Кто и что делает в системе?</p>
-                <p className="text-sm font-normal text-muted-foreground">Роли пользователей и уровни доступа</p>
-              </div>
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="pb-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 border rounded-2xl bg-gradient-to-br from-background to-blue-50/20">
-                <Badge className="mb-2 bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/10">Инициатор</Badge>
-                <p className="text-sm font-bold mb-1">Сотрудник филиала</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">Создает заявки на расходы или возвраты через Телеграм-бота.</p>
-              </div>
-              <div className="p-4 border rounded-2xl bg-gradient-to-br from-background to-purple-50/20">
-                <Badge className="mb-2 bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/10">Финансист / CFO</Badge>
-                <p className="text-sm font-bold mb-1">Бухгалтерия</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">Первый этап проверки. Видит все цифры, ведет учет и выгружает отчеты.</p>
-              </div>
-              <div className="p-4 border rounded-2xl bg-gradient-to-br from-background to-amber-50/20">
-                <Badge className="mb-2 bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/10">Директор / Admin</Badge>
-                <p className="text-sm font-bold mb-1">Руководство</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">Финальное решение. Имеет доступ ко всем настройкам системы.</p>
-              </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        {/* 3. Автоматизация документов */}
-        <AccordionItem value="automation" className="border-0 rounded-3xl px-6 bg-card/50 backdrop-blur-md shadow-sm border border-white/10">
-          <AccordionTrigger className="hover:no-underline py-8">
-            <div className="flex items-center gap-5 text-left">
-              <div className="p-3 bg-orange-500/10 rounded-2xl border border-orange-500/20 shadow-inner">
-                <FileText className="w-6 h-6 text-orange-600" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-bold text-xl tracking-tight">Работа с документами</p>
-                <p className="text-sm font-normal text-muted-foreground">Как создаются Word и Excel отчеты</p>
-              </div>
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="pb-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <h4 className="font-bold text-sm text-foreground">Умные анкеты в боте</h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Бот опрашивает сотрудника шаг за шагом. Как только ввод завершен, система берет готовый шаблон Word и вставляет туда все данные.
-                </p>
-                <div className="p-4 bg-muted/30 rounded-2xl border border-dashed flex flex-col items-center justify-center text-center space-y-2">
-                  <Download className="w-8 h-8 text-muted-foreground/50" />
-                  <p className="text-xs font-medium">Готовые документы сразу доступны для скачивания в админке</p>
+                <div className="flex gap-4 relative">
+                  <div className="w-8 h-8 shrink-0 bg-primary/10 text-primary border border-primary/20 rounded-full flex items-center justify-center font-bold font-mono">2</div>
+                  <div className="pb-6">
+                    <h4 className="font-bold text-foreground">Проверка бухгалтерией</h4>
+                    <p className="text-sm mt-1 text-muted-foreground">Модератор или CFO переводит заявку «На рассмотрение». Запрашиваются уточнения, если требуется.</p>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-4">
-                <h4 className="font-bold text-sm text-foreground">Финансовые отчеты (Excel)</h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  В разделе <strong>«Архив»</strong> вы можете выбрать нужные даты и филиалы, и система за секунду соберет таблицу Excel.
-                </p>
-                <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 text-emerald-800 dark:text-emerald-400">
-                  <p className="text-xs font-bold mb-1 flex items-center gap-1"><ArrowRight size={12} /> Совет для профи:</p>
-                  <p className="text-[11px] leading-relaxed opacity-80">Используйте фильтры по проектам, чтобы увидеть аналитику конкретного филиала перед выгрузкой.</p>
+                <div className="flex gap-4 relative">
+                  <div className="w-8 h-8 shrink-0 bg-primary/10 text-primary border border-primary/20 rounded-full flex items-center justify-center font-bold font-mono">3</div>
+                  <div className="pb-6">
+                    <h4 className="font-bold text-foreground">Согласование (CFO → CEO)</h4>
+                    <p className="text-sm mt-1 text-muted-foreground">Последовательное утверждение финансовым и генеральным директором. Одобряется общая смета и её целесообразность.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4 relative">
+                  <div className="w-8 h-8 shrink-0 bg-primary/10 text-primary border border-primary/20 rounded-full flex items-center justify-center font-bold font-mono">4</div>
+                  <div>
+                    <h4 className="font-bold text-foreground">Выплата и Архивирование</h4>
+                    <p className="text-sm mt-1 text-muted-foreground">Фактическая выплата средств закрепляется статусом «Подтверждено», после чего заявка может быть убрана в Архив.</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </AccordionContent>
-        </AccordionItem>
+          </section>
 
-        {/* 4. Выгрузка отчетов и фильтры */}
-        <AccordionItem value="reports" className="border-0 rounded-3xl px-6 bg-card/50 backdrop-blur-md shadow-sm border border-white/10">
-          <AccordionTrigger className="hover:no-underline py-8">
-            <div className="flex items-center gap-5 text-left">
-              <div className="p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 shadow-inner">
-                <BarChart3 className="w-6 h-6 text-emerald-600" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-bold text-xl tracking-tight">Выгрузка отчетов и фильтры</p>
-                <p className="text-sm font-normal text-muted-foreground">Как правильно пользоваться кнопкой «Скачать расходы»</p>
-              </div>
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="pb-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-2">
-              <div className="space-y-4">
-                <h4 className="font-bold text-md flex items-center gap-2 text-foreground">
-                  <Download className="w-4 h-4 text-emerald-600" /> Общие отчеты (Excel / CSV)
-                </h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  При нажатии «Скачать расходы» система генерирует таблицу со всеми деталями. Если фильтры (Проект, Сотрудник, Даты) <strong>пустые</strong> — скачается вся база за всё время.
-                </p>
-                <ul className="space-y-3">
-                  <li className="flex gap-3 text-sm items-start">
-                    <div className="mt-1 p-1 bg-emerald-500/20 rounded text-emerald-600"><CheckIcon size={12} /></div>
-                    <span><strong className="text-foreground">Детализация:</strong> Каждая позиция товара или услуги идет отдельной строкой.</span>
-                  </li>
-                  <li className="flex gap-3 text-sm items-start">
-                    <div className="mt-1 p-1 bg-emerald-500/20 rounded text-emerald-600"><CheckIcon size={12} /></div>
-                    <span><strong className="text-foreground">Курсы валют:</strong> Суммы переводятся в сумы (UZS) по курсу <strong>на день подачи заявки</strong>.</span>
-                  </li>
-                  <li className="flex gap-3 text-sm items-start">
-                    <div className="mt-1 p-1 bg-emerald-500/20 rounded text-emerald-600"><CheckIcon size={12} /></div>
-                    <span><strong className="text-foreground">Итоговые суммы:</strong> В Excel уже встроены формулы суммы — при правке файла итог пересчитается сам.</span>
-                  </li>
-                </ul>
-              </div>
-              <div className="bg-muted/30 p-5 rounded-2xl border border-dashed border-muted-foreground/20 space-y-4">
-                <h4 className="font-bold text-sm">Фильтрация по статусам</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  По умолчанию скачиваются только «финальные» заявки (Подтвержденные, Одобренные). Те, что сейчас на подписи у CEO/CFO, не попадают в отчет, чтобы не путать баланс.
-                </p>
-                <div className="p-3 bg-background rounded-xl border text-xs space-y-2">
-                  <p className="font-bold text-primary flex items-center gap-1"><Lightbulb size={12} /> Совет:</p>
-                  <p>Хотите выгрузить абсолютно всё (включая архив)? Поставьте галочку <strong>«Все статусы»</strong>.</p>
+          {/* Section 6 */}
+          <section id="statuses" className="scroll-mt-32 space-y-6">
+            <h2 className="text-2xl font-bold text-foreground border-b pb-2">
+              6. Статусы: правила и переходы
+            </h2>
+            <div className="text-foreground/80 leading-relaxed space-y-6">
+              <p>В системе реализована строгая конечная машина состояний. Запрещается переводить заявки в произвольные статусы, нарушающие цепочку согласований.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border rounded-lg p-5">
+                  <h4 className="font-bold border-b pb-2 mb-3">Особые статусы</h4>
+                  <ul className="space-y-4 text-sm">
+                    <li>
+                      <strong className="block mb-1 text-foreground">Архивировано (archived)</strong>
+                      <span className="text-muted-foreground">Скрытие заявки с активных досок. Доступно только из финальных статусов: <em>Подтверждено</em> или <em>Отклонено</em>.</span>
+                    </li>
+                    <li>
+                      <strong className="block mb-1 text-foreground">Возврат на доработку (revision)</strong>
+                      <span className="text-muted-foreground">Возможен возврат из статусов проверки и согласований (вплоть до CEO). Требует <strong>обязательного комментария</strong> с указанием ошибки.</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="border rounded-lg p-5 bg-muted/20">
+                  <h4 className="font-bold border-b pb-2 mb-3">Хронология состояний</h4>
+                  <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+                    <li><strong className="text-foreground">Запрос (request)</strong> — новая заявка.</li>
+                    <li><strong className="text-foreground">На рассмотрении (review)</strong> — заявка взята в работу CFO.</li>
+                    <li><strong className="text-foreground">Согласование CFO (pending_senior)</strong> — запрос на утверждение финансовым директором.</li>
+                    <li><strong className="text-foreground">Согласование CEO (pending_ceo)</strong> — отправлено генеральному директору.</li>
+                    <li><strong className="text-foreground">Подтверждено (confirmed)</strong> / <strong>Отклонено (declined)</strong> — итог.</li>
+                  </ol>
                 </div>
               </div>
             </div>
-            
-            <div className="mt-6 p-4 bg-orange-500/5 rounded-2xl border border-orange-500/10">
-              <h4 className="font-bold text-sm text-orange-800 dark:text-orange-400 mb-2 flex items-center gap-2">
-                <FileText className="w-4 h-4" /> Официальные документы (Word)
-              </h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Кнопки скачивания в самой заявке формируют готовые сметы и заявления. Система сама выбирает нужный бланк (School/LAND) и вписывает все фамилии директоров и ответственных.
-              </p>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
+          </section>
 
-        {/* 5. Как проходит процесс */}
-        <AccordionItem value="flow" className="border-0 rounded-3xl px-6 bg-card/50 backdrop-blur-md shadow-sm border border-white/10">
-          <AccordionTrigger className="hover:no-underline py-8">
-            <div className="flex items-center gap-5 text-left">
-              <div className="p-3 bg-rose-500/10 rounded-2xl border border-rose-500/20 shadow-inner">
-                <Workflow className="w-6 h-6 text-rose-600" />
+          {/* Section 7 */}
+          <section id="best-practices" className="scroll-mt-32 space-y-6">
+            <h2 className="text-2xl font-bold text-foreground border-b pb-2">
+              7. Золотые правила работы (Best Practices)
+            </h2>
+            <div className="text-foreground/80 leading-relaxed grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="border border-primary/10 bg-primary/5 rounded-lg p-5 space-y-2">
+                <h4 className="font-bold text-foreground">Утренний клиринг</h4>
+                <p className="text-sm">Начинайте рабочий день с вкладки заявок. Своевременные переводы заявок в статус «На рассмотрении» успокаивают инициаторов и снижают количество звонков с вопросами.</p>
               </div>
-              <div className="space-y-1">
-                <p className="font-bold text-xl tracking-tight">Путь заявки: От создания до оплаты</p>
-                <p className="text-sm font-normal text-muted-foreground">Пошаговая схема движения данных</p>
+              <div className="border border-primary/10 bg-primary/5 rounded-lg p-5 space-y-2">
+                <h4 className="font-bold text-foreground">Обязательные комментарии</h4>
+                <p className="text-sm">При отклонении (Declined) или возврате на доработку (Revision) пишите развернутую причину. «История статусов» сохраняется навсегда: через год восстановить контекст без комментария будет невозможно.</p>
               </div>
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="pb-8 space-y-4">
-            <div className="relative p-6 bg-muted/20 border-l-2 border-rose-500 rounded-r-2xl space-y-4">
-              <div className="flex gap-4 items-start">
-                <div className="w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">1</div>
-                <div>
-                  <p className="text-sm font-bold">Подача</p>
-                  <p className="text-xs text-muted-foreground italic">Сотрудник вводит данные в бот @safina_expense_bot</p>
-                </div>
+              <div className="border border-primary/10 bg-primary/5 rounded-lg p-5 space-y-2">
+                <h4 className="font-bold text-foreground">Внутренний контекст</h4>
+                <p className="text-sm">Поле «Внутренний контекст» доступно только для администрации. Используйте его для служебных пометок о проекте или клиенте.</p>
               </div>
-              <div className="flex gap-4 items-start">
-                <div className="w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">2</div>
-                <div>
-                  <p className="text-sm font-bold">Доставка</p>
-                  <p className="text-xs text-muted-foreground italic">Система сохраняет заявку и мгновенно «подсвечивает» её в Веб-панели финансиста</p>
-                </div>
-              </div>
-              <div className="flex gap-4 items-start">
-                <div className="w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">3</div>
-                <div>
-                  <p className="text-sm font-bold">Одобрение</p>
-                  <p className="text-xs text-muted-foreground italic">Финансист и Директор нажимают кнопки в админке или боте → сотрудник получает уведомление о результате</p>
-                </div>
+              <div className="border border-primary/10 bg-primary/5 rounded-lg p-5 space-y-2">
+                <h4 className="font-bold text-foreground">Контроль реквизитов</h4>
+                <p className="text-sm">Для возвратов (Blank Refund). Всегда сверяйте фамилии и номера карт. Финансовая ошибка на этапе Подтверждения необратима.</p>
               </div>
             </div>
-          </AccordionContent>
-        </AccordionItem>
+          </section>
 
-      </Accordion>
-
-      {/* Лучшие практики (Best Practices for CFO) */}
-      <div className="glass-card p-10 rounded-[3rem] space-y-8 relative overflow-hidden shadow-xl border border-white/10">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl -mr-32 -mt-32" />
-        <h3 className="text-2xl font-bold flex items-center gap-4">
-          <div className="p-2 bg-amber-500/10 rounded-xl"><Lightbulb className="w-7 h-7 text-amber-500" /></div>
-          Золотые правила для финансистов
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-          <div className="flex gap-5">
-            <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shadow-lg">1</div>
-            <div>
-              <p className="font-bold text-md mb-2 text-foreground">Утренняя проверка</p>
-              <p className="text-sm text-muted-foreground leading-relaxed">Начинайте рабочий день с кнопки «Проверить новые заявки» в боте. Это предотвратит «заторы» в оплатах.</p>
+          {/* Section 8 */}
+          <section id="developers" className="scroll-mt-32 space-y-6">
+            <h2 className="text-2xl font-bold text-foreground border-b pb-2">
+              8. Раздел для разработчиков
+            </h2>
+            <div className="text-foreground/80 leading-relaxed bg-muted/30 p-6 rounded-lg border">
+              <p className="mb-4">Техническая архитектура, скрипты развертывания баз данных, конфигурации CI/CD и API документация вынесены в корпоративную Wiki.</p>
+              <a 
+                href="https://deepwiki.com/axatsa/Safina-bot/1-overview" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 font-semibold text-primary hover:text-primary/80 transition-colors"
+              >
+                Перейти в DeepWiki <ExternalLink size={16} />
+              </a>
             </div>
-          </div>
-          <div className="flex gap-5">
-            <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shadow-lg">2</div>
-            <div>
-              <p className="font-bold text-md mb-2 text-foreground">Комментарии — это след</p>
-              <p className="text-sm text-muted-foreground leading-relaxed">Всегда пишите причину отклонения. Через полгода эти записи помогут вспомнить, почему трата была заблокирована.</p>
-            </div>
-          </div>
-          <div className="flex gap-5">
-            <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shadow-lg">3</div>
-            <div>
-              <p className="font-bold text-md mb-2 text-foreground">Личные заметки (Internal context)</p>
-              <p className="text-sm text-muted-foreground leading-relaxed">Используйте поле «Внутренний контекст» для записей, которые увидите только вы и Директор. Обычный сотрудник их не прочитает.</p>
-            </div>
-          </div>
-          <div className="flex gap-5">
-            <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shadow-lg">4</div>
-            <div>
-              <p className="font-bold text-md mb-2 text-foreground">Проверка реквизитов</p>
-              <p className="text-sm text-muted-foreground leading-relaxed">Для возвратов всегда сверяйте номер карты и ФИО. Ошибка здесь — это реальная потеря денег.</p>
-            </div>
-          </div>
+          </section>
         </div>
-      </div>
 
-      {/* Раздел для разработчиков (Developer Section) */}
-      <div className="p-8 rounded-3xl bg-muted/50 border border-muted-foreground/10 space-y-4">
-        <h4 className="font-bold text-lg flex items-center gap-2 text-foreground/80">
-          <Code2 className="w-5 h-5 text-muted-foreground" /> Для разработчиков и IT
-        </h4>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Если вам нужны технические детали архитектуры, схемы базы данных или инструкции по развертыванию, пожалуйста, обратитесь к официальной документации проекта.
-        </p>
-        <a 
-          href="https://deepwiki.com/axatsa/Safina-bot/1-overview" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline group"
-        >
-          Техническая вики Safina Bot (DeepWiki) <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-        </a>
-      </div>
-      
-      {/* Подвал (Footer) */}
-      <div className="text-center text-muted-foreground text-sm flex flex-col items-center gap-4 border-t pt-10">
-        <p className="font-medium">© 2026 Thompson Finance. Внутренняя документация проекта Safina.</p>
-        <div className="flex items-center gap-6 opacity-60 text-[11px]">
-          <span className="flex items-center gap-2 underline decoration-primary/30 underline-offset-4 tracking-tight">
-            <Calendar className="w-4 h-4" /> Обновлено: 25.03.2026
-          </span>
-          <span className="flex items-center gap-2 font-mono bg-muted px-2 py-1 rounded-full border">
-            Версия системы v3.5-LITE-PRO
-          </span>
-        </div>
-      </div>
+      </main>
     </div>
   );
 };
-
-// Вспомогательный компонент для иконок-галочек
-const CheckIcon = ({ size = 16 }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="3" 
-    strokeLinecap="round" 
-    strokeLinejoin="round"
-  >
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
 
 export default FAQ;
