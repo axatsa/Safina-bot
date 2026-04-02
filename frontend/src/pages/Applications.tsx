@@ -30,7 +30,6 @@ const Applications = () => {
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [collapsedColumns, setCollapsedColumns] = useState<Record<string, boolean>>({});
-  const [viewType, setViewType] = useState<"investments" | "blanks">("investments");
 
   const [skip, setSkip] = useState(0);
   const [allExpenses, setAllExpenses] = useState<ExpenseRequest[]>([]);
@@ -47,7 +46,7 @@ const Applications = () => {
   useEffect(() => {
     setSkip(0);
     setAllExpenses([]);
-  }, [selectedProject, selectedUser, searchQuery, dateRange, viewType]);
+  }, [selectedProject, selectedUser, searchQuery, dateRange]);
 
   // Accumulate items when pages are loaded
   useEffect(() => {
@@ -99,11 +98,6 @@ const Applications = () => {
       
       if (isRefund) return false;
 
-      // Filter by viewType (investments vs blanks)
-      const isBlank = e.requestType === "blank";
-      if (viewType === "investments" && isBlank) return false;
-      if (viewType === "blanks" && !isBlank) return false;
-
       // Project Filter
       if (selectedProject !== "all" && e.projectId !== selectedProject) return false;
 
@@ -132,7 +126,7 @@ const Applications = () => {
 
       return true;
     });
-  }, [allExpenses, selectedProject, selectedUser, dateRange, searchQuery, viewType]);
+  }, [allExpenses, selectedProject, selectedUser, dateRange, searchQuery]);
 
   const toggleColumn = (status: string) => {
     setCollapsedColumns((prev) => ({ ...prev, [status]: !prev[status] }));
@@ -196,20 +190,6 @@ const Applications = () => {
         <div>
           <h1 className="text-2xl font-display font-bold text-foreground">Заявки</h1>
           <p className="text-sm text-muted-foreground mt-1">Управление инвестициями и служебными записками</p>
-        </div>
-        <div className="flex bg-muted p-1 rounded-lg">
-          <button 
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewType === 'investments' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-            onClick={() => setViewType('investments')}
-          >
-            Инвестиции
-          </button>
-          <button 
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewType === 'blanks' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-            onClick={() => setViewType('blanks')}
-          >
-            Служебные записки
-          </button>
         </div>
       </div>
 
