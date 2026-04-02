@@ -34,6 +34,12 @@ const FAQ = () => {
           <a href="#developers" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight">
             8. Технический раздел
           </a>
+          <a href="#faq-users" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight">
+            9. Инициаторам (Частые вопросы)
+          </a>
+          <a href="#faq-finance" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight">
+            10. Финансистам (FAQ)
+          </a>
         </nav>
       </aside>
 
@@ -98,6 +104,20 @@ const FAQ = () => {
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            <div className="text-foreground/80 leading-relaxed bg-muted/20 border rounded-lg p-5 space-y-3 mt-6">
+              <h3 className="font-bold text-lg border-b pb-2 mb-2">Увольнение и деактивация сотрудников</h3>
+              <p>В системе <strong>не предусмотрено полное удаление пользователей</strong> из базы данных. Вместо этого применяется «мягкое удаление» (деактивация) — профиль просто переводится в статус «Заблокирован» без возможности входа.</p>
+              
+              <h4 className="font-semibold text-foreground mt-4">Зачем это нужно? (Пример с бухгалтерской книгой)</h4>
+              <p className="text-sm">Если полностью удалить-стереть уволившегося сотрудника, то все его старые заявки и утвержденные расходы останутся без автора. Возникнет ситуация, когда финансовый отчет есть, заявка оплачена, а кто ее создал — неизвестно, либо на этом месте будет ошибка. Это нарушит целостность учета.</p>
+              
+              <ul className="list-disc pl-5 space-y-2 text-sm mt-3 text-muted-foreground">
+                <li><strong className="text-foreground">Безопасность:</strong> Заблокированный сотрудник мгновенно теряет всякий доступ (как в Telegram-бота, так и в веб-панель).</li>
+                <li><strong className="text-foreground">Идеальный порядок:</strong> Через год вы сможете поднять архивы и увидеть всю хронологию: этот чек прикрепил Иван, который уже у нас не работает.</li>
+                <li><strong className="text-foreground">Работа без сбоев:</strong> Приложение работает стабильно, потому что все исторические связи данных остаются целыми.</li>
+              </ul>
             </div>
           </section>
 
@@ -253,6 +273,97 @@ const FAQ = () => {
               </a>
             </div>
           </section>
+
+          {/* Section 9 */}
+          <section id="faq-users" className="scroll-mt-32 space-y-6">
+            <h2 className="text-2xl font-bold text-foreground border-b pb-2">
+              9. Инициаторам (Частые вопросы)
+            </h2>
+            <div className="text-foreground/80 leading-relaxed space-y-6">
+              
+              <div className="border rounded-lg p-5">
+                <h3 className="font-bold text-lg mb-2 text-foreground">1. Как подать заявку через Telegram-бот?</h3>
+                <p className="mb-2">Используйте корпоративного Telegram-бота для создания заявок.</p>
+                <ol className="list-decimal pl-5 space-y-1 text-sm text-muted-foreground">
+                  <li>Нажмите <strong>Start</strong> (или <code>/start</code>).</li>
+                  <li>Выберите <strong>«Создать заявку»</strong>.</li>
+                  <li>Выберите тип: <em>Расход</em> (покупка) или <em>Возврат</em> (деньги клиенту).</li>
+                  <li><strong>Опишите конкретно:</strong> например, "Оплата интернета UzTelecom за май для филиала Дружба".</li>
+                  <li>Введите сумму и выберите валюту (UZS, USD, RUB).</li>
+                  <li><strong className="text-foreground">ОБЯЗАТЕЛЬНО:</strong> Прикрепите фото чека или счет-фактуры.</li>
+                </ol>
+              </div>
+
+              <div className="border rounded-lg p-5">
+                <h3 className="font-bold text-lg mb-2 text-foreground">2. Ошибся в заявке. Что делать?</h3>
+                <p className="text-sm mb-2">Самостоятельно удалить заявку нельзя. Не создавайте вторую такую же (дубликат)!</p>
+                <ol className="list-decimal pl-5 space-y-1 text-sm text-muted-foreground">
+                  <li>Назовите номер заявки (например, REQ-145) финансисту в чате.</li>
+                  <li>Попросите вернуть заявку в статус <strong>«На доработку» (Revision)</strong>.</li>
+                  <li>Затем внесите изменения и снова отправьте на проверку.</li>
+                </ol>
+              </div>
+
+              <div className="border rounded-lg p-5">
+                <h3 className="font-bold text-lg mb-2 text-foreground">3. Оформление Возвратов клиентам (Refund)</h3>
+                <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
+                  <li>При выборе типа всегда выбирайте <strong>Возврат</strong>.</li>
+                  <li>В описании: ФИО клиента полностью и понятная причина отмены.</li>
+                  <li><strong>Реквизиты:</strong> Точные 16 цифр карты и ФИО держателя латиницей (как в банке).</li>
+                  <li>Обязательно приложите скриншот заявления или переписки о возврате.</li>
+                </ul>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border rounded-lg p-5 bg-muted/20">
+                  <h3 className="font-bold mb-2">Валюты и курсы</h3>
+                  <p className="text-sm">Система сама фиксирует курс на момент создания заявки. Подавайте заявку <strong>в той валюте, в которой выставлен счет</strong> (например, 50 USD).</p>
+                </div>
+                <div className="border rounded-lg p-5 bg-muted/20">
+                  <h3 className="font-bold mb-2">Где взять логин и пароль?</h3>
+                  <p className="text-sm">Автоматического восстановления через SMS нет ради безопасности. Логины и сброс пароля выдает только системный Администратор.</p>
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+          {/* Section 10 */}
+          <section id="faq-finance" className="scroll-mt-32 space-y-6">
+            <h2 className="text-2xl font-bold text-foreground border-b pb-2">
+              10. Финансистам (Сложные сценарии)
+            </h2>
+            <div className="text-foreground/80 leading-relaxed grid grid-cols-1 gap-6">
+
+              <div className="border-l-4 border-primary bg-muted/10 p-5 rounded-r-lg">
+                <h3 className="font-bold text-lg mb-2 text-foreground">Одобрение CEO vs Подтверждение казначея</h3>
+                <p className="text-sm text-muted-foreground mb-2"><strong>«Согласовано CEO»</strong> означает принципиальное согласие руководства на трату.</p>
+                <p className="text-sm font-semibold text-foreground">Статус «Подтверждено» (Confirmed) ставится ТОЛЬКО после реального списания средств с расчетного счета компании или выдачи из кассы!</p>
+              </div>
+
+              <div className="border rounded-lg p-5">
+                <h3 className="font-bold text-lg mb-2">Почему новая заявка не попала в выгруженный Excel?</h3>
+                <p className="text-sm text-muted-foreground">По умолчанию система выгружает только <strong className="text-foreground">закрытые заявки</strong> (Подтверждено/Отклонено), чтобы не искажать реальные балансы. Если нужна полная картина, перед нажатием «Скачать эксель» выберите в фильтре статусов «Все статусы».</p>
+              </div>
+
+              <div className="border rounded-lg p-5">
+                <h3 className="font-bold text-lg mb-2">Скрытые комментарии</h3>
+                <p className="text-sm text-muted-foreground">Используйте поле <strong>«Внутренний комментарий» (Internal Comment)</strong> в карточке заявки. Его видят только администраторы, финансисты и CEO. Инициатор этот текст не увидит.</p>
+              </div>
+
+              <div className="border rounded-lg p-5">
+                <h3 className="font-bold text-lg mb-2">Отказ банка («Подтверждено» ошибочно)</h3>
+                <p className="text-sm text-muted-foreground">Если банк отклонил платеж, а вы нажали Confirmed — верните статус на <strong>«На доработку» (Revision)</strong> и обязательно укажите в комментариях: "Отмена перевода от банка / Ошибка".</p>
+              </div>
+
+              <div className="border rounded-lg p-5">
+                <h3 className="font-bold text-lg mb-2">Исторические курсы валют</h3>
+                <p className="text-sm text-muted-foreground">Курс валюты замораживается на момент создания заявки. Изменение текущего курса доллара через полгода никак не сломает ваши исторические отчеты P&L.</p>
+              </div>
+
+            </div>
+          </section>
+
         </div>
 
       </main>
