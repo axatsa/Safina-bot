@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
 import { rbac } from "@/lib/rbac";
 import { ExpenseRequest, ExpenseStatus, STATUS_LABELS, ExpenseStatusHistory, STATUS_DESCRIPTIONS } from "@/lib/types";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -238,9 +239,9 @@ const ExpenseDetail = () => {
 
   const isArchived = expense.status === "archived";
 
-  const actionButtons: { status: ExpenseStatus; label: string; icon: React.ReactNode; variant: "default" | "outline" | "destructive" | "ghost"; needsConfirm?: boolean }[] = [
+  const actionButtons: { status: ExpenseStatus; label: string; icon: React.ReactNode; variant: "default" | "outline" | "destructive" | "ghost"; className?: string; needsConfirm?: boolean }[] = [
     { status: "review", label: "В рассмотрение", icon: <Clock className="w-4 h-4" />, variant: "outline" },
-    { status: "confirmed", label: "Подтвердить", icon: <CheckCircle className="w-4 h-4" />, variant: "default", needsConfirm: true },
+    { status: "confirmed", label: "Подтвердить", icon: <CheckCircle className="w-4 h-4" />, variant: "default", className: "bg-emerald-600 hover:bg-emerald-700 text-white", needsConfirm: true },
     { status: "declined", label: "Отклонить", icon: <XCircle className="w-4 h-4" />, variant: "destructive" },
     { status: "revision", label: "На доработку", icon: <RotateCcw className="w-4 h-4" />, variant: "outline" },
     { status: "archived", label: "В архив", icon: <Archive className="w-4 h-4" />, variant: "ghost" },
@@ -286,7 +287,7 @@ const ExpenseDetail = () => {
               { label: "Проект", value: `${expense.projectName} (${expense.projectCode})` },
               { label: "Ответственный", value: expense.createdBy },
               { label: "Дата/время", value: format(new Date(expense.date), "yyyy-MM-dd HH:mm", { locale: ru }) },
-              { label: "Сумма", value: `${Number(expense.totalAmount || 0).toLocaleString()} ${expense.currency}` },
+              { label: "Сумма", value: formatCurrency(Number(expense.totalAmount || 0), expense.currency) },
             ].map((item) => (
               <div key={item.label} className="glass-card rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">{item.label}</p>
@@ -323,7 +324,7 @@ const ExpenseDetail = () => {
                                 <Button
                                     variant={action.variant}
                                     size="sm"
-                                    className="gap-2"
+                                    className={`gap-2 ${action.className || ""}`}
                                     disabled={statusMutation.isPending || forwardSeniorMutation.isPending}
                                 >
                                     {statusMutation.isPending && pendingStatus === action.status ? <Loader2 className="w-4 h-4 animate-spin" /> : action.icon}
@@ -351,7 +352,7 @@ const ExpenseDetail = () => {
                             key={action.status}
                             variant={action.variant}
                             size="sm"
-                            className="gap-2"
+                            className={`gap-2 ${action.className || ""}`}
                             onClick={() => handleStatusChange(action.status)}
                             disabled={statusMutation.isPending || forwardSeniorMutation.isPending}
                         >
@@ -444,7 +445,7 @@ const ExpenseDetail = () => {
                   { label: "Телефон", value: expense.refundData.phone },
                   { label: "Договор/Оферта", value: [expense.refundData.contract_number && `№${expense.refundData.contract_number}`, expense.refundData.contract_date && `от ${expense.refundData.contract_date}`].filter(Boolean).join(" ") || null },
                   { label: "Причина", value: expense.refundData.reason === "Другое" && expense.refundData.reason_other ? `Другое (${expense.refundData.reason_other})` : expense.refundData.reason },
-                  { label: "Сумма возврата", value: `${Number(expense.refundData.amount || 0).toLocaleString()} UZS` },
+                  { label: "Сумма возврата", value: formatCurrency(Number(expense.refundData.amount || 0), "UZS") },
                   { label: "Сумма прописью", value: expense.refundData.amount_words },
                   { label: "Владелец карты", value: expense.refundData.card_holder },
                   { label: "Номер карты", value: expense.refundData.card_number },
@@ -547,7 +548,7 @@ const ExpenseDetail = () => {
                   <tr key={i} className="border-b">
                     <td className="py-3 px-4">{item.name}</td>
                     <td className="py-3 px-4 text-right">{item.quantity}</td>
-                    <td className="py-3 px-4 text-right">{item.amount.toLocaleString()} {item.currency}</td>
+                    <td className="py-3 px-4 text-right">{formatCurrency(item.amount, item.currency)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -555,10 +556,10 @@ const ExpenseDetail = () => {
                 <tr className="bg-muted/30 font-semibold">
                   <td className="py-3 px-4" colSpan={2}>Итого</td>
                   <td className="py-3 px-4 text-right">
-                    {expense.totalAmount.toLocaleString()} {expense.currency}
+                    {formatCurrency(expense.totalAmount, expense.currency)}
                     {expense.currency === "USD" && expense.usdRate && (
                       <div className="text-xs text-muted-foreground font-normal mt-0.5">
-                        ≈ {(expense.totalAmount * expense.usdRate).toLocaleString()} UZS
+                        ≈ {formatCurrency(expense.totalAmount * expense.usdRate, "UZS")}
                       </div>
                     )}
                   </td>

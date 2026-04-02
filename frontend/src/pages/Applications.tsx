@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
 
 const kanbanColors: Record<string, string> = {
   request:        "kanban-request",
@@ -253,7 +254,7 @@ const Applications = () => {
             <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg"><DollarSign className="w-4 h-4" /></div>
             <p className="text-sm font-medium text-muted-foreground">Сумма (UZS к оплате)</p>
           </div>
-          <h3 className="text-xl font-bold truncate" title={totalAmountUZS.toLocaleString()}>{totalAmountUZS.toLocaleString()}</h3>
+          <h3 className="text-xl font-bold truncate" title={formatCurrency(totalAmountUZS, "UZS")}>{formatCurrency(totalAmountUZS, "UZS")}</h3>
         </div>
       </div>
 

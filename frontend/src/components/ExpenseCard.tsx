@@ -4,6 +4,7 @@ import { ru } from "date-fns/locale";
 import { Calendar, Download, Eye, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { store } from "@/lib/store";
+import { formatCurrency } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
 interface ExpenseCardProps {
@@ -102,7 +103,7 @@ const ExpenseCard = ({ expense }: ExpenseCardProps) => {
       <div className="pt-2 border-t space-y-1">
         <div className="flex items-center justify-between">
           <span className="font-display font-semibold text-sm text-foreground">
-            {Number(expense.totalAmount || 0).toLocaleString()}
+            {formatCurrency(Number(expense.totalAmount || 0), expense.currency)}
           </span>
           <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={handleDownload}>
             <Download className="w-3 h-3" />

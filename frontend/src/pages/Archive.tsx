@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/utils";
 
 
 const Archive = () => {
@@ -117,7 +118,7 @@ const Archive = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold font-display">
-                {totalRefundAmount.toLocaleString()} UZS
+                {formatCurrency(totalRefundAmount, "UZS")}
               </div>
               <p className="text-xs text-white/70 mt-1">За выбранный период и фильтры</p>
             </CardContent>
@@ -179,7 +180,7 @@ const Archive = () => {
                   {expense.createdBy}
                 </td>
                 <td className="px-6 py-4 text-right font-display font-bold text-sm">
-                  {Number(expense.totalAmount || 0).toLocaleString()} {expense.currency}
+                  {formatCurrency(Number(expense.totalAmount || 0), expense.currency)}
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-end gap-2">

@@ -77,7 +77,7 @@ def populate_test_data():
         for i in range(100):
             user = random.choice(users)
             project = random.choice(projects) if random.random() > 0.2 and projects else None
-            req_type = random.choice(types)
+            req_type = random.choices(types, weights=[0.4, 0.2, 0.2, 0.2])[0]
             
             # Bias toward approved/confirmed/archived statuses for better charts (70% probability)
             if random.random() < 0.7:

@@ -67,11 +67,15 @@ def read_expenses(
     # Если зашел не админ, он видит только свои заявки
     effective_user_id = user_id if auth.is_admin(current_user) else current_user.id
     
+    # Обработка "all" из фронтенда
+    clean_project = None if project == "all" else project
+    clean_user = None if effective_user_id == "all" else effective_user_id
+    
     items = crud.get_expenses(
         db, 
-        project_id=project, 
+        project_id=clean_project, 
         status=status, 
-        user_id=effective_user_id, 
+        user_id=clean_user, 
         request_type=request_type,
         branch=branch,
         team=team,
@@ -80,9 +84,9 @@ def read_expenses(
     )
     total = crud.count_expenses(
         db, 
-        project_id=project, 
+        project_id=clean_project, 
         status=status, 
-        user_id=effective_user_id,
+        user_id=clean_user,
         request_type=request_type,
         branch=branch,
         team=team
@@ -614,30 +618,25 @@ def export_expenses(
     db: Session = Depends(database.get_db), 
     current_user: models.TeamMember = Depends(auth.get_current_user)
 ):
-    # Если фильтры не заданы вообще (пустой запрос из "Возвратов"),
-    # то по умолчанию отдаем все возвраты (включая архивные)
-    active_filters = any([project, user_id, from_date, to_date, branch, team, request_type])
-    
-    if not active_filters:
-        # Режим "по умолчанию" для раздела возвратов
-        request_type = "refund,blank_refund"
-        allStatuses = True
-    
+    # Обработка "all"
+    clean_project = None if project == "all" else project
+    clean_user = None if user_id == "all" else user_id
+
     # Результирующий статус
-    final_status = None
-    if not allStatuses:
-        final_status = ",".join(EXPORTABLE_STATUSES)
-    elif active_filters:
-        # Если "все статусы" выбраны явно с фильтрами, исключаем только черновики
-        # Но для режима "по умолчанию" (выше) мы оставили final_status = None (все)
-        pass
+    final_status = status # Если статус передан явно
+    if not final_status:
+        if allStatuses:
+            # Все кроме черновиков
+            pass 
+        else:
+            final_status = ",".join(EXPORTABLE_STATUSES)
 
     # Права доступа
-    effective_user_id = user_id if auth.is_admin(current_user) else current_user.id
+    effective_user_id = clean_user if auth.is_admin(current_user) else current_user.id
     
     expenses = crud.get_expenses(
         db,
-        project_id=project,
+        project_id=clean_project,
         user_id=effective_user_id,
         status=final_status,
         request_type=request_type,
@@ -733,21 +732,20 @@ def export_expenses_xlsx(
 ):
     from app.services.analytics import export as export_service
     
-    # Аналогичная логика "по умолчанию"
-    active_filters = any([project, user_id, from_date, to_date, branch, team, request_type])
-    if not active_filters:
-        request_type = "refund,blank_refund"
-        allStatuses = True
-    
-    final_status = None
-    if not allStatuses:
-        final_status = ",".join(EXPORTABLE_STATUSES)
+    # Обработка "all"
+    clean_project = None if project == "all" else project
+    clean_user = None if user_id == "all" else user_id
 
-    effective_user_id = user_id if auth.is_admin(current_user) else current_user.id
+    final_status = status
+    if not final_status:
+        if not allStatuses:
+            final_status = ",".join(EXPORTABLE_STATUSES)
+
+    effective_user_id = clean_user if auth.is_admin(current_user) else current_user.id
     
     expenses = crud.get_expenses(
         db,
-        project_id=project,
+        project_id=clean_project,
         user_id=effective_user_id,
         status=final_status,
         request_type=request_type,

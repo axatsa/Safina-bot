@@ -26,20 +26,21 @@ const AppSidebar = () => {
 
   const menuItems = [
     { title: "Заявки", url: "/dashboard/applications", icon: ClipboardList, show: true },
-    { title: "Новая заявка", url: "/submit", icon: Send, show: false },
+    { title: "Возвраты", url: "/dashboard/refunds", icon: RotateCcw, show: true },
     { 
       title: "Очередь обработки", 
       url: "/dashboard/admin-approvals", 
       icon: ShieldCheck, 
       show: true 
     },
-    { title: "Возвраты", url: "/dashboard/refunds", icon: RotateCcw, show: true },
-    { title: "Статистика", url: "/dashboard/statistics", icon: BarChart, show: true },
     { title: "Отчёты", url: "/dashboard/archive", icon: Archive, show: true },
+    { title: "Аналитика", url: "/dashboard/statistics", icon: BarChart, show: true },
     { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen, show: true },
     { title: "Команда", url: "/dashboard/team", icon: Users, show: true },
-    { title: "Инструкция / FAQ", url: "/dashboard/faq", icon: HelpCircle, show: true },
+    { title: "Инструкция", url: "/dashboard/faq", icon: HelpCircle, show: true },
+    { title: "Новая заявка", url: "/submit", icon: Send, show: false },
   ];
+
 
   return (
     <aside className="w-64 min-h-screen bg-sidebar flex flex-col border-r border-sidebar-border shrink-0">

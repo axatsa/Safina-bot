@@ -8,6 +8,7 @@ import {
   Loader2, RefreshCw, Download, 
   ClipboardList, ChevronDown, ChevronRight 
 } from "lucide-react";
+import FilterBar from "@/components/FilterBar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -49,6 +50,11 @@ const Refunds = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [collapsedColumns, setCollapsedColumns] = useState<Record<string, boolean>>({});
+  
+  // Filters
+  const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedUser, setSelectedUser] = useState("all");
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
 
   const { data: expensesPage, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["expenses-refunds"],
@@ -56,6 +62,16 @@ const Refunds = () => {
       limit: 1000, // Fetch all for kanban
     }),
     refetchInterval: 30000,
+  });
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => store.getProjects(),
+  });
+
+  const { data: team = [] } = useQuery({
+    queryKey: ["team"],
+    queryFn: () => store.getTeam(),
   });
 
   const refunds = useMemo(() => {
@@ -66,14 +82,42 @@ const Refunds = () => {
   }, [expensesPage]);
 
   const filtered = useMemo(() => {
-    if (!search) return refunds;
-    const q = search.toLowerCase();
-    return refunds.filter((e) =>
-      e.requestId?.toLowerCase().includes(q) ||
-      e.createdBy?.toLowerCase().includes(q) ||
-      e.purpose?.toLowerCase().includes(q)
-    );
-  }, [refunds, search]);
+    let items = refunds;
+
+    // Project Filter
+    if (selectedProject !== "all") {
+        items = items.filter(e => e.projectId === selectedProject);
+    }
+
+    // User Filter
+    if (selectedUser !== "all") {
+        items = items.filter(e => e.createdById === selectedUser);
+    }
+
+    // Date Range Filter
+    if (dateRange.from) {
+        const start = new Date(dateRange.from);
+        start.setHours(0, 0, 0, 0);
+        items = items.filter(e => new Date(e.date) >= start);
+    }
+    if (dateRange.to) {
+        const end = new Date(dateRange.to);
+        end.setHours(23, 59, 59, 999);
+        items = items.filter(e => new Date(e.date) <= end);
+    }
+
+    // Search Filter
+    if (search) {
+        const q = search.toLowerCase();
+        items = items.filter((e) =>
+          e.requestId?.toLowerCase().includes(q) ||
+          e.createdBy?.toLowerCase().includes(q) ||
+          e.purpose?.toLowerCase().includes(q)
+        );
+    }
+
+    return items;
+  }, [refunds, search, selectedProject, selectedUser, dateRange]);
 
   const mutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ExpenseStatus }) =>
@@ -132,7 +176,13 @@ const Refunds = () => {
           <p className="text-sm text-muted-foreground mt-1">Канбан-доска заявлений на возврат</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => store.exportXLSX({ allStatuses: true, project: 'all' })}>
+          <Button variant="outline" size="sm" onClick={() => store.exportXLSX({ 
+              project: selectedProject, 
+              user: selectedUser,
+              from: dateRange.from?.toISOString(),
+              to: dateRange.to?.toISOString(),
+              request_type: "refund,blank_refund" 
+          })}>
             <Download className="w-4 h-4 mr-2" />
             Экспорт
           </Button>
@@ -143,15 +193,20 @@ const Refunds = () => {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Поиск по ID, автору или назначению..."
-          className="w-full max-w-md px-4 py-2 text-sm rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-        />
-      </div>
+      <FilterBar
+        projects={projects}
+        selectedProject={selectedProject}
+        onProjectChange={setSelectedProject}
+        team={team}
+        selectedUser={selectedUser}
+        onUserChange={setSelectedUser}
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        onExport={() => {}} // Not used in this context but required by prop types
+        searchQuery={search}
+        onSearchChange={setSearch}
+        hideExport // We have our own Export button in the header
+      />
 
       <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 min-h-[calc(100vh-250px)]">
         <DragDropContext onDragEnd={handleDragEnd}>

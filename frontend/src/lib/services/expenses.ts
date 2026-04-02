@@ -130,7 +130,7 @@ export const expensesService = {
     return await res.json();
   },
 
-  exportXLSX: async (params: { project?: string; user?: string; from?: string; to?: string; allStatuses?: boolean; status?: string }): Promise<void> => {
+  exportXLSX: async (params: { project?: string; user?: string; from?: string; to?: string; allStatuses?: boolean; status?: string; request_type?: string }): Promise<void> => {
     const searchParams = new URLSearchParams();
     if (params.project && params.project !== "all") searchParams.append("project", params.project);
     if (params.user && params.user !== "all") searchParams.append("user_id", params.user);
@@ -138,6 +138,7 @@ export const expensesService = {
     if (params.to) searchParams.append("to_date", params.to);
     if (params.allStatuses) searchParams.append("allStatuses", "true");
     if (params.status) searchParams.append("status", params.status);
+    if (params.request_type) searchParams.append("request_type", params.request_type);
 
     const res = await apiFetch(`/expenses/export-xlsx?${searchParams.toString()}`);
     const blob = await res.blob();

@@ -24,15 +24,7 @@ def generate_expenses_xlsx(expenses: list[models.ExpenseRequest]) -> io.BytesIO:
     data = []
     for e in expenses:
         usd_rate = Decimal(str(e.usd_rate)) if e.usd_rate else None
-        
-        # Основные данные возврата (если есть)
-        rd = e.refund_data if isinstance(e.refund_data, dict) else {}
-        
         items = e.items if isinstance(e.items, list) else []
-        # Если это возврат без items, создаем одну виртуальную строку для экспорта суммы
-        if not items and e.request_type in ("refund", "blank_refund"):
-            items = [{"name": e.purpose, "quantity": 1, "amount": float(e.total_amount), "currency": e.currency}]
-            
         for item in items:
             item_currency = item.get("currency", e.currency)
             item_amount_native = Decimal(str(item.get("amount", 0))) * Decimal(str(item.get("quantity", 0)))
@@ -41,34 +33,18 @@ def generate_expenses_xlsx(expenses: list[models.ExpenseRequest]) -> io.BytesIO:
             if item_currency == "USD" and usd_rate:
                 amount_uzs = item_amount_native * usd_rate
             
-            row = {
+            data.append({
                 "ID Запроса": e.request_id,
                 "Дата": e.date.strftime("%d.%m.%Y %H:%M"),
                 "Проект": f"{e.project_name} ({e.project_code})" if e.project_name else "Без проекта",
-                "Тип": e.request_type,
-                "Цель/Наименование": item.get("name") if len(items) > 1 else e.purpose,
+                "Цель расхода": item.get("name") if len(items) > 1 else e.purpose,
                 "Сумма": float(item_amount_native),
                 "Валюта": item_currency,
                 "Курс USD": float(usd_rate) if usd_rate else None,
                 "Сумма в UZS": float(round(amount_uzs, 2)),
                 "Ответственный": e.created_by,
                 "Статус": STATUS_MAP.get(e.status, e.status)
-            }
-            
-            # Добавляем данные возврата, если они есть
-            if rd:
-                row.update({
-                    "ID Ученика": rd.get("student_id"),
-                    "ФИО Клиента": rd.get("client_name"),
-                    "Телефон": rd.get("phone"),
-                    "Паспорт": f"{rd.get('passport_series', '')} {rd.get('passport_number', '')}".strip(),
-                    "Контракт": f"{rd.get('contract_number', '')} от {rd.get('contract_date', '')}".strip(),
-                    "Причина": rd.get("reason"),
-                    "Номер карты": rd.get("card_number"),
-                    "Банк": rd.get("bank_name")
-                })
-            
-            data.append(row)
+            })
     
     df = pd.DataFrame(data)
     output = io.BytesIO()

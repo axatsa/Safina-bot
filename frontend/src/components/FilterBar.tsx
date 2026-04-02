@@ -23,6 +23,7 @@ interface FilterBarProps {
   onExport: (allStatuses: boolean) => void;
   searchQuery: string;
   onSearchChange: (v: string) => void;
+  hideExport?: boolean;
 }
 
 const FilterBar = ({
@@ -30,6 +31,7 @@ const FilterBar = ({
   team, selectedUser, onUserChange,
   dateRange, onDateRangeChange, onExport,
   searchQuery, onSearchChange,
+  hideExport = false,
 }: FilterBarProps) => {
   const [calOpen, setCalOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -118,42 +120,44 @@ const FilterBar = ({
         </Button>
       )}
 
-      <div className="ml-auto">
-        <Popover open={exportOpen} onOpenChange={setExportOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="h-9 text-sm gap-2">
-              <Download className="w-4 h-4" />
-              Скачать расходы
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-64" align="end">
-            <div className="space-y-3">
-              <p className="text-sm font-medium">Экспорт расходов</p>
-              <p className="text-xs text-muted-foreground">
-                По умолчанию экспорт только подтверждённых заявок.
-              </p>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="allStatuses"
-                  checked={allStatuses}
-                  onCheckedChange={(v) => setAllStatuses(!!v)}
-                />
-                <label htmlFor="allStatuses" className="text-sm">Все статусы (вкл. архив)</label>
-              </div>
-              <Button
-                size="sm"
-                className="w-full"
-                onClick={() => {
-                  onExport(allStatuses);
-                  setExportOpen(false);
-                }}
-              >
-                Скачать .xlsx
+      {!hideExport && (
+        <div className="ml-auto">
+          <Popover open={exportOpen} onOpenChange={setExportOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 text-sm gap-2">
+                <Download className="w-4 h-4" />
+                Скачать расходы
               </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-64" align="end">
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Экспорт расходов</p>
+                <p className="text-xs text-muted-foreground">
+                  По умолчанию экспорт только подтверждённых заявок.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="allStatuses"
+                    checked={allStatuses}
+                    onCheckedChange={(v) => setAllStatuses(!!v)}
+                  />
+                  <label htmlFor="allStatuses" className="text-sm">Все статусы (вкл. архив)</label>
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    onExport(allStatuses);
+                    setExportOpen(false);
+                  }}
+                >
+                  Скачать .xlsx
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
     </div>
   );
 };
