@@ -139,10 +139,11 @@ export const expensesService = {
     return await res.json();
   },
 
-  exportXLSX: async (params: { project?: string; user?: string; from?: string; to?: string; allStatuses?: boolean; status?: string; request_type?: string }): Promise<void> => {
+  exportXLSX: async (params: { project?: string; user?: string; from?: string; to?: string; allStatuses?: boolean; status?: string; request_type?: string; search?: string }): Promise<void> => {
     const searchParams = new URLSearchParams();
     if (params.project && params.project !== "all") searchParams.append("project", params.project);
     if (params.user && params.user !== "all") searchParams.append("user_id", params.user);
+    if (params.search) searchParams.append("search", params.search);
     if (params.from) searchParams.append("from_date", params.from);
     if (params.to) searchParams.append("to_date", params.to);
     if (params.allStatuses) searchParams.append("allStatuses", "true");

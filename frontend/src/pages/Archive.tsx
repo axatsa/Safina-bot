@@ -69,6 +69,7 @@ const Archive = () => {
     store.exportXLSX({
       project: selectedProject,
       user: selectedUser,
+      search: searchQuery,
       from: dateRange.from?.toISOString(),
       to: dateRange.to?.toISOString(),
       allStatuses: true

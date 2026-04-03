@@ -635,6 +635,7 @@ def update_internal_comment(expense_id: str, update: schemas.InternalCommentUpda
 @router.get("/export")
 def export_expenses(
     project: str = None, 
+    status: str = None,
     user_id: str = None, 
     from_date: str = None, 
     to_date: str = None, 
@@ -642,12 +643,30 @@ def export_expenses(
     request_type: str = None,
     branch: str = None,
     team: str = None,
+    search: str = None,
     db: Session = Depends(database.get_db), 
     current_user: models.TeamMember = Depends(auth.get_current_user)
 ):
     # Обработка "all"
     clean_project = None if project == "all" else project
     clean_user = None if user_id == "all" else user_id
+
+    # Парсинг дат для CRUD
+    from_dt = None
+    if from_date:
+        try:
+            from_dt = datetime.datetime.fromisoformat(from_date.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+    to_dt = None
+    if to_date:
+        try:
+            if len(to_date) <= 10:
+                to_dt = datetime.datetime.fromisoformat(to_date) + datetime.timedelta(days=1)
+            else:
+                to_dt = datetime.datetime.fromisoformat(to_date.replace("Z", "+00:00"))
+        except ValueError:
+            pass
 
     # Результирующий статус
     final_status = status # Если статус передан явно
@@ -669,25 +688,11 @@ def export_expenses(
         request_type=request_type,
         branch=branch,
         team=team,
+        search=search,
+        from_date=from_dt,
+        to_date=to_dt,
         limit=5000 # Лимит для экспорта
     )
-
-    # Дальнейшая фильтрация по датам (т.к. в CRUD пока нет фильтра по датам)
-    if from_date:
-        try:
-            from_dt = datetime.datetime.fromisoformat(from_date.replace("Z", "+00:00"))
-            expenses = [e for e in expenses if e.date >= from_dt]
-        except ValueError:
-            pass
-    if to_date:
-        try:
-            if len(to_date) <= 10:
-                to_dt = datetime.datetime.fromisoformat(to_date) + datetime.timedelta(days=1)
-            else:
-                to_dt = datetime.datetime.fromisoformat(to_date.replace("Z", "+00:00"))
-            expenses = [e for e in expenses if e.date <= to_dt]
-        except ValueError:
-            pass
     
     output = io.StringIO()
     writer = csv.writer(output)
@@ -747,6 +752,7 @@ def export_expenses(
 @router.get("/export-xlsx")
 def export_expenses_xlsx(
     project: str = None, 
+    status: str = None,
     user_id: str = None, 
     from_date: str = None, 
     to_date: str = None, 
@@ -754,6 +760,7 @@ def export_expenses_xlsx(
     request_type: str = None,
     branch: str = None,
     team: str = None,
+    search: str = None,
     db: Session = Depends(database.get_db), 
     current_user: models.TeamMember = Depends(auth.get_current_user)
 ):
@@ -762,6 +769,23 @@ def export_expenses_xlsx(
     # Обработка "all"
     clean_project = None if project == "all" else project
     clean_user = None if user_id == "all" else user_id
+
+    # Парсинг дат для CRUD
+    from_dt = None
+    if from_date:
+        try:
+            from_dt = datetime.datetime.fromisoformat(from_date.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+    to_dt = None
+    if to_date:
+        try:
+            if len(to_date) <= 10:
+                to_dt = datetime.datetime.fromisoformat(to_date) + datetime.timedelta(days=1)
+            else:
+                to_dt = datetime.datetime.fromisoformat(to_date.replace("Z", "+00:00"))
+        except ValueError:
+            pass
 
     final_status = status
     if not final_status:
@@ -778,24 +802,11 @@ def export_expenses_xlsx(
         request_type=request_type,
         branch=branch,
         team=team,
+        search=search,
+        from_date=from_dt,
+        to_date=to_dt,
         limit=5000
     )
-
-    if from_date:
-        try:
-            from_dt = datetime.datetime.fromisoformat(from_date.replace("Z", "+00:00"))
-            expenses = [e for e in expenses if e.date >= from_dt]
-        except ValueError:
-            pass
-    if to_date:
-        try:
-            if len(to_date) <= 10:
-                to_dt = datetime.datetime.fromisoformat(to_date) + datetime.timedelta(days=1)
-            else:
-                to_dt = datetime.datetime.fromisoformat(to_date.replace("Z", "+00:00"))
-            expenses = [e for e in expenses if e.date <= to_dt]
-        except ValueError:
-            pass
     output = export_service.generate_expenses_xlsx(expenses)
     
     filename = f"expenses_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"

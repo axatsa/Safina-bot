@@ -179,6 +179,7 @@ const Refunds = () => {
           <Button variant="outline" size="sm" onClick={() => store.exportXLSX({ 
               project: selectedProject, 
               user: selectedUser,
+              search: search,
               from: dateRange.from?.toISOString(),
               to: dateRange.to?.toISOString(),
               request_type: "refund,blank_refund" 
