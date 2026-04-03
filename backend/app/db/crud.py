@@ -171,6 +171,9 @@ def get_expenses(
     request_type: str = None,
     branch: str = None,
     team: str = None,
+    search: str = None,
+    from_date: datetime.datetime = None,
+    to_date: datetime.datetime = None,
     skip: int = 0, 
     limit: int = 100
 ):
@@ -203,6 +206,18 @@ def get_expenses(
             query = query.filter(models.ExpenseRequest.status.in_(statuses))
         else:
             query = query.filter(models.ExpenseRequest.status == status)
+
+    if search:
+        search_lower = f"%{search.lower()}%"
+        query = query.filter(
+            (models.ExpenseRequest.request_id.ilike(search_lower)) |
+            (models.ExpenseRequest.purpose.ilike(search_lower))
+        )
+
+    if from_date:
+        query = query.filter(models.ExpenseRequest.date >= from_date)
+    if to_date:
+        query = query.filter(models.ExpenseRequest.date <= to_date)
             
     return query.order_by(models.ExpenseRequest.date.desc()).offset(skip).limit(limit).all()
 
@@ -213,7 +228,10 @@ def count_expenses(
     user_id: str = None,
     request_type: str = None,
     branch: str = None,
-    team: str = None
+    team: str = None,
+    search: str = None,
+    from_date: datetime.datetime = None,
+    to_date: datetime.datetime = None
 ) -> int:
     """Считает количество заявок по тем же фильтрам что get_expenses."""
     query = db.query(models.ExpenseRequest)
@@ -241,6 +259,18 @@ def count_expenses(
             query = query.filter(models.ExpenseRequest.status.in_(statuses))
         else:
             query = query.filter(models.ExpenseRequest.status == status)
+
+    if search:
+        search_lower = f"%{search.lower()}%"
+        query = query.filter(
+            (models.ExpenseRequest.request_id.ilike(search_lower)) |
+            (models.ExpenseRequest.purpose.ilike(search_lower))
+        )
+
+    if from_date:
+        query = query.filter(models.ExpenseRequest.date >= from_date)
+    if to_date:
+        query = query.filter(models.ExpenseRequest.date <= to_date)
 
     return query.count()
 

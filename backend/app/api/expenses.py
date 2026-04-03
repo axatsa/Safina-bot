@@ -59,6 +59,9 @@ def read_expenses(
     request_type: str = None,
     branch: str = None,
     team: str = None,
+    search: str = None,
+    from_date: str = None,
+    to_date: str = None,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=5000),
     db: Session = Depends(database.get_db),
@@ -70,6 +73,24 @@ def read_expenses(
     # Обработка "all" из фронтенда
     clean_project = None if project == "all" else project
     clean_user = None if effective_user_id == "all" else effective_user_id
+
+    # Парсинг дат
+    from_dt = None
+    if from_date:
+        try:
+            from_dt = datetime.datetime.fromisoformat(from_date.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+            
+    to_dt = None
+    if to_date:
+        try:
+            if len(to_date) <= 10:
+                to_dt = datetime.datetime.fromisoformat(to_date) + datetime.timedelta(days=1)
+            else:
+                to_dt = datetime.datetime.fromisoformat(to_date.replace("Z", "+00:00"))
+        except ValueError:
+            pass
     
     items = crud.get_expenses(
         db, 
@@ -79,6 +100,9 @@ def read_expenses(
         request_type=request_type,
         branch=branch,
         team=team,
+        search=search,
+        from_date=from_dt,
+        to_date=to_dt,
         skip=skip, 
         limit=limit
     )
@@ -89,7 +113,10 @@ def read_expenses(
         user_id=clean_user,
         request_type=request_type,
         branch=branch,
-        team=team
+        team=team,
+        search=search,
+        from_date=from_dt,
+        to_date=to_dt
     )
     
     return {

@@ -20,6 +20,7 @@ const kanbanColors: Record<string, string> = {
   revision:       "kanban-revision",
   pending_senior: "kanban-review",
   pending_ceo:    "kanban-review",
+  archived:       "kanban-archived",
 };
 
 const Applications = () => {
@@ -37,8 +38,23 @@ const Applications = () => {
 
   // Fecthing expenses via React Query
   const { data: expensesPage, isLoading, isFetching } = useQuery({
-    queryKey: ["expenses", skip],
-    queryFn: () => store.getExpenses({ skip, limit: LIMIT }),
+    queryKey: ["expenses", { 
+      skip, 
+      project: selectedProject, 
+      user: selectedUser, 
+      search: searchQuery, 
+      from: dateRange.from?.toISOString(),
+      to: dateRange.to?.toISOString()
+    }],
+    queryFn: () => store.getExpenses({ 
+      skip, 
+      limit: LIMIT,
+      project: selectedProject,
+      user_id: selectedUser,
+      search: searchQuery,
+      from_date: dateRange.from?.toISOString(),
+      to_date: dateRange.to?.toISOString()
+    }),
     placeholderData: keepPreviousData,
   });
 
@@ -88,6 +104,9 @@ const Applications = () => {
     }
   });
 
+  // Note: Most filtering is now server-side. 
+  // We only keep this for local-only exclusions (like archived items on the main board)
+  // or until we are 100% sure the backend handles everything perfectly.
   const filtered = useMemo(() => {
     return allExpenses.filter((e) => {
       // Basic Status Filter (Archive is separate)
@@ -95,38 +114,11 @@ const Applications = () => {
 
       // Filter out refunds from main dashboard (they have their own page)
       const isRefund = e.requestType === "refund" || e.requestType === "blank_refund";
-      
       if (isRefund) return false;
-
-      // Project Filter
-      if (selectedProject !== "all" && e.projectId !== selectedProject) return false;
-
-      // User Filter
-      if (selectedUser !== "all" && e.createdById !== selectedUser) return false;
-
-      // Date Range Filter (Granular)
-      if (dateRange.from) {
-        const start = new Date(dateRange.from);
-        start.setHours(0, 0, 0, 0);
-        if (new Date(e.date) < start) return false;
-      }
-      if (dateRange.to) {
-        const end = new Date(dateRange.to);
-        end.setHours(23, 59, 59, 999);
-        if (new Date(e.date) > end) return false;
-      }
-
-      // Search Filter (ID or Item Names)
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesId = e.requestId.toLowerCase().includes(query);
-        const matchesItems = e.items?.some(item => item.name.toLowerCase().includes(query));
-        if (!matchesId && !matchesItems) return false;
-      }
 
       return true;
     });
-  }, [allExpenses, selectedProject, selectedUser, dateRange, searchQuery]);
+  }, [allExpenses]);
 
   const toggleColumn = (status: string) => {
     setCollapsedColumns((prev) => ({ ...prev, [status]: !prev[status] }));
@@ -168,7 +160,7 @@ const Applications = () => {
   }
 
   // Calculate Dashboard Statistics
-  const totalRequests = filtered.length;
+  const totalRequests = expensesPage?.total ?? 0;
   const totalAmountUZS = filtered
     .filter(e => e.currency === 'UZS' && !['declined', 'archived', 'rejected_senior'].includes(e.status))
     .reduce((sum, e) => sum + Number(e.totalAmount || 0), 0);

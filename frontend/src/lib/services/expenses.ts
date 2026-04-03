@@ -31,12 +31,21 @@ export const expensesService = {
   getExpenses: async (params?: { 
     project?: string; 
     status?: string;
+    user_id?: string;
+    search?: string;
+    from_date?: string;
+    to_date?: string;
     skip?: number;
     limit?: number;
   }): Promise<PaginatedResponse<ExpenseRequest>> => {
     const searchParams = new URLSearchParams();
-    if (params?.project) searchParams.append("project", params.project);
-    if (params?.status) searchParams.append("status", params.status);
+    if (params?.project && params.project !== "all") searchParams.append("project", params.project);
+    if (params?.status && params.status !== "all") searchParams.append("status", params.status);
+    if (params?.user_id && params.user_id !== "all") searchParams.append("user_id", params.user_id);
+    if (params?.search) searchParams.append("search", params.search);
+    if (params?.from_date) searchParams.append("from_date", params.from_date);
+    if (params?.to_date) searchParams.append("to_date", params.to_date);
+
     searchParams.append("skip", String(params?.skip ?? 0));
     searchParams.append("limit", String(params?.limit ?? 50));
     

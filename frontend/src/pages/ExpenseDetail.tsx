@@ -243,8 +243,8 @@ const ExpenseDetail = () => {
     { status: "review", label: "В рассмотрение", icon: <Clock className="w-4 h-4" />, variant: "outline" },
     { status: "confirmed", label: "Подтвердить", icon: <CheckCircle className="w-4 h-4" />, variant: "default", className: "bg-emerald-600 hover:bg-emerald-700 text-white", needsConfirm: true },
     { status: "declined", label: "Отклонить", icon: <XCircle className="w-4 h-4" />, variant: "destructive" },
-    { status: "revision", label: "На доработку", icon: <RotateCcw className="w-4 h-4" />, variant: "outline" },
-    { status: "archived", label: "В архив", icon: <Archive className="w-4 h-4" />, variant: "ghost" },
+    { status: "revision", label: "На доработку", icon: <RotateCcw className="w-4 h-4" />, variant: "default", className: "bg-amber-500 hover:bg-amber-600 text-white" },
+    { status: "archived", label: "В архив", icon: <Archive className="w-4 h-4" />, variant: "secondary", className: "bg-secondary text-secondary-foreground" },
   ];
 
   return (
