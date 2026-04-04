@@ -64,7 +64,7 @@ const DonutChart = ({
 
 const Statistics = () => {
     const [period, setPeriod] = useState("1m");
-    const [segment, setSegment] = useState("global");
+    const [segment, setSegment] = useState("branch");
     const [requestType, setRequestType] = useState("all");
 
     const { data: analytics, isLoading } = useQuery({
@@ -114,17 +114,6 @@ const Statistics = () => {
                             <SelectItem value="3m">За 3 месяца</SelectItem>
                             <SelectItem value="6m">За полгода</SelectItem>
                             <SelectItem value="1y">За год</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <Select value={segment} onValueChange={setSegment}>
-                        <SelectTrigger className="w-[200px] bg-background shadow-sm rounded-xl">
-                            <SelectValue placeholder="Сегментация" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="global">Все заявки</SelectItem>
-                            <SelectItem value="branch">По филиалам</SelectItem>
-                            <SelectItem value="project">По проектам</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
