@@ -122,7 +122,7 @@ const Statistics = () => {
                             <SelectValue placeholder="Сегментация" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="global">Все филиалы</SelectItem>
+                            <SelectItem value="global">Все заявки</SelectItem>
                             <SelectItem value="branch">По филиалам</SelectItem>
                             <SelectItem value="project">По проектам</SelectItem>
                         </SelectContent>
