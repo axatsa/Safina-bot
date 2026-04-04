@@ -223,15 +223,17 @@ const Statistics = () => {
 
             {/* Два отдельных донат-графика */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                <DonutChart
-                    data={requestType === "refund" ? refundDist : expenseDist}
-                    title="Структура расходов"
-                    subtitle="Долевое распределение по расходам"
-                    colors={COLORS}
-                />
-                {requestType !== "expense" && (
+                {(requestType === "all" || requestType === "expense") && (
                     <DonutChart
-                        data={refundDist.length > 0 ? refundDist : distribution}
+                        data={expenseDist}
+                        title="Структура расходов"
+                        subtitle="Долевое распределение по расходам"
+                        colors={COLORS}
+                    />
+                )}
+                {(requestType === "all" || requestType === "refund") && (
+                    <DonutChart
+                        data={refundDist}
                         title="Структура возвратов"
                         subtitle="Долевое распределение по возвратам"
                         colors={COLORS_REFUNDS}

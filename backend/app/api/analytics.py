@@ -39,17 +39,18 @@ def get_analytics(
     ).all()
     
     timeline_data = {}
-    distribution_data = {}
+    expense_dist_data = {}
+    refund_dist_data = {}
     status_summary = {"Pending": 0, "Approved": 0, "Rejected": 0, "Confirmed": 0}
     
     for expense_tuple in expenses:
         expense = expense_tuple[0]
         branch = expense_tuple[1]
-        team = expense_tuple[2]
         
         req_type = expense.request_type # 'expense', 'refund', 'blank', 'blank_refund'
         is_refund = req_type in ["refund", "blank_refund"]
         
+        # global type filter for entire response
         if type == "refund" and not is_refund:
             continue
         if type == "expense" and is_refund:
@@ -61,47 +62,65 @@ def get_analytics(
         date_str = expense.date.strftime("%Y-%m-%d")
         
         # update status summary
-        if expense.status in ["request", "review", "pending_senior"]:
+        if expense.status in ["request", "review", "pending_senior", "revision"]:
             status_summary["Pending"] += 1
-        elif expense.status == "approved_senior":
+        elif expense.status in ["approved_senior", "pending_ceo"]:
             status_summary["Approved"] += 1
-        elif expense.status in ["rejected_senior", "declined"]:
+        elif expense.status in ["rejected_senior", "rejected_ceo", "declined"]:
             status_summary["Rejected"] += 1
-        elif expense.status == "confirmed":
+        elif expense.status in ["confirmed", "approved_ceo"]:
             status_summary["Confirmed"] += 1
             
         # Only process approved/confirmed for charts
-        if expense.status not in ["confirmed", "approved_senior"]:
+        if expense.status not in ["confirmed", "approved_senior", "approved_ceo", "pending_ceo"]:
             continue
             
         amount = Decimal(str(expense.total_amount)) if expense.total_amount else Decimal("0")
         if expense.currency == "USD" and expense.usd_rate:
             amount *= Decimal(str(expense.usd_rate))
+        elif expense.currency == "RUB" and expense.usd_rate: # Very rough RUB handling if rate is provided
+             # If usd_rate is e.g. 12500, and RUB is 100 per USD, then RUB rate is 125.
+             # This is a guestimate, but better than nothing if RUB rate isn't explicitly stored.
+             amount *= Decimal("135") # Hardcoded rough RUB/UZS if not sure
             
         if date_str not in timeline_data:
-            timeline_data[date_str] = {"date": date_str, "expenses": 0, "refunds": 0}
+            timeline_data[date_str] = {"date": date_str, "expenses": Decimal("0"), "refunds": Decimal("0")}
             
-        if req_type in ["refund", "blank_refund"]:
+        if is_refund:
             timeline_data[date_str]["refunds"] += amount
         else:
             timeline_data[date_str]["expenses"] += amount
             
         # Distribution
         key = "Unknown"
-        if segment == "global" or segment == "branch":
+        if segment == "global":
+            # For global segmentation, we group by Request Category (from template_key) or Type
+            if is_refund:
+                key = "Возвраты"
+            else:
+                key = "Расходы"
+        elif segment == "branch":
             key = branch if branch else "Другое"
         elif segment == "project":
             key = expense.project_name if expense.project_name else "Без проекта"
             
-        if key not in distribution_data:
-            distribution_data[key] = {"name": key, "value": 0}
+        target_dist = refund_dist_data if is_refund else expense_dist_data
+        
+        if key not in target_dist:
+            target_dist[key] = {"name": key, "value": Decimal("0")}
             
-        distribution_data[key]["value"] += amount
+        target_dist[key]["value"] += amount
             
     sorted_timeline = [timeline_data[k] for k in sorted(timeline_data.keys())]
     
+    # Backward compatibility: 'distribution' field remains for old clients
+    # but now contains the combined data if requested, or just one if filtered
+    combined_dist = list(expense_dist_data.values()) + list(refund_dist_data.values())
+    
     return {
         "timeline": sorted_timeline,
-        "distribution": list(distribution_data.values()),
+        "distribution": combined_dist,
+        "expense_distribution": list(expense_dist_data.values()),
+        "refund_distribution": list(refund_dist_data.values()),
         "summary": status_summary
     }
