@@ -45,6 +45,17 @@ SEEDED_USERS = [
         "branch": "Бухгалтерия",
         "status": "active",
     },
+    {
+        "login_env_key": "PM_LOGIN",
+        "password_env_key": "PM_PASSWORD",
+        "default_login": "abd",
+        "default_password": "abd123",
+        "first_name": "Product",
+        "last_name": "Manager",
+        "position": "product_manager",
+        "branch": "Администрация",
+        "status": "active",
+    },
 ]
 
 

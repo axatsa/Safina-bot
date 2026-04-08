@@ -37,6 +37,9 @@ try:
         print("Distribution sample:", result['distribution'][0])
     print("Expense Dist count:", len(result['expense_distribution']))
     print("Refund Dist count:", len(result['refund_distribution']))
+    print("User Dist count:", len(result['user_distribution']))
+    if result['user_distribution']:
+        print("User Dist sample:", result['user_distribution'][0])
     
     # Check for Decimal presence in the final output
     import json
@@ -44,6 +47,7 @@ try:
     json_ready = jsonable_encoder(result)
     print("JSON ready sample (summary):", json_ready['summary'])
     print("JSON ready sample (first distribution):", json_ready['distribution'][0] if json_ready['distribution'] else "None")
+    print("JSON ready sample (first user distribution):", json_ready['user_distribution'][0] if json_ready['user_distribution'] else "None")
 except Exception as e:
     import traceback
     traceback.print_exc()

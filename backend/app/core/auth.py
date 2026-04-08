@@ -93,5 +93,5 @@ def is_admin(user: models.TeamMember) -> bool:
     admins = [os.getenv("ADMIN_LOGIN", "safina"), "farrukh"]
     if user.login in admins:
         return True
-    return user.team == "Финансисты"
+    return user.team == "Финансисты" or user.position == "product_manager"
 

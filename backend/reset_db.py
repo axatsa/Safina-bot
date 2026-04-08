@@ -1,45 +1,63 @@
-import sqlite3
+import sys
 import os
 
-db_path = "backend/media/safina.db"
+# Add the current directory to sys.path so we can import from 'app'
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from app.core.database import SessionLocal, engine, Base
+from app.db import models
+from app.db.seed import seed_users
+from sqlalchemy import text
 
 def reset_db():
-    if not os.path.exists(db_path):
-        print(f"Database not found at {db_path}")
-        return
-
+    print("🚀 Starting database cleanup for production...")
+    db = SessionLocal()
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-
-        print("Deleting garbage data...")
+        # 1. Clear transaction data
+        print("  Cleaning transaction data...")
+        db.query(models.ExpenseStatusHistory).delete()
+        db.query(models.ExpenseRequest).delete()
+        db.query(models.ProjectCounter).delete()
         
-        # Tables to clear entirely
-        tables_to_clear = [
-            "expense_requests",
-            "projects",
-            "member_projects",
-            "project_counters"
-        ]
+        # 2. Clear project data
+        print("  Cleaning project data...")
+        # Since member_projects is an association table, we handle it via the relationship or raw SQL if needed.
+        # But deleting projects should cascade if configured, or we can be explicit.
+        db.execute(text("DELETE FROM member_projects"))
+        db.query(models.Project).delete()
+        
+        # 3. Clear non-essential users
+        print("  Cleaning team members...")
+        # We keep users defined in seed.py and the main admin from .env
+        admin_login = os.getenv("ADMIN_LOGIN", "safina")
+        essential_logins = ["farrukh", "ganiev", "financier", "abd", admin_login]
+        
+        db.query(models.TeamMember).filter(models.TeamMember.login.notin_(essential_logins)).delete()
+        
+        db.commit()
+        print("✅ Data cleared successfully.")
+        
+        # 4. Re-run seed to ensure essential users are present and have correct data
+        print("  Ensuring essential users exist...")
+        seed_users()
+        print("✅ Essential users verified.")
+        
+        print("\n✨ Database is now ready for production use!")
 
-        for table in tables_to_clear:
-            cursor.execute(f"DELETE FROM {table}")
-            print(f"  Cleared table: {table}")
-
-        # Clear team members except administrative ones
-        # We assume farrukh and ganiev are in the DB and we want to keep them.
-        # We also keep the admin login if it exists.
-        cursor.execute("DELETE FROM team_members WHERE login NOT IN ('safina', 'farrukh', 'ganiev')")
-        print("  Cleared non-admin team members.")
-
-        conn.commit()
-        print("Database cleanup successful.")
-
-    except sqlite3.Error as e:
-        print(f"SQLite error: {e}")
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Error during cleanup: {e}")
+        sys.exit(1)
     finally:
-        if conn:
-            conn.close()
+        db.close()
 
 if __name__ == "__main__":
-    reset_db()
+    # Check if user really wants to do this
+    if len(sys.argv) > 1 and sys.argv[1] == "--force":
+        reset_db()
+    else:
+        confirm = input("⚠️ WARNING: This will delete ALL test data (expenses, projects, members). Continue? (y/n): ")
+        if confirm.lower() == 'y':
+            reset_db()
+        else:
+            print("Aborted.")

@@ -60,6 +60,7 @@ def get_analytics(
     timeline_data = {}
     expense_dist_data = {}
     refund_dist_data = {}
+    user_dist_data = {} # New: Tracking stats per user
     status_summary = {"Pending": 0, "Approved": 0, "Rejected": 0, "Confirmed": 0}
     
     for expense_tuple in expenses:
@@ -98,8 +99,6 @@ def get_analytics(
         if expense.currency == "USD" and expense.usd_rate:
             amount *= Decimal(str(expense.usd_rate))
         elif expense.currency == "RUB" and expense.usd_rate: # Very rough RUB handling if rate is provided
-             # If usd_rate is e.g. 12500, and RUB is 100 per USD, then RUB rate is 125.
-             # This is a guestimate, but better than nothing if RUB rate isn't explicitly stored.
              amount *= Decimal("135") # Hardcoded rough RUB/UZS if not sure
             
         if date_str not in timeline_data:
@@ -129,11 +128,18 @@ def get_analytics(
             target_dist[key] = {"name": key, "value": Decimal("0")}
             
         target_dist[key]["value"] += amount
+
+        # Track user stats
+        user_name = expense.created_by
+        if user_name not in user_dist_data:
+            user_dist_data[user_name] = {"name": user_name, "count": 0, "total": Decimal("0")}
+        
+        user_dist_data[user_name]["count"] += 1
+        user_dist_data[user_name]["total"] += amount
             
     sorted_timeline = [timeline_data[k] for k in sorted(timeline_data.keys())]
     
     # Backward compatibility: 'distribution' field remains for old clients
-    # but now contains the combined data if requested, or just one if filtered
     combined_dist = list(expense_dist_data.values()) + list(refund_dist_data.values())
     
     return {
@@ -141,5 +147,6 @@ def get_analytics(
         "distribution": combined_dist,
         "expense_distribution": list(expense_dist_data.values()),
         "refund_distribution": list(refund_dist_data.values()),
+        "user_distribution": list(user_dist_data.values()), # New field for PM
         "summary": status_summary
     }
