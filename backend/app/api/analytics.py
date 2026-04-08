@@ -4,14 +4,24 @@ from datetime import datetime, timedelta
 from app.db import models
 from app.core import database, auth
 from decimal import Decimal
+from typing import Optional
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
+
+@router.get("/branches")
+def get_branches(
+    db: Session = Depends(database.get_db),
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
+    branches = db.query(models.TeamMember.branch).filter(models.TeamMember.branch != None).distinct().all()
+    return [b[0] for b in branches]
 
 @router.get("")
 def get_analytics(
     period: str = "1m", 
     segment: str = "global", 
     type: str = "all",
+    branch: Optional[str] = None,
     db: Session = Depends(database.get_db), 
     current_user: models.TeamMember = Depends(auth.get_current_user)
 ):
@@ -28,7 +38,7 @@ def get_analytics(
     else:
         start_date = now - timedelta(days=30)
         
-    expenses = db.query(
+    query = db.query(
         models.ExpenseRequest,
         models.TeamMember.branch,
         models.TeamMember.team
@@ -36,7 +46,12 @@ def get_analytics(
         models.TeamMember, models.ExpenseRequest.created_by_id == models.TeamMember.id
     ).filter(
         models.ExpenseRequest.date >= start_date
-    ).all()
+    )
+    
+    if branch:
+        query = query.filter(models.TeamMember.branch == branch)
+        
+    expenses = query.all()
     
     timeline_data = {}
     expense_dist_data = {}

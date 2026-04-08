@@ -66,10 +66,21 @@ const Statistics = () => {
     const [period, setPeriod] = useState("1m");
     const [segment, setSegment] = useState("branch");
     const [requestType, setRequestType] = useState("all");
+    const [selectedBranch, setSelectedBranch] = useState("all");
+
+    const { data: branches = [] } = useQuery({
+        queryKey: ["branches"],
+        queryFn: () => store.getBranches(),
+    });
 
     const { data: analytics, isLoading } = useQuery({
-        queryKey: ["analytics", period, segment, requestType],
-        queryFn: () => store.getAnalytics({ period, segment, type: requestType }),
+        queryKey: ["analytics", period, segment, requestType, selectedBranch],
+        queryFn: () => store.getAnalytics({ 
+            period, 
+            segment, 
+            type: requestType, 
+            branch: selectedBranch === "all" ? undefined : selectedBranch 
+        }),
     });
 
     if (isLoading) {
@@ -105,6 +116,18 @@ const Statistics = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
+                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                        <SelectTrigger className="w-[180px] bg-background shadow-sm rounded-xl border-primary/20">
+                            <SelectValue placeholder="Все филиалы" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Все филиалы</SelectItem>
+                            {branches.map((branch: string) => (
+                                <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
                     <Select value={period} onValueChange={setPeriod}>
                         <SelectTrigger className="w-[160px] bg-background shadow-sm rounded-xl">
                             <SelectValue placeholder="Период" />
