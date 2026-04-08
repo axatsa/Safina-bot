@@ -13,8 +13,12 @@ def get_branches(
     db: Session = Depends(database.get_db),
     current_user: models.TeamMember = Depends(auth.get_current_user)
 ):
+    from app.core.logging_config import get_logger
+    logger = get_logger(__name__)
     branches = db.query(models.TeamMember.branch).filter(models.TeamMember.branch != None).distinct().all()
-    return [b[0] for b in branches]
+    branch_list = [b[0] for b in branches]
+    logger.info(f"Unique branches found: {branch_list}")
+    return branch_list
 
 @router.get("")
 def get_analytics(

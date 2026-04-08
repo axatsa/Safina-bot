@@ -122,8 +122,10 @@ const Statistics = () => {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Все филиалы</SelectItem>
-                            {branches.map((branch: string) => (
-                                <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                            {Array.isArray(branches) && branches.map((branch: any) => (
+                                typeof branch === 'string' && branch.trim() !== "" ? (
+                                    <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                                ) : null
                             ))}
                         </SelectContent>
                     </Select>
