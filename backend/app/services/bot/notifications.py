@@ -175,7 +175,7 @@ async def send_senior_notification(expense: dict, senior_chat_id: int) -> None:
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Утвердить", callback_data=f"approve_senior_{expense_id_db}")
     builder.button(text="❌ Отклонить", callback_data=f"reject_senior_{expense_id_db}")
-    builder.button(text="📄 Скачать Excel смету", callback_data=f"download_excel_{expense_id_db}")
+    builder.button(text="📄 Скачать смету", callback_data=f"download_smeta_{expense_id_db}")
     builder.adjust(2, 1)
 
     await _send_message(senior_chat_id, text, reply_markup=builder.as_markup())
@@ -210,7 +210,7 @@ async def send_ceo_notification(expense: dict, ceo_chat_id: int) -> None:
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Одобрить", callback_data=f"approve_ceo_{expense_id_db}")
     builder.button(text="❌ Отклонить", callback_data=f"reject_ceo_{expense_id_db}")
-    builder.button(text="📄 Скачать инвестицию", callback_data=f"download_excel_{expense_id_db}")
+    builder.button(text="📄 Скачать смету", callback_data=f"download_smeta_{expense_id_db}")
     builder.adjust(2, 1)
 
     await _send_message(ceo_chat_id, text, reply_markup=builder.as_markup())
