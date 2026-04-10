@@ -163,10 +163,11 @@ const SubmitExpense = () => {
     const reqType = searchParams.get("template") || searchParams.get("type");
     const navigate = useNavigate();
     const [projectId, setProjectId] = useState("");
+    const [branchId, setBranchId] = useState("");
     const [purpose, setPurpose] = useState("");
     const [items, setItems] = useState<ItemWithDisplay[]>([emptyItem()]);
     const [submitted, setSubmitted] = useState(false);
-    const [errors, setErrors] = useState<{ purpose?: boolean; items?: number[]; project?: boolean }>({});
+    const [errors, setErrors] = useState<{ purpose?: boolean; items?: number[]; project?: boolean; branch?: boolean }>({});
 
     const { data: projects = [] } = useQuery({
         queryKey: ["projects", chatId],
@@ -184,12 +185,21 @@ const SubmitExpense = () => {
         },
     });
 
+    const activeProject = projects.find((p: Project) => p.id === projectId);
+    const isCorporate = activeProject?.category === "corporate";
+
+    const { data: branches = [] } = useQuery({
+        queryKey: ["branches", projectId],
+        queryFn: () => store.getBranches(projectId),
+        enabled: !!projectId && isCorporate
+    });
+
     const mutation = useMutation({
         mutationFn: () => {
-            // Strip displayAmount before sending to API
             const apiItems: ExpenseItem[] = items.map(({ displayAmount: _d, ...rest }) => rest);
             const data = {
                 project_id: projectId,
+                branch_id: isCorporate ? branchId : undefined,
                 purpose,
                 items: apiItems,
             };
@@ -202,15 +212,14 @@ const SubmitExpense = () => {
         },
         onSuccess: () => {
             toast.success("Заявка отправлена!");
-
             if (chatId) {
-                // Stay on the same page — reset form, show success banner briefly
                 setSubmitted(true);
                 setTimeout(() => {
                     setSubmitted(false);
                     setPurpose("");
                     setItems([emptyItem()]);
                     setErrors({});
+                    setBranchId("");
                 }, 2500);
             } else {
                 setTimeout(() => navigate("/dashboard"), 2000);
@@ -226,7 +235,6 @@ const SubmitExpense = () => {
     const removeItem = (index: number) => {
         if (items.length > 1) {
             setItems(items.filter((_, i) => i !== index));
-            // Clear errors for that index
             if (errors.items) {
                 setErrors({
                     ...errors,
@@ -239,14 +247,10 @@ const SubmitExpense = () => {
     const updateItem = (index: number, field: keyof ItemWithDisplay, value: any) => {
         const newItems = [...items];
         (newItems[index] as any)[field] = value;
-
         if (field === "currency") {
             newItems.forEach(item => (item.currency = value));
         }
-
         setItems(newItems);
-        
-        // Clear error for this item if it was invalid
         if (errors.items?.includes(index)) {
              const item = newItems[index];
              if (item.name && item.amount > 0) {
@@ -259,19 +263,13 @@ const SubmitExpense = () => {
     };
 
     const handleAmountChange = (index: number, raw: string) => {
-        // Убираем все нецифры
         const digitsOnly = raw.replace(/[^\d]/g, "");
-        
-        // Убираем ведущие нули (кроме пустой строки)
         const withoutLeadingZeros = digitsOnly.replace(/^0+(\d)/, '$1');
-        
         const num = withoutLeadingZeros === "" ? 0 : parseInt(withoutLeadingZeros, 10);
         const displayAmount = withoutLeadingZeros === "" ? "" : num.toLocaleString("ru-RU");
-
         const newItems = [...items];
         newItems[index] = { ...newItems[index], amount: num, displayAmount };
         setItems(newItems);
-
         if (errors.items?.includes(index) && num > 0 && newItems[index].name) {
             setErrors({
                 ...errors,
@@ -287,6 +285,10 @@ const SubmitExpense = () => {
         if (!projectId) {
             newErrors.project = true;
             toast.error("Выберите проект");
+        }
+        if (isCorporate && !branchId) {
+            newErrors.branch = true;
+            toast.error("Выберите филиал");
         }
         if (!purpose.trim()) {
             newErrors.purpose = true;
@@ -344,10 +346,10 @@ const SubmitExpense = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="glass-card p-6 md:p-8 rounded-2xl border space-y-6">
-                    {projects.length > 1 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2 animate-fade-in">
                             <Label className={errors.project ? "text-destructive" : ""}>Проект</Label>
-                            <Select value={projectId} onValueChange={(val) => { setProjectId(val); setErrors({...errors, project: false}) }}>
+                            <Select value={projectId} onValueChange={(val) => { setProjectId(val); setErrors({...errors, project: false}); setBranchId(""); }}>
                                 <SelectTrigger className={`rounded-xl ${errors.project ? "border-destructive ring-1 ring-destructive" : ""}`}>
                                     <SelectValue placeholder="Выберите проект" />
                                 </SelectTrigger>
@@ -359,16 +361,29 @@ const SubmitExpense = () => {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            {errors.project && <p className="text-[10px] text-destructive italic">Обязательное поле</p>}
                         </div>
-                    )}
 
-                    {projects.length === 1 && projectId && (
-                        <div className="bg-muted/50 p-4 rounded-xl border border-dashed text-sm flex justify-between items-center">
-                            <span className="text-muted-foreground">Проект:</span>
-                            <span className="font-bold">{projects[0].name} ({projects[0].code})</span>
-                        </div>
-                    )}
+                        {isCorporate && (
+                            <div className="space-y-2 animate-slide-in">
+                                <Label className={errors.branch ? "text-destructive" : ""}>Филиал</Label>
+                                <Select value={branchId} onValueChange={(val) => { setBranchId(val); setErrors({...errors, branch: false}) }}>
+                                    <SelectTrigger className={`rounded-xl ${errors.branch ? "border-destructive ring-1 ring-destructive" : ""}`}>
+                                        <SelectValue placeholder="Выберите филиал" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {branches.map((b: any) => (
+                                            <SelectItem key={b.id} value={b.id}>
+                                                {b.name}
+                                            </SelectItem>
+                                        ))}
+                                        {branches.length === 0 && (
+                                            <div className="p-2 text-xs text-center text-muted-foreground">Нет филиалов</div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="purpose" className={errors.purpose ? "text-destructive" : ""}>Цель расхода</Label>
@@ -379,7 +394,6 @@ const SubmitExpense = () => {
                             placeholder="Напр. Закупка канцелярии"
                             className={`rounded-xl ${errors.purpose ? "border-destructive ring-1 ring-destructive placeholder:text-destructive/50" : ""}`}
                         />
-                        {errors.purpose && <p className="text-[10px] text-destructive italic">Обязательное поле</p>}
                     </div>
 
                     <div className="space-y-4">
@@ -394,7 +408,6 @@ const SubmitExpense = () => {
                             {items.map((item, index) => (
                                 <div key={index} className="flex gap-3 items-start p-4 bg-muted/30 rounded-xl border border-dashed animate-slide-in relative group">
                                     <div className="flex-1 space-y-3">
-                                        {/* Row 1: Name & Quantity */}
                                         <div className="flex gap-2">
                                             <div className="flex-1 space-y-1">
                                                 <Label className="text-[10px] text-muted-foreground">Наименование</Label>
@@ -417,7 +430,6 @@ const SubmitExpense = () => {
                                             </div>
                                         </div>
 
-                                        {/* Row 2: Amount & Currency */}
                                         <div className="flex gap-2">
                                             <div className="flex-1 space-y-1">
                                                 <Label className="text-[10px] text-muted-foreground">Сумма</Label>
@@ -457,9 +469,6 @@ const SubmitExpense = () => {
                                     </div>
                                 </div>
                             ))}
-                        </div>
-                    </div>
-
                     <Button type="submit" className="w-full rounded-xl py-6 text-lg font-bold" disabled={mutation.isPending}>
                         {mutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Send className="w-5 h-5 mr-2" />}
                         {mutation.isPending ? "Создание..." : "Создать инвестицию"}

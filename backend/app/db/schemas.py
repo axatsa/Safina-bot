@@ -41,10 +41,26 @@ class ExpenseItemSchema(BaseModel):
 
     currency: CurrencyEnum
 
-# Project Schemas
+# Project & Branch Schemas
+class BranchBase(BaseModel):
+    name: str
+    code: str
+
+class BranchCreate(BranchBase):
+    pass
+
+class BranchSchema(BranchBase):
+    id: str
+    project_id: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
 class ProjectBase(BaseModel):
     name: str
     code: str
+    category: str = "startup" # startup, corporate
     templates: List[str] = []
 
 class ProjectCreate(ProjectBase):
@@ -63,6 +79,7 @@ class ProjectSchema(ProjectBase):
     id: str
     created_at: datetime
     members: List[MemberSummary] = []
+    branches: List[BranchSchema] = []
     
     class Config:
         from_attributes = True
@@ -81,12 +98,14 @@ class TeamMemberBase(BaseModel):
 class TeamMemberCreate(TeamMemberBase):
     password: str
     project_ids: Optional[List[str]] = []
+    branch_ids: Optional[List[str]] = []
 
 class TeamMemberSchema(TeamMemberBase):
     id: str
     created_at: datetime
     telegram_chat_id: Optional[int] = None
     projects: List[ProjectSchema] = []
+    branches: List[BranchSchema] = []
     
     class Config:
         from_attributes = True
@@ -120,6 +139,7 @@ class ExpenseRequestCreate(BaseModel):
     purpose: str = Field(..., min_length=1, max_length=500)
     items: List[ExpenseItemSchema] = Field(default_factory=list, description="Список позиций (от 0 до 50)")
     project_id: Optional[str] = None
+    branch_id: Optional[str] = None
     total_amount: Optional[Decimal] = None
     currency: Optional[CurrencyEnum] = None
     date: Optional[datetime] = None
@@ -154,6 +174,8 @@ class ExpenseRequestSchema(ExpenseRequestCreate):
     created_by_position: Optional[str] = None
     project_name: Optional[str] = None
     project_code: Optional[str] = None
+    branch_name: Optional[str] = None
+    branch_code: Optional[str] = None
     internal_comment: Optional[str] = None
     usd_rate: Optional[Decimal] = None
     status_comment: Optional[str] = None
@@ -220,5 +242,6 @@ class TeamMemberUpdate(BaseModel):
     login: Optional[str] = None
     password: Optional[str] = None
     project_ids: Optional[List[str]] = None
+    branch_ids: Optional[List[str]] = None
     templates: Optional[List[str]] = None
 

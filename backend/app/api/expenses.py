@@ -41,6 +41,8 @@ def get_expense_dict(expense) -> dict:
         'date': expense.date,
         'project_name': getattr(expense, 'project_name', None),
         'project_code': getattr(expense, 'project_code', None),
+        'branch_name': getattr(expense, 'branch_name', None),
+        'branch_code': getattr(expense, 'branch_code', None),
         'created_by': getattr(expense, 'created_by', None),
         'purpose': getattr(expense, 'purpose', None),
         'total_amount': getattr(expense, 'total_amount', 0),
@@ -54,6 +56,7 @@ router = APIRouter(prefix="/expenses", tags=["expenses"])
 @router.get("", response_model=schemas.PaginatedExpensesSchema)
 def read_expenses(
     project: str = None,
+    branch_id: str = None,
     status: str = None,
     user_id: str = None,
     request_type: str = None,
@@ -95,10 +98,11 @@ def read_expenses(
     items = crud.get_expenses(
         db, 
         project_id=clean_project, 
+        branch_id=branch_id,
         status=status, 
         user_id=clean_user, 
         request_type=request_type,
-        branch=branch,
+        branch_name=branch,
         team=team,
         search=search,
         from_date=from_dt,
@@ -109,10 +113,11 @@ def read_expenses(
     total = crud.count_expenses(
         db, 
         project_id=clean_project, 
+        branch_id=branch_id,
         status=status, 
         user_id=clean_user,
         request_type=request_type,
-        branch=branch,
+        branch_name=branch,
         team=team,
         search=search,
         from_date=from_dt,
@@ -191,6 +196,7 @@ async def web_submit_expense(
 
     expense_create = schemas.ExpenseRequestCreate(
         project_id=data.get("project_id"),
+        branch_id=data.get("branch_id"),
         purpose=data.get("purpose"),
         items=items,
         currency=items[0].currency if items else "UZS"
@@ -312,6 +318,7 @@ async def web_submit_blank(
     
     expense_create = schemas.ExpenseRequestCreate(
         project_id=data.get("project_id"),
+        branch_id=data.get("branch_id"),
         purpose=purpose,
         items=items_data,
         currency=items_data[0].currency if items_data else "UZS"
@@ -370,6 +377,7 @@ async def web_submit_refund_application(
     
     expense_create = schemas.ExpenseRequestCreate(
         project_id=data.get("project_id"),
+        branch_id=data.get("branch_id"),
         purpose=purpose,
         items=[],
         currency="UZS"

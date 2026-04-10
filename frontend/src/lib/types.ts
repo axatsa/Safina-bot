@@ -1,7 +1,15 @@
+export interface Branch {
+  id: string;
+  name: string;
+  code: string;
+  project_id: string;
+}
+
 export interface Project {
   id: string;
   name: string;
   code: string;
+  category: "startup" | "corporate";
   createdAt: Date;
   members: Array<{
     id: string;
@@ -12,14 +20,6 @@ export interface Project {
   templates?: string[];
 }
 
-export interface PaginatedResponse<T> {
-  items: T[];
-  total: number;
-  skip: number;
-  limit: number;
-  has_more: boolean;
-}
-
 export interface TeamMember {
   id: string;
   lastName: string;
@@ -27,9 +27,11 @@ export interface TeamMember {
   position?: string;
   projectIds?: string[];
   projects?: Project[];
+  branchIds?: string[];
+  branches?: Branch[];
   login: string;
   password?: string;
-  branch?: string;
+  branch?: string; // legacy
   team?: string;
   status: "active" | "blocked";
   telegramChatId?: number;
@@ -82,6 +84,9 @@ export interface ExpenseRequest {
   projectId: string;
   projectName: string;
   projectCode: string;
+  branchId?: string;
+  branchName?: string;
+  branchCode?: string;
   internalComment?: string;
   statusComment?: string;
   templateKey?: string;

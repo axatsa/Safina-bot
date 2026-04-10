@@ -63,6 +63,16 @@ def get_projects_kb(projects):
         b.button(text=label)
     b.button(text=_BACK)
     b.adjust(1)
+    return b.as_markup(resize_keyboard=True)def get_branches_kb(branches):
+    b = ReplyKeyboardBuilder()
+    for br in branches:
+        if isinstance(br, dict):
+            name = br.get("name", str(br))
+        else:
+            name = getattr(br, "name", str(br))
+        b.button(text=name)
+    b.button(text=_BACK)
+    b.adjust(1)
     return b.as_markup(resize_keyboard=True)
 
 def get_template_select_kb(template_keys: list):

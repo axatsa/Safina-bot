@@ -4,7 +4,7 @@ import { TeamMember, Project } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2, KeyRound, Pencil, Lock, PlusCircle } from "lucide-react";
+import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2, KeyRound, Pencil, Lock, PlusCircle, Building2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -35,7 +35,7 @@ interface EditFormState {
   lastName: string;
   firstName: string;
   position: string;
-  branch: string;
+  branchIds: string[];
   login: string;
   password: string;
   projectIds: string[];
@@ -50,10 +50,10 @@ const Team = () => {
     lastName: "",
     firstName: "",
     projectIds: [] as string[],
+    branchIds: [] as string[],
     login: "",
     password: "",
     position: "",
-    branch: "",
     team: "",
   });
 
@@ -61,7 +61,7 @@ const Team = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [editMember, setEditMember] = useState<TeamMember | null>(null);
   const [editForm, setEditForm] = useState<EditFormState>({
-    lastName: "", firstName: "", position: "", branch: "",
+    lastName: "", firstName: "", position: "", branchIds: [],
     login: "", password: "", projectIds: [], templates: [],
   });
   const [editTab, setEditTab] = useState<"basic" | "forms">("basic");
@@ -71,16 +71,47 @@ const Team = () => {
     queryFn: () => store.getTeam(),
   });
 
-  const { data: projects = [] } = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => store.getProjects(),
+  const { data: corporateProjects = [] } = useQuery({
+    queryKey: ["projects", "corporate"],
+    queryFn: () => store.getProjects("corporate"),
+  });
+
+  const { data: startupProjects = [] } = useQuery({
+    queryKey: ["projects", "startup"],
+    queryFn: () => store.getProjects("startup"),
+  });
+
+  const allProjects = [...corporateProjects, ...startupProjects];
+
+  // Fetch branches for selected projects (for creation form)
+  const { data: availableBranches = [] } = useQuery({
+    queryKey: ["branches-for-selection", formData.projectIds],
+    queryFn: async () => {
+        const corpProjectIds = formData.projectIds.filter(id => corporateProjects.some(cp => cp.id === id));
+        if (corpProjectIds.length === 0) return [];
+        const results = await Promise.all(corpProjectIds.map(id => store.getBranches(id)));
+        return results.flat();
+    },
+    enabled: formData.projectIds.length > 0
+  });
+
+  // Fetch branches for edit form
+  const { data: editAvailableBranches = [] } = useQuery({
+    queryKey: ["branches-for-edit", editForm.projectIds],
+    queryFn: async () => {
+        const corpProjectIds = editForm.projectIds.filter(id => corporateProjects.some(cp => cp.id === id));
+        if (corpProjectIds.length === 0) return [];
+        const results = await Promise.all(corpProjectIds.map(id => store.getBranches(id)));
+        return results.flat();
+    },
+    enabled: editOpen && editForm.projectIds.length > 0
   });
 
   const mutation = useMutation({
     mutationFn: (newMember: any) => store.createTeamMember(newMember),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team"] });
-      setFormData({ lastName: "", firstName: "", projectIds: [], login: "", password: "", position: "", branch: "", team: "" });
+      setFormData({ lastName: "", firstName: "", projectIds: [], branchIds: [], login: "", password: "", position: "", team: "" });
       toast.success("Участник добавлен");
     },
     onError: (error: any) => toast.error(error.message || "Ошибка при добавлении")
@@ -101,7 +132,7 @@ const Team = () => {
         lastName: data.lastName,
         firstName: data.firstName,
         position: data.position,
-        branch: data.branch,
+        branchIds: data.branchIds,
         login: data.login,
         password: data.password || undefined,
         projectIds: data.projectIds,
@@ -121,7 +152,7 @@ const Team = () => {
       lastName: member.lastName,
       firstName: member.firstName,
       position: member.position || "",
-      branch: member.branch || "",
+      branchIds: member.branchIds || [],
       login: member.login,
       password: "",
       projectIds: member.projectIds || [],
@@ -153,18 +184,32 @@ const Team = () => {
   };
 
   const toggleProject = (id: string) => {
+    setFormData(prev => {
+        const isRemoving = prev.projectIds.includes(id);
+        const newProjects = isRemoving
+            ? prev.projectIds.filter(p => p !== id)
+            : [...prev.projectIds, id];
+        
+        return {
+            ...prev,
+            projectIds: newProjects
+        };
+    });
+  };
+
+  const toggleBranch = (id: string) => {
     setFormData(prev => ({
       ...prev,
-      projectIds: prev.projectIds.includes(id)
-        ? prev.projectIds.filter(p => p !== id)
-        : [...prev.projectIds, id]
+      branchIds: prev.branchIds.includes(id)
+        ? prev.branchIds.filter(b => b !== id)
+        : [...prev.branchIds, id]
     }));
   };
 
   // Compute project-inherited templates for the member being edited
   const projectInheritedTemplates: string[] = editForm.projectIds
     ? [...new Set(
-        projects
+        allProjects
             .filter((p: Project) => editForm.projectIds.includes(p.id))
             .flatMap((p: Project) => p.templates || [])
       )]
@@ -198,50 +243,62 @@ const Team = () => {
                 Добавить участника
               </h2>
               <form onSubmit={handleAddMember} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Фамилия</Label>
-                  <Input id="lastName" value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} required />
+                <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                        <Label htmlFor="lastName">Фамилия</Label>
+                        <Input id="lastName" value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} required />
+                    </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="firstName">Имя</Label>
+                        <Input id="firstName" value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} required />
+                    </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">Имя</Label>
-                  <Input id="firstName" value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} required />
-                </div>
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <Label htmlFor="position">Должность</Label>
-                  <Input id="position" value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} placeholder="Например: Учитель, Бухгалтер..." />
-                  <p className="text-[11px] text-muted-foreground">
-                    Для выдачи особых прав используйте системные роли: admin, senior_financier, ceo
-                  </p>
+                  <Input id="position" value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} placeholder="Напр: Учитель, Бухгалтер..." />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="branch">Филиал</Label>
-                  <Input id="branch" value={formData.branch} onChange={(e) => setFormData({ ...formData, branch: e.target.value })} placeholder="Садик, Школа..." />
-                </div>
-                <div className="space-y-2">
-                  <Label>Проекты (Необязательно)</Label>
-                  <div className="space-y-2 max-h-[150px] overflow-y-auto p-2 border rounded-md">
-                    {projects.map((p: Project) => (
+                
+                <div className="space-y-1">
+                  <Label>Назначить на проекты</Label>
+                  <div className="space-y-1.5 max-h-[120px] overflow-y-auto p-2 border rounded-md bg-muted/20">
+                    {allProjects.map((p: Project) => (
                       <label key={p.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        <Checkbox
                           checked={formData.projectIds.includes(p.id)}
-                          onChange={() => toggleProject(p.id)}
+                          onCheckedChange={() => toggleProject(p.id)}
                         />
-                        <span className="text-sm">{p.name}</span>
+                        <span className="text-xs truncate">{p.name} {p.category === 'corporate' ? '(Корп)' : ''}</span>
                       </label>
                     ))}
                   </div>
                 </div>
-                <div className="space-y-2">
+
+                {availableBranches.length > 0 && (
+                    <div className="space-y-1">
+                        <Label className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" /> Выбрать филиалы</Label>
+                        <div className="space-y-1.5 max-h-[120px] overflow-y-auto p-2 border rounded-md bg-muted/20">
+                            {availableBranches.map((b: Branch) => (
+                                <label key={b.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded cursor-pointer transition-colors">
+                                    <Checkbox
+                                        checked={formData.branchIds.includes(b.id)}
+                                        onCheckedChange={() => toggleBranch(b.id)}
+                                    />
+                                    <span className="text-xs truncate">{b.name}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div className="space-y-1 pt-2 border-t">
                   <Label htmlFor="login">Логин</Label>
                   <Input id="login" value={formData.login} onChange={(e) => setFormData({ ...formData, login: e.target.value })} required />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <Label htmlFor="password">Пароль</Label>
                   <div className="flex gap-2">
                     <Input id="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required minLength={6} />
-                    <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={generatePassword} title="Сгенерировать случайный пароль">
+                    <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={generatePassword}>
                       <KeyRound className="w-4 h-4 text-muted-foreground" />
                     </Button>
                   </div>
@@ -264,13 +321,12 @@ const Team = () => {
                     <table className="w-full text-left">
                     <thead>
                         <tr className="border-b bg-muted/30">
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Участник</th>
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Должность</th>
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Проекты</th>
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Филиал</th>
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Логин</th>
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Статус</th>
-                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider text-right">Действия</th>
+                                    <th className="px-6 py-4 text-xs font-medium text-muted-foreground uppercase">Участник</th>
+                                    <th className="px-6 py-4 text-xs font-medium text-muted-foreground uppercase">Должность</th>
+                                    <th className="px-6 py-4 text-xs font-medium text-muted-foreground uppercase">Проекты / Филиалы</th>
+                                    <th className="px-6 py-4 text-xs font-medium text-muted-foreground uppercase">Логин</th>
+                                    <th className="px-6 py-4 text-xs font-medium text-muted-foreground uppercase">Статус</th>
+                                    <th className="px-6 py-4 text-xs font-medium text-muted-foreground uppercase text-right">Действия</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -288,26 +344,33 @@ const Team = () => {
                             </td>
                             <td className="px-6 py-4 text-sm text-muted-foreground">{member.position || "—"}</td>
                             <td className="px-6 py-4">
-                                <div className="flex flex-wrap gap-1.5">
-                                {(member.projects || []).map(p => (
-                                    <span key={p.id} className="text-[10px] font-medium inline-flex items-center gap-1 bg-primary/5 text-primary px-2 py-0.5 rounded-full border border-primary/10">{p.name}</span>
-                                ))}
-                                {(!member.projects || member.projects.length === 0) && <span className="text-xs text-muted-foreground">—</span>}
+                                <div className="flex flex-wrap gap-1">
+                                    {(member.projects || []).map(p => (
+                                        <span key={p.id} className="text-[9px] bg-primary/5 text-primary px-1.5 py-0.5 rounded border border-primary/10">
+                                            {p.name}
+                                        </span>
+                                    ))}
+                                    {(member.branches || []).map(b => (
+                                        <span key={b.id} className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 flex items-center gap-0.5">
+                                            <Building2 className="w-2.5 h-2.5" />
+                                            {b.name}
+                                        </span>
+                                    ))}
+                                    {(!member.projects?.length && !member.branches?.length) && <span className="text-xs text-muted-foreground">—</span>}
                                 </div>
                             </td>
-                            <td className="px-6 py-4 text-sm">{member.branch || "—"}</td>
                             <td className="px-6 py-4">
-                                <code className="text-xs bg-muted px-2 py-1 rounded">{member.login}</code>
+                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{member.login}</code>
                             </td>
                             <td className="px-6 py-4">
                                 {member.status === "active" ? (
-                                <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                                    <ShieldCheck className="w-3 h-3" />Активен
-                                </div>
+                                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                                        <ShieldCheck className="w-3 h-3" />Доступ
+                                    </span>
                                 ) : (
-                                <div className="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-100">
-                                    <ShieldAlert className="w-3 h-3" />Заблокирован
-                                </div>
+                                    <span className="inline-flex items-center gap-1 text-[10px] text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
+                                        <ShieldAlert className="w-3 h-3" />Блок
+                                    </span>
                                 )}
                             </td>
                             <td className="px-6 py-4 text-right space-x-1">
@@ -392,42 +455,50 @@ const Team = () => {
                 <Label>Должность</Label>
                 <Input value={editForm.position} onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))} placeholder="Учитель, admin, ceo..." />
               </div>
-              <div className="space-y-2">
-                <Label>Филиал</Label>
-                <Input value={editForm.branch} onChange={e => setEditForm(p => ({ ...p, branch: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Логин</Label>
-                <Input value={editForm.login} onChange={e => setEditForm(p => ({ ...p, login: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Новый пароль <span className="text-muted-foreground font-normal">(оставьте пустым, чтобы не менять)</span></Label>
-                <Input
-                  type="text"
-                  value={editForm.password}
-                  onChange={e => setEditForm(p => ({ ...p, password: e.target.value }))}
-                  placeholder="Минимум 6 символов"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Проекты</Label>
-                <div className="space-y-2 max-h-[160px] overflow-y-auto p-2 border rounded-md">
-                  {projects.map((p: Project) => (
-                    <label key={p.id} className="flex items-center gap-2 hover:bg-muted/50 p-1.5 rounded cursor-pointer transition-colors">
-                      <Checkbox
-                        checked={editForm.projectIds.includes(p.id)}
-                        onCheckedChange={(checked) => {
-                          setEditForm(prev => ({
-                            ...prev,
-                            projectIds: checked
-                              ? [...prev.projectIds, p.id]
-                              : prev.projectIds.filter(id => id !== p.id)
-                          }));
-                        }}
-                      />
-                      <span className="text-sm">{p.name}</span>
-                    </label>
-                  ))}
+              <div className="space-y-1">
+                <Label>Проекты и Филиалы</Label>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2 p-3 border rounded-lg bg-muted/5">
+                        <Label className="text-[10px] uppercase text-muted-foreground font-bold">Проекты</Label>
+                        <div className="space-y-1 max-h-[150px] overflow-y-auto">
+                            {allProjects.map(p => (
+                                <label key={p.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded cursor-pointer">
+                                    <Checkbox
+                                        checked={editForm.projectIds.includes(p.id)}
+                                        onCheckedChange={(checked) => {
+                                            setEditForm(prev => ({
+                                                ...prev,
+                                                projectIds: checked ? [...prev.projectIds, p.id] : prev.projectIds.filter(id => id !== p.id)
+                                            }));
+                                        }}
+                                    />
+                                    <span className="text-xs truncate">{p.name}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="space-y-2 p-3 border rounded-lg bg-muted/5">
+                        <Label className="text-[10px] uppercase text-muted-foreground font-bold">Филиалы</Label>
+                        <div className="space-y-1 max-h-[150px] overflow-y-auto">
+                            {editAvailableBranches.map(b => (
+                                <label key={b.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded cursor-pointer">
+                                    <Checkbox
+                                        checked={editForm.branchIds.includes(b.id)}
+                                        onCheckedChange={(checked) => {
+                                            setEditForm(prev => ({
+                                                ...prev,
+                                                branchIds: checked ? [...prev.branchIds, b.id] : prev.branchIds.filter(id => id !== b.id)
+                                            }));
+                                        }}
+                                    />
+                                    <span className="text-xs truncate">{b.name}</span>
+                                </label>
+                            ))}
+                            {editAvailableBranches.length === 0 && (
+                                <p className="text-[10px] text-muted-foreground italic">Сперва выберите проект</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
               </div>
             </div>

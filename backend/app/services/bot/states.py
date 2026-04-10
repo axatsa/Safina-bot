@@ -3,6 +3,7 @@ from aiogram.fsm.state import State, StatesGroup
 class ExpenseWizard(StatesGroup):
     waiting_for_auth = State()
     project_selection = State()
+    branch_selection = State()
     
     # Creation flow
     date = State()
@@ -30,6 +31,7 @@ class RefundWizard(StatesGroup):
 
 class BlankWizard(StatesGroup):
     project_selection = State()  # если 2+ проекта — выбор проекта
+    branch_selection = State()   # если проект корпоративный — выбор филиала
     template_selection = State()  # если 2+ шаблона — выбор шаблона
     template = State()
     filling_method = State() # Bot or Web
@@ -45,6 +47,7 @@ class BlankWizard(StatesGroup):
 
 class RefundBlankWizard(StatesGroup):
     project_selection = State()
+    branch_selection = State()
     filling_method = State()
     client_name = State()
     passport_series = State()

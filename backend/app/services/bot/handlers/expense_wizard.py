@@ -45,12 +45,22 @@ async def start_wizard_selection(message: types.Message, state: FSMContext):
 
     if len(projects_data) > 1:
         await state.update_data(user_id=user_id)
-        # Use simple dict objects for keyboard
         await message.answer("Выберите проект:", reply_markup=get_projects_kb(projects_data))
         await state.set_state(ExpenseWizard.project_selection)
     else:
         # Exactly one project
-        await state.update_data(project_id=projects_data[0]["id"], user_id=user_id)
+        proj = projects_data[0]
+        await state.update_data(project_id=proj["id"], user_id=user_id)
+        
+        # Check for branches
+        with database.database_session() as db:
+            db_proj = db.query(models.Project).get(proj["id"])
+            if db_proj and db_proj.category == "corporate" and db_proj.branches:
+                branches_data = [{"id": b.id, "name": b.name} for b in db_proj.branches]
+                await message.answer("Выберите филиал:", reply_markup=get_branches_kb(branches_data))
+                await state.set_state(ExpenseWizard.branch_selection)
+                return
+
         await message.answer("Введите дату или «Сейчас»:", reply_markup=get_date_kb())
         await state.set_state(ExpenseWizard.date)
 
@@ -66,10 +76,45 @@ async def process_project_selection(message: types.Message, state: FSMContext):
         selected = next((p for p in projects if f"{p.name} ({p.code})" == message.text), None)
         if selected:
             await state.update_data(project_id=selected.id)
+            
+            # Check for branches
+            if selected.category == "corporate" and selected.branches:
+                branches_data = [{"id": b.id, "name": b.name} for b in selected.branches]
+                await message.answer("Выберите филиал:", reply_markup=get_branches_kb(branches_data))
+                await state.set_state(ExpenseWizard.branch_selection)
+                return
+
             await message.answer(f"Проект выбран. Введите дату:", reply_markup=get_date_kb())
             await state.set_state(ExpenseWizard.date)
         else:
             await message.answer("Выберите из списка или отмените.", reply_markup=get_projects_kb(projects))
+
+@router.message(ExpenseWizard.branch_selection)
+async def process_branch_selection(message: types.Message, state: FSMContext):
+    if message.text == _BACK:
+        data = await state.get_data()
+        user_id = data.get("user_id")
+        with database.database_session() as db:
+            user = db.query(models.TeamMember).get(user_id)
+            if user and len(user.projects) > 1:
+                await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
+                await state.set_state(ExpenseWizard.project_selection)
+            else:
+                await state.clear()
+                await message.answer("Отменено.", reply_markup=get_main_kb())
+        return
+
+    data = await state.get_data()
+    project_id = data.get("project_id")
+    with database.database_session() as db:
+        branches = db.query(models.Branch).filter(models.Branch.project_id == project_id).all()
+        selected = next((b for b in branches if b.name == message.text), None)
+        if selected:
+            await state.update_data(branch_id=selected.id)
+            await message.answer("Филиал выбран. Введите дату:", reply_markup=get_date_kb())
+            await state.set_state(ExpenseWizard.date)
+        else:
+            await message.answer("Выберите из списка или отмените.", reply_markup=get_branches_kb(branches))
 
 @router.message(ExpenseWizard.date)
 async def process_date(message: types.Message, state: FSMContext):
@@ -224,6 +269,7 @@ async def process_finish(message: types.Message, state: FSMContext):
                 total_amount=total,
                 currency=currency,
                 project_id=data.get("project_id"),
+                branch_id=data.get("branch_id"),
                 date=datetime.datetime.fromisoformat(data.get("date")),
             )
             db_expense = crud.create_expense_request(db, expense_create, user_id=data.get("user_id"), usd_rate=usd_rate)

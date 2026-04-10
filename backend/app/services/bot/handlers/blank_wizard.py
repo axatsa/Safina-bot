@@ -68,10 +68,24 @@ async def start_blank_wizard(message: types.Message, state: FSMContext):
     if len(projects_data) > 1:
         await state.set_state(BlankWizard.project_selection)
         await message.answer("Для какого проекта бланк?", reply_markup=get_projects_kb(projects_data))
+    elif projects_data:
+        # 1 проект
+        proj = projects_data[0]
+        await state.update_data(project_id=proj["id"])
+        
+        # Check for branches BEFORE templates if it's corporate
+        with database.database_session() as db:
+            db_proj = db.query(models.Project).get(proj["id"])
+            if db_proj and db_proj.category == "corporate" and db_proj.branches:
+                branches_data = [{"id": b.id, "name": b.name} for b in db_proj.branches]
+                await message.answer("Выберите филиал:", reply_markup=get_branches_kb(branches_data))
+                await state.set_state(BlankWizard.branch_selection)
+                return
+
+        await proceed_to_templates(message, state, user_templates, projects_data, proj["id"])
     else:
-        # 1 проект или вообще нет проектов (но есть личные шаблоны)
-        project_id = projects_data[0]["id"] if projects_data else None
-        await proceed_to_templates(message, state, user_templates, projects_data, project_id)
+        # Личные шаблоны без проекта
+        await proceed_to_templates(message, state, user_templates, projects_data, None)
 
 # Позиция 1. Выбор проекта (если 2+)
 @router.message(BlankWizard.project_selection)
@@ -82,14 +96,14 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
         return
 
     user_not_found = False
-    project_id = None
+    project_obj = None
     projects_data = []
     user_templates = []
     user_id = None
 
     with database.database_session() as db:
         user = db.query(models.TeamMember).options(
-            joinedload(models.TeamMember.projects)
+            joinedload(models.TeamMember.projects).joinedload(models.Project.branches)
         ).filter(
             models.TeamMember.telegram_chat_id == message.from_user.id
         ).first()
@@ -98,18 +112,19 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
             user_not_found = True
         else:
             user_id = user.id
-            # Extract data while session is open
             user_templates = list(user.templates or [])
             for p in user.projects:
                 p_data = {
                     "id": p.id,
                     "name": p.name,
                     "code": p.code,
-                    "templates": list(p.templates or [])
+                    "templates": list(p.templates or []),
+                    "category": p.category,
+                    "branches_data": [{"id": b.id, "name": b.name} for b in p.branches]
                 }
                 projects_data.append(p_data)
                 if f"{p.name} ({p.code})" == message.text:
-                    project_id = p.id
+                    project_obj = p_data
         
     if user_not_found:
         await message.answer("Пользователь не найден.")
@@ -117,11 +132,58 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
         
     await state.update_data(user_id=user_id)
 
-    if not project_id:
+    if not project_obj:
         await message.answer("Выберите проект из списка кнопок.")
         return
 
-    await proceed_to_templates(message, state, user_templates, projects_data, project_id)
+    await state.update_data(project_id=project_obj["id"])
+    
+    # Check for branches
+    if project_obj["category"] == "corporate" and project_obj["branches_data"]:
+        await message.answer("Выберите филиал:", reply_markup=get_branches_kb(project_obj["branches_data"]))
+        await state.set_state(BlankWizard.branch_selection)
+    else:
+        await proceed_to_templates(message, state, user_templates, projects_data, project_obj["id"])
+
+@router.message(BlankWizard.branch_selection)
+async def handle_branch_selection(message: types.Message, state: FSMContext):
+    if message.text == _BACK:
+        # Go back to project selection
+        projects_data = []
+        with database.database_session() as db:
+            user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+            if user:
+                projects_data = [{"id": p.id, "name": p.name, "code": p.code} for p in user.projects]
+        
+        if len(projects_data) > 1:
+            await state.set_state(BlankWizard.project_selection)
+            await message.answer("Для какого проекта бланк?", reply_markup=get_projects_kb(projects_data))
+        else:
+            await state.clear()
+            await message.answer("Главное меню", reply_markup=get_main_kb())
+        return
+
+    data = await state.get_data()
+    project_id = data.get("project_id")
+    
+    with database.database_session() as db:
+        branches = db.query(models.Branch).filter(models.Branch.project_id == project_id).all()
+        selected = next((b for b in branches if b.name == message.text), None)
+        if selected:
+            await state.update_data(branch_id=selected.id)
+            
+            # Now proceed to templates
+            user_templates = []
+            projects_data = []
+            user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+            if user:
+                user_templates = list(user.templates or [])
+                for p in user.projects:
+                    projects_data.append({"id": p.id, "templates": list(p.templates or [])})
+            
+            await proceed_to_templates(message, state, user_templates, projects_data, project_id)
+        else:
+            await message.answer("Выберите из списка или отмените.", reply_markup=get_branches_kb(branches))
 
 async def proceed_to_templates(message: types.Message, state: FSMContext, user_templates: list, projects_data: list, project_id: Optional[str]):
     # Собираем доступные шаблоны: личные + этого проекта
@@ -377,6 +439,7 @@ async def handle_final_submit(message: types.Message, state: FSMContext):
         
         expense_create = schemas.ExpenseRequestCreate(
             project_id=data.get("project_id"),
+            branch_id=data.get("branch_id"),
             purpose=data["purpose"],
             items=items_objs,
             currency=data["currency"],

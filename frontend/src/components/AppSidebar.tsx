@@ -1,6 +1,7 @@
 import { 
   ClipboardList, 
   FolderOpen, 
+  Rocket,
   Users, 
   LogOut, 
   Archive, 
@@ -35,6 +36,7 @@ const AppSidebar = () => {
     },
     { title: "Отчёты", url: "/dashboard/archive", icon: Archive, show: true },
     { title: "Аналитика", url: "/dashboard/statistics", icon: BarChart, show: true },
+    { title: "Start Ups", url: "/dashboard/startups", icon: Rocket, show: true },
     { title: "Проекты", url: "/dashboard/projects", icon: FolderOpen, show: true },
     { title: "Команда", url: "/dashboard/team", icon: Users, show: true },
     { title: "Инструкция", url: "/dashboard/faq", icon: HelpCircle, show: true },

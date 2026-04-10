@@ -1,10 +1,23 @@
 import { useState } from "react";
 import { store } from "@/lib/store";
-import { Project } from "@/lib/types";
+import { Project, Branch } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FolderKanban, Loader2, Trash2, Calendar, Users, UserPlus, X, FileText, FolderOpen } from "lucide-react";
+import { 
+    Plus, 
+    FolderKanban, 
+    Loader2, 
+    Trash2, 
+    Calendar, 
+    Users, 
+    X, 
+    FileText, 
+    FolderOpen,
+    GitBranch,
+    Rocket,
+    Building2
+} from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -32,52 +45,86 @@ const AVAILABLE_TEMPLATES = [
     { id: "refund", label: "Заявление на возврат" },
 ];
 
-const Projects = () => {
+interface ProjectsProps {
+    category: "startup" | "corporate";
+}
+
+const Projects = ({ category }: ProjectsProps) => {
     const queryClient = useQueryClient();
     const [formData, setFormData] = useState({
         name: "",
         code: "",
     });
 
+    const isCorporate = category === "corporate";
+    const title = isCorporate ? "Проекты" : "Start Ups";
+    const subtitle = isCorporate ? "Корпоративные проекты с филиалами" : "Плоские проекты без структуры";
+    const Icon = isCorporate ? Building2 : Rocket;
+
     const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
-        queryKey: ["projects"],
-        queryFn: () => store.getProjects(),
+        queryKey: ["projects", category],
+        queryFn: () => store.getProjects(category),
     });
 
     const mutation = useMutation({
-        mutationFn: (newProject: { name: string; code: string }) => store.createProject(newProject),
+        mutationFn: (newProject: { name: string; code: string; category: string }) => store.createProject(newProject),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            queryClient.invalidateQueries({ queryKey: ["projects", category] });
             setFormData({ name: "", code: "" });
-            toast.success("Проект успешно создан");
+            toast.success("Создано успешно");
         },
-        onError: () => toast.error("Ошибка при создании проекта")
+        onError: () => toast.error("Ошибка при создании")
     });
 
     const deleteMutation = useMutation({
         mutationFn: (id: string) => store.deleteProject(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["projects"] });
-            toast.success("Проект удален");
+            queryClient.invalidateQueries({ queryKey: ["projects", category] });
+            toast.success("Удалено");
         },
         onError: () => toast.error("Ошибка при удалении")
     });
 
     const [memberDialogOpen, setMemberDialogOpen] = useState(false);
     const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+    const [branchDialogOpen, setBranchDialogOpen] = useState(false);
     const [activeProject, setActiveProject] = useState<Project | null>(null);
     const [pendingTemplates, setPendingTemplates] = useState<string[] | null>(null);
+    const [newBranchName, setNewBranchName] = useState("");
 
     const { data: team = [] } = useQuery({
         queryKey: ["team"],
         queryFn: () => store.getTeam()
     });
 
+    const { data: branches = [], refetch: refetchBranches } = useQuery({
+        queryKey: ["branches", activeProject?.id],
+        queryFn: () => activeProject ? store.getBranches(activeProject.id) : Promise.resolve([]),
+        enabled: !!activeProject && isCorporate
+    });
+
+    const createBranchMutation = useMutation({
+        mutationFn: (name: string) => store.createBranch(activeProject!.id, { name }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["branches", activeProject?.id] });
+            setNewBranchName("");
+            toast.success("Филиал добавлен");
+        }
+    });
+
+    const deleteBranchMutation = useMutation({
+        mutationFn: (id: string) => store.deleteBranch(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["branches", activeProject?.id] });
+            toast.success("Филиал удален");
+        }
+    });
+
     const addMemberMutation = useMutation({
         mutationFn: ({ projectId, memberId }: { projectId: string; memberId: string }) =>
             store.addProjectMember(projectId, memberId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            queryClient.invalidateQueries({ queryKey: ["projects", category] });
             queryClient.invalidateQueries({ queryKey: ["team"] });
             toast.success("Участник добавлен");
         }
@@ -87,7 +134,7 @@ const Projects = () => {
         mutationFn: ({ projectId, memberId }: { projectId: string; memberId: string }) =>
             store.removeProjectMember(projectId, memberId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            queryClient.invalidateQueries({ queryKey: ["projects", category] });
             queryClient.invalidateQueries({ queryKey: ["team"] });
             toast.success("Участник исключен");
         }
@@ -97,7 +144,7 @@ const Projects = () => {
         mutationFn: ({ projectId, templates }: { projectId: string; templates: string[] }) =>
             store.updateProjectTemplates(projectId, templates),
         onSuccess: (updatedProject) => {
-            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            queryClient.invalidateQueries({ queryKey: ["projects", category] });
             if (activeProject && updatedProject.id === activeProject.id) {
                 setActiveProject(updatedProject);
             }
@@ -137,7 +184,7 @@ const Projects = () => {
             toast.error("Заполните все поля");
             return;
         }
-        mutation.mutate(formData);
+        mutation.mutate({ ...formData, category });
     };
 
     if (isProjectsLoading) {
@@ -150,20 +197,25 @@ const Projects = () => {
 
     return (
         <div className="p-6 space-y-8 animate-slide-in">
-            <div>
-                <h1 className="text-2xl font-display font-bold text-foreground">Проекты</h1>
-                <p className="text-sm text-muted-foreground mt-1">Управление списком активных проектов</p>
+            <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                    <Icon className="w-6 h-6" />
+                </div>
+                <div>
+                    <h1 className="text-2xl font-display font-bold text-foreground">{title}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
                 <div className="xl:col-span-1 glass-card p-6 rounded-2xl border space-y-6 h-fit">
                     <h2 className="font-display font-bold text-lg flex items-center gap-2">
                         <Plus className="w-5 h-5 text-primary" />
-                        Новый проект
+                        Создать
                     </h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="name">Название проекта</Label>
+                            <Label htmlFor="name">Название</Label>
                             <Input
                                 id="name"
                                 value={formData.name}
@@ -173,7 +225,7 @@ const Projects = () => {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="code">Код проекта (префикс ID)</Label>
+                            <Label htmlFor="code">Код (префикс ID)</Label>
                             <Input
                                 id="code"
                                 value={formData.code}
@@ -196,125 +248,176 @@ const Projects = () => {
                             <div className="py-20">
                                 <EmptyState 
                                     icon={FolderOpen}
-                                    title="Нет проектов"
-                                    subtitle="Создайте первый проект, чтобы начать работу"
+                                    title="Пусто"
+                                    subtitle="Нет созданных элементов в этой категории"
                                 />
                             </div>
                         ) : (
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="border-b bg-muted/30">
-                                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                            Название
-                                        </th>
-                                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                            Код
-                                        </th>
-                                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                            Дата создания
-                                        </th>
-                                        <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider text-right">
-                                            Действия
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border">
-                                    {projects.map((project: Project) => (
-                                        <tr key={project.id} className="hover:bg-muted/10 transition-colors group">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                                                        <FolderKanban className="w-4 h-4" />
-                                                    </div>
-                                                    <div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="border-b bg-muted/30">
+                                            <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                                Название
+                                            </th>
+                                            <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                                Код
+                                            </th>
+                                            <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider text-right">
+                                                Действия
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border">
+                                        {projects.map((project: Project) => (
+                                            <tr key={project.id} className="hover:bg-muted/10 transition-colors group">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                                                            <FolderKanban className="w-4 h-4" />
+                                                        </div>
                                                         <p className="font-display font-semibold text-sm">
                                                             {project.name}
                                                         </p>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <code className="text-xs bg-muted px-2 py-1 rounded font-bold">
-                                                    {project.code}
-                                                </code>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-muted-foreground">
-                                                <div className="flex items-center gap-2">
-                                                    <Calendar className="w-3 h-3" />
-                                                    {project.createdAt ? format(new Date(project.createdAt), "dd.MM.yyyy") : "—"}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right space-x-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="text-muted-foreground hover:text-primary transition-colors"
-                                                    onClick={() => {
-                                                        setActiveProject(project);
-                                                        setMemberDialogOpen(true);
-                                                    }}
-                                                    title="Участники проекта"
-                                                >
-                                                    <Users className="w-4 h-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="text-muted-foreground hover:text-indigo-600 transition-colors"
-                                                    onClick={() => {
-                                                        setActiveProject(project);
-                                                        setPendingTemplates(project.templates || []);
-                                                        setTemplateDialogOpen(true);
-                                                    }}
-                                                    title="Шаблоны бланков"
-                                                >
-                                                    <FileText className="w-4 h-4" />
-                                                </Button>
-                                                
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <code className="text-xs bg-muted px-2 py-1 rounded font-bold">
+                                                        {project.code}
+                                                    </code>
+                                                </td>
+                                                <td className="px-6 py-4 text-right space-x-1">
+                                                    {isCorporate && (
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="text-muted-foreground hover:text-red-600 transition-colors"
-                                                            title="Удалить проект"
+                                                            className="text-muted-foreground hover:text-blue-600"
+                                                            onClick={() => {
+                                                                setActiveProject(project);
+                                                                setBranchDialogOpen(true);
+                                                            }}
+                                                            title="Филиалы"
                                                         >
-                                                            <Trash2 className="w-4 h-4" />
+                                                            <GitBranch className="w-4 h-4" />
                                                         </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Удалить проект?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                Вы уверены, что хотите удалить этот проект? Это может повлиять на связанные заявки и участников.
-                                                                Это действие нельзя отменить.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                                            <AlertDialogAction 
-                                                                onClick={() => deleteMutation.mutate(project.id)}
-                                                                className="bg-red-600 hover:bg-red-700"
+                                                    )}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-muted-foreground hover:text-primary transition-colors"
+                                                        onClick={() => {
+                                                            setActiveProject(project);
+                                                            setMemberDialogOpen(true);
+                                                        }}
+                                                        title="Участники проекта"
+                                                    >
+                                                        <Users className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-muted-foreground hover:text-indigo-600 transition-colors"
+                                                        onClick={() => {
+                                                            setActiveProject(project);
+                                                            setPendingTemplates(project.templates || []);
+                                                            setTemplateDialogOpen(true);
+                                                        }}
+                                                        title="Шаблоны бланков"
+                                                    >
+                                                        <FileText className="w-4 h-4" />
+                                                    </Button>
+                                                    
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="text-muted-foreground hover:text-red-600 transition-colors"
+                                                                title="Удалить"
                                                             >
-                                                                Удалить
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Удалить?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Вы уверены, что хотите удалить этот проект?
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                                                <AlertDialogAction 
+                                                                    onClick={() => deleteMutation.mutate(project.id)}
+                                                                    className="bg-red-600 hover:bg-red-700"
+                                                                >
+                                                                    Удалить
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </div>
                 </div>
             </div>
 
+            {/* Branches Dialog */}
+            <Dialog open={branchDialogOpen} onOpenChange={setBranchDialogOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Филиалы: {activeProject?.name}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-6 pt-4">
+                        <div className="flex gap-2">
+                            <Input 
+                                placeholder="Название филиала" 
+                                value={newBranchName}
+                                onChange={(e) => setNewBranchName(e.target.value)}
+                            />
+                            <Button 
+                                onClick={() => createBranchMutation.mutate(newBranchName)}
+                                disabled={!newBranchName || createBranchMutation.isPending}
+                            >
+                                <Plus className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                            {branches.map((branch: Branch) => (
+                                <div key={branch.id} className="flex items-center justify-between bg-muted/40 p-3 rounded-lg border">
+                                    <div>
+                                        <p className="text-sm font-bold">{branch.name}</p>
+                                        <code className="text-[10px] opacity-70 uppercase">{branch.code}</code>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground hover:text-red-500"
+                                        onClick={() => deleteBranchMutation.mutate(branch.id)}
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                </div>
+                            ))}
+                            {branches.length === 0 && (
+                                <p className="text-sm text-center text-muted-foreground py-10 italic">
+                                    Нет созданных филиалов
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Участники проекта: {activeProject?.name}</DialogTitle>
+                        <DialogTitle>Участники: {activeProject?.name}</DialogTitle>
                     </DialogHeader>
 
                     <div className="space-y-6 pt-4">
@@ -341,46 +444,35 @@ const Projects = () => {
                                         </Button>
                                     </div>
                                 ))}
-                                {projectMembers.length === 0 && (
-                                    <p className="text-sm text-muted-foreground italic text-center py-4">
-                                        В проекте пока нет участников
-                                    </p>
-                                )}
                             </div>
                         </div>
 
                         <div className="space-y-3 pt-2 border-t">
                             <Label className="text-sm font-medium">Добавить участника</Label>
-                            <div className="flex gap-2">
-                                <Select onValueChange={(value) => {
-                                    if (activeProject) {
-                                        addMemberMutation.mutate({
-                                            projectId: activeProject.id,
-                                            memberId: value
-                                        });
-                                    }
-                                }}>
-                                    <SelectTrigger className="flex-1">
-                                        <SelectValue placeholder="Выберите сотрудника..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {availableMembers.map((m) => (
-                                            <SelectItem key={m.id} value={m.id}>
-                                                {m.lastName} {m.firstName} ({m.position || "чел"})
-                                            </SelectItem>
-                                        ))}
-                                        {availableMembers.length === 0 && (
-                                            <div className="p-2 text-xs text-center text-muted-foreground">
-                                                Нет доступных сотрудников
-                                            </div>
-                                        )}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            <Select onValueChange={(value) => {
+                                if (activeProject) {
+                                    addMemberMutation.mutate({
+                                        projectId: activeProject.id,
+                                        memberId: value
+                                    });
+                                }
+                            }}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Выберите сотрудника..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableMembers.map((m) => (
+                                        <SelectItem key={m.id} value={m.id}>
+                                            {m.lastName} {m.firstName}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                 </DialogContent>
             </Dialog>
+
             <Dialog 
                 open={templateDialogOpen} 
                 onOpenChange={(open) => {
@@ -390,40 +482,29 @@ const Projects = () => {
             >
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Шаблоны для: {activeProject?.name}</DialogTitle>
+                        <DialogTitle>Шаблоны: {activeProject?.name}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 pt-4">
-                        <Label className="text-sm font-medium">Выберите доступные шаблоны бланков:</Label>
-                        <div className="grid grid-cols-1 gap-3">
+                        <div className="grid grid-cols-1 gap-2">
                             {AVAILABLE_TEMPLATES.map((tpl: any) => (
-                                <div key={tpl.id} className="flex items-center space-x-3 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors">
+                                <div key={tpl.id} className="flex items-center space-x-3 p-3 rounded-lg border bg-muted/20">
                                     <Checkbox 
                                         id={`tpl-${tpl.id}`}
                                         checked={(pendingTemplates ?? []).includes(tpl.id)}
                                         onCheckedChange={() => handleTemplateToggle(tpl.id)}
                                     />
-                                    <Label 
-                                        htmlFor={`tpl-${tpl.id}`}
-                                        className="text-sm font-medium cursor-pointer flex-1"
-                                    >
+                                    <Label htmlFor={`tpl-${tpl.id}`} className="text-sm cursor-pointer flex-1">
                                         {tpl.label}
-                                        <span className="block text-[10px] text-muted-foreground mt-0.5">{tpl.id}</span>
                                     </Label>
                                 </div>
                             ))}
                         </div>
-                        <p className="text-[11px] text-muted-foreground italic mt-2">
-                            * Выбранные шаблоны будут доступны всем участникам этого проекта в Telegram боте.
-                        </p>
-                        
                         <Button
                             onClick={handleSaveTemplates}
                             disabled={updateTemplatesMutation.isPending}
                             className="w-full mt-4"
                         >
-                            {updateTemplatesMutation.isPending ? (
-                                <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Сохранение...</>
-                            ) : "Сохранить"}
+                            Сохранить
                         </Button>
                     </div>
                 </DialogContent>

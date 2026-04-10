@@ -20,6 +20,8 @@ const BlankForm = () => {
   const [searchParams] = useSearchParams();
   const template = searchParams.get("template") || searchParams.get("type") || "ls";
   const navigate = useNavigate();
+  const [projectId, setProjectId] = useState(searchParams.get("project_id") || "");
+  const [branchId, setBranchId] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -48,6 +50,33 @@ const BlankForm = () => {
     transit_account: "",
     bank_name: "",
     retention: false,
+  });
+
+  const chatId = searchParams.get("chat_id");
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ["projects", chatId],
+    queryFn: async () => {
+        let list = [];
+        if (chatId) {
+            list = await store.getProjectsByChatId(chatId);
+        } else {
+            list = await store.getProjects();
+        }
+        if (list.length === 1 && !projectId) {
+            setProjectId(list[0].id);
+        }
+        return list;
+    },
+  });
+
+  const activeProject = projects.find((p: any) => p.id === projectId);
+  const isCorporate = activeProject?.category === "corporate";
+
+  const { data: branches = [] } = useQuery({
+    queryKey: ["branches", projectId],
+    queryFn: () => store.getBranches(projectId),
+    enabled: !!projectId && isCorporate
   });
 
   const addItem = () => {
@@ -80,6 +109,16 @@ const BlankForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!projectId) {
+        toast.error("Выберите проект");
+        return;
+    }
+    if (isCorporate && !branchId) {
+        toast.error("Выберите филиал");
+        return;
+    }
+
     setLoading(true);
 
     try {
@@ -101,8 +140,9 @@ const BlankForm = () => {
         }
         const payload = {
           ...refundData,
-          chat_id: searchParams.get("chat_id") || null,
-          project_id: searchParams.get("project_id") || null,
+          chat_id: chatId || null,
+          project_id: projectId,
+          branch_id: isCorporate ? branchId : undefined,
         };
         await store.submitRefundApplicationFromWeb(payload);
         toast.success("Заявление на возврат отправлено Сафине!");
@@ -111,14 +151,14 @@ const BlankForm = () => {
           template,
           purpose,
           items,
-          chat_id: searchParams.get("chat_id") || null,
-          project_id: searchParams.get("project_id") || null,
+          chat_id: chatId || null,
+          project_id: projectId,
+          branch_id: isCorporate ? branchId : undefined,
         };
         await store.submitBlankFromWeb(payload);
         toast.success("Заявка успешно отправлена Сафине!");
       }
 
-      // Show success screen, then close Telegram Mini-App or go to dashboard
       setSubmitted(true);
       // @ts-ignore
       if (window.Telegram?.WebApp?.close) {
@@ -127,7 +167,7 @@ const BlankForm = () => {
           window.Telegram.WebApp.close();
         }, 1800);
       } else {
-        setTimeout(() => navigate("/dashboard/applications"), 2000);
+        setTimeout(() => navigate(-1), 2000);
       }
     } catch (error) {
       console.error(error);
@@ -172,6 +212,47 @@ const BlankForm = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="glass-card p-6 md:p-8 rounded-2xl border space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {!searchParams.get("project_id") && projects.length > 0 && (
+                <div className="space-y-2">
+                    <Label>Проект</Label>
+                    <Select value={projectId} onValueChange={(val) => { setProjectId(val); setBranchId(""); }}>
+                        <SelectTrigger className="rounded-xl">
+                            <SelectValue placeholder="Выберите проект" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {projects.map((p: any) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                    {p.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+            
+            {isCorporate && (
+                <div className="space-y-2 animate-slide-in">
+                    <Label>Филиал</Label>
+                    <Select value={branchId} onValueChange={setBranchId}>
+                        <SelectTrigger className="rounded-xl">
+                            <SelectValue placeholder="Выберите филиал" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {branches.map((b: any) => (
+                                <SelectItem key={b.id} value={b.id}>
+                                    {b.name}
+                                </SelectItem>
+                            ))}
+                            {branches.length === 0 && (
+                                <div className="p-2 text-xs text-center text-muted-foreground">Нет филиалов</div>
+                            )}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+          </div>
+
           {template !== "refund" ? (
             <>
               {/* Service Note Form */}

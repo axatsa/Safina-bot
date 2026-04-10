@@ -11,6 +11,8 @@ function mapMember(m: any): TeamMember {
       ...p,
       createdAt: new Date(p.created_at)
     })),
+    branchIds: (m.branches || []).map((b: any) => b.id),
+    branches: m.branches || [],
     login: m.login,
     position: m.position,
     branch: m.branch,
@@ -40,10 +42,10 @@ export const teamService = {
         last_name: member.lastName,
         first_name: member.firstName,
         project_ids: member.projectIds,
+        branch_ids: member.branchIds,
         login: member.login,
         password: member.password,
         position: member.position,
-        branch: member.branch,
         team: member.team
       }),
     });
@@ -67,22 +69,22 @@ export const teamService = {
     lastName?: string;
     firstName?: string;
     position?: string;
-    branch?: string;
     team?: string;
     login?: string;
     password?: string;
     projectIds?: string[];
+    branchIds?: string[];
     templates?: string[];
   }): Promise<TeamMember> => {
     const body: any = {};
     if (data.lastName   !== undefined) body.last_name   = data.lastName;
     if (data.firstName  !== undefined) body.first_name  = data.firstName;
     if (data.position   !== undefined) body.position     = data.position;
-    if (data.branch     !== undefined) body.branch       = data.branch;
     if (data.team       !== undefined) body.team         = data.team;
     if (data.login      !== undefined) body.login        = data.login;
     if (data.password   !== undefined) body.password     = data.password;
     if (data.projectIds !== undefined) body.project_ids  = data.projectIds;
+    if (data.branchIds  !== undefined) body.branch_ids   = data.branchIds;
     if (data.templates  !== undefined) body.templates    = data.templates;
     const res = await apiFetch(`/team/${memberId}`, {
       method: "PATCH",

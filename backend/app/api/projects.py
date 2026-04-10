@@ -8,10 +8,45 @@ from app.core import auth, database
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 @router.get("", response_model=List[schemas.ProjectSchema])
-def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    if current_user.login == os.getenv("ADMIN_LOGIN", "safina"):
-        return crud.get_projects(db, skip=skip, limit=limit)
-    return current_user.projects
+def read_projects(
+    category: Optional[str] = None, 
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.TeamMember = Depends(auth.get_current_user)
+):
+    if auth.is_admin(current_user):
+        return crud.get_projects(db, skip=skip, limit=limit, category=category)
+    return [p for p in current_user.projects if not category or p.category == category]
+
+@router.post("", response_model=schemas.ProjectSchema)
+def create_project(project: schemas.ProjectCreate, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if not auth.is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can create projects")
+    
+    existing_project = db.query(models.Project).filter(models.Project.code == project.code.upper()).first()
+    if existing_project:
+        raise HTTPException(status_code=400, detail=f"Проект с кодом '{project.code}' уже существует")
+        
+    return crud.create_project(db=db, project=project)
+
+# Branches
+@router.get("/{project_id}/branches", response_model=List[schemas.BranchSchema])
+def read_project_branches(project_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    return crud.get_branches(db, project_id=project_id)
+
+@router.post("/{project_id}/branches", response_model=schemas.BranchSchema)
+def create_project_branch(project_id: str, branch: schemas.BranchCreate, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if not auth.is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can create branches")
+    return crud.create_branch(db, project_id, branch)
+
+@router.delete("/branches/{branch_id}")
+def delete_branch(branch_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if not auth.is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can delete branches")
+    crud.delete_branch(db, branch_id)
+    return {"status": "success"}
 
 @router.get("/by-chat-id/{chat_id}", response_model=List[schemas.ProjectSchema])
 def read_projects_by_chat_id(chat_id: int, db: Session = Depends(database.get_db)):
@@ -20,62 +55,9 @@ def read_projects_by_chat_id(chat_id: int, db: Session = Depends(database.get_db
         raise HTTPException(status_code=404, detail="User not found")
     return user.projects
 
-@router.post("", response_model=schemas.ProjectSchema)
-def create_project(project: schemas.ProjectCreate, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
-        raise HTTPException(status_code=403, detail="Only admins can create projects")
-    
-    existing_project = db.query(models.Project).filter(models.Project.code == project.code).first()
-    if existing_project:
-        raise HTTPException(status_code=400, detail=f"Проект с кодом '{project.code}' уже существует")
-        
-    return crud.create_project(db=db, project=project)
-
 @router.delete("/{project_id}")
 def delete_project(project_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
-        raise HTTPException(status_code=403, detail="Only admins can delete projects")
-        
-    proj = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Project not found")
-    db.delete(proj)
-    db.commit()
-    return {"status": "success"}
-
-@router.post("/{project_id}/members/{member_id}")
-def add_project_member(project_id: str, member_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
-        raise HTTPException(status_code=403, detail="Only admins can manage project members")
-        
-    member = crud.add_project_member(db, project_id, member_id)
-    if not member:
-        raise HTTPException(status_code=404, detail="Project or Member not found")
-    return {"status": "success"}
-
-@router.delete("/{project_id}/members/{member_id}")
-def remove_project_member(project_id: str, member_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
-    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
-        raise HTTPException(status_code=403, detail="Only admins can manage project members")
-        
-    member = crud.remove_project_member(db, project_id, member_id)
-    if not member:
-        raise HTTPException(status_code=404, detail="Project or Member not found")
-    return {"status": "success"}
-
-@router.patch("/{project_id}/templates", response_model=schemas.ProjectSchema)
-def update_project_templates(
-    project_id: str,
-    update: schemas.ProjectTemplatesUpdate,
-    db: Session = Depends(database.get_db),
-    current_user: models.TeamMember = Depends(auth.get_current_user)
-):
     if not auth.is_admin(current_user):
-        raise HTTPException(status_code=403, detail="Only admins can update templates")
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    project.templates = update.templates
-    db.commit()
-    db.refresh(project)
-    return project
+        raise HTTPException(status_code=403, detail="Only admins can delete projects")
+    crud.delete_project(db, project_id)
+    return {"status": "success"}
