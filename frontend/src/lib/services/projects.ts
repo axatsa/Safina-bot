@@ -41,7 +41,12 @@ export const projectsService = {
   // Branches
   getBranches: async (projectId: string): Promise<Branch[]> => {
     const res = await apiFetch(`/projects/${projectId}/branches`);
-    return await res.json();
+    const data = await res.json();
+    return data.map((b: any) => ({
+      ...b,
+      projectId: b.project_id,
+      createdAt: b.created_at
+    }));
   },
 
   createBranch: async (projectId: string, branch: { name: string }): Promise<Branch> => {
@@ -49,7 +54,12 @@ export const projectsService = {
       method: "POST",
       body: JSON.stringify(branch),
     });
-    return await res.json();
+    const data = await res.json();
+    return {
+      ...data,
+      projectId: data.project_id,
+      createdAt: data.created_at
+    };
   },
 
   deleteBranch: async (branchId: string) => {

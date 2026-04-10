@@ -107,6 +107,7 @@ const Projects = ({ category }: ProjectsProps) => {
         mutationFn: (name: string) => store.createBranch(activeProject!.id, { name }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["branches", activeProject?.id] });
+            queryClient.invalidateQueries({ queryKey: ["projects", category] });
             setNewBranchName("");
             toast.success("Филиал добавлен");
         }
