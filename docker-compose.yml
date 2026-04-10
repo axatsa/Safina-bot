@@ -1,9 +1,6 @@
 services:
   backend:
-    image: gitlab.thompson.uz:5050/finance/backend:main  # ✅ Pull from registry
-    # build:
-    #   context: ./backend
-    #   dockerfile: Dockerfile
+    image: gitlab.thompson.uz:5050/finance/backend:main
     volumes:
       - uploads_data:/app/uploads
     environment:
@@ -13,18 +10,29 @@ services:
     depends_on:
       - db
       - redis
-    ports:
-      - "8000:8000"
+    networks:
+      - internal
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.finance-backend.rule=Host(`finance.thompson.uz`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.finance-backend.entrypoints=websecure"
+      - "traefik.http.routers.finance-backend.tls.certresolver=le"
+      - "traefik.http.services.finance-backend.loadbalancer.server.port=8000"
 
   frontend:
-    image: gitlab.thompson.uz:5050/finance/frontend:main  # ✅ Pull from registry
-    # build:
-    #   context: ./frontend
-    #   dockerfile: Dockerfile
-    ports:
-      - "3000:80"
+    image: gitlab.thompson.uz:5050/finance/frontend:main
     depends_on:
       - backend
+    networks:
+      - internal
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.finance-frontend.rule=Host(`finance.thompson.uz`)"
+      - "traefik.http.routers.finance-frontend.entrypoints=websecure"
+      - "traefik.http.routers.finance-frontend.tls.certresolver=le"
+      - "traefik.http.services.finance-frontend.loadbalancer.server.port=80"
 
   db:
     image: postgres:15-alpine
@@ -34,13 +42,19 @@ services:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
-    ports:
-      - "5432:5432"
+    networks:
+      - internal
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+  web:
+    external: true
 
 volumes:
   uploads_data:
