@@ -468,7 +468,9 @@ const SubmitExpense = () => {
                                         </Button>
                                     </div>
                                 </div>
-                            ))}
+                        </div>
+                    </div>
+
                     <Button type="submit" className="w-full rounded-xl py-6 text-lg font-bold" disabled={mutation.isPending}>
                         {mutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Send className="w-5 h-5 mr-2" />}
                         {mutation.isPending ? "Создание..." : "Создать инвестицию"}
