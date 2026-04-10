@@ -44,6 +44,7 @@ export const projectsService = {
     const data = await res.json();
     return data.map((b: any) => ({
       ...b,
+      id: b.id, // Explicitly map ID to ensure it's not lost
       projectId: b.project_id,
       createdAt: b.created_at
     }));
@@ -57,6 +58,7 @@ export const projectsService = {
     const data = await res.json();
     return {
       ...data,
+      id: data.id, // Explicitly map ID
       projectId: data.project_id,
       createdAt: data.created_at
     };

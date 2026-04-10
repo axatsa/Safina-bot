@@ -45,7 +45,9 @@ def create_project_branch(project_id: str, branch: schemas.BranchCreate, db: Ses
 def delete_branch(branch_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
     if not auth.is_admin(current_user):
         raise HTTPException(status_code=403, detail="Only admins can delete branches")
-    crud.delete_branch(db, branch_id)
+    success = crud.delete_branch(db, branch_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Branch not found")
     return {"status": "success"}
 
 @router.get("/by-chat-id/{chat_id}", response_model=List[schemas.ProjectSchema])

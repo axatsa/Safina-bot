@@ -63,6 +63,7 @@ def get_branches(db: Session, project_id: str = None):
     return query.all()
 
 def create_branch(db: Session, project_id: str, branch: schemas.BranchCreate):
+    print(f"DEBUG: Creating branch '{branch.name}' for project {project_id}")
     # Auto-generate unique code from name if possible, or use name-slug
     import re
     base_code = re.sub(r'[^A-Z0-9]', '', branch.name.upper())[:10]
@@ -92,12 +93,17 @@ def create_branch(db: Session, project_id: str, branch: schemas.BranchCreate):
     return db_branch
 
 def delete_branch(db: Session, branch_id: str):
+    print(f"DEBUG: Deleting branch {branch_id}")
     branch = db.query(models.Branch).filter(models.Branch.id == branch_id).first()
     if branch:
         db.query(models.ProjectCounter).filter(models.ProjectCounter.project_code == branch.code).delete()
         db.query(models.ProjectCounter).filter(models.ProjectCounter.project_code == f"{branch.code}-REF").delete()
         db.delete(branch)
         db.commit()
+        print(f"DEBUG: Branch {branch_id} deleted successfully")
+        return True
+    print(f"DEBUG: Branch {branch_id} not found")
+    return False
     return True
 
 # Team

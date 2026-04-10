@@ -66,6 +66,16 @@ const Projects = ({ category }: ProjectsProps) => {
         queryFn: () => store.getProjects(category),
     });
 
+    // Auto-sync activeProject when projects list is refetched
+    useEffect(() => {
+        if (activeProject && projects.length > 0) {
+            const updated = projects.find(p => p.id === activeProject.id);
+            if (updated) {
+                setActiveProject(updated);
+            }
+        }
+    }, [projects]);
+
     const mutation = useMutation({
         mutationFn: (newProject: { name: string; code: string; category: string }) => store.createProject(newProject),
         onSuccess: () => {
@@ -97,7 +107,7 @@ const Projects = ({ category }: ProjectsProps) => {
         queryFn: () => store.getTeam()
     });
 
-    const { data: branches = [], refetch: refetchBranches } = useQuery({
+    const { data: currentBranches = [], isLoading: isBranchesLoading, refetch: refetchBranches } = useQuery({
         queryKey: ["branches", activeProject?.id],
         queryFn: () => activeProject ? store.getBranches(activeProject.id) : Promise.resolve([]),
         enabled: !!activeProject && isCorporate
@@ -110,15 +120,28 @@ const Projects = ({ category }: ProjectsProps) => {
             queryClient.invalidateQueries({ queryKey: ["projects", category] });
             setNewBranchName("");
             toast.success("Филиал добавлен");
+            refetchBranches();
+        },
+        onError: (error: any) => {
+            console.error("Branch create error:", error);
+            toast.error(error.message || "Ошибка при создании филиала");
         }
+    });
     });
 
     const deleteBranchMutation = useMutation({
         mutationFn: (id: string) => store.deleteBranch(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["branches", activeProject?.id] });
+            queryClient.invalidateQueries({ queryKey: ["projects", category] });
             toast.success("Филиал удален");
+            refetchBranches();
+        },
+        onError: (error: any) => {
+            console.error("Branch delete error:", error);
+            toast.error(error.message || "Ошибка при удалении филиала");
         }
+    });
     });
 
     const addMemberMutation = useMutation({
@@ -389,30 +412,42 @@ const Projects = ({ category }: ProjectsProps) => {
                             </Button>
                         </div>
                         <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                            {branches.map((branch: any) => (
-                                <div key={branch.id} className="flex items-center justify-between bg-muted/40 p-3 rounded-lg border">
-                                    <div className="flex flex-col">
-                                        <p className="text-sm font-bold text-slate-900">
-                                            {branch.name || branch.branch_name || "Без названия"}
-                                        </p>
-                                        <code className="text-[10px] font-mono text-slate-500 uppercase">
-                                            {branch.code || "---"}
-                                        </code>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-slate-400 hover:text-red-500 transition-colors"
-                                        onClick={() => deleteBranchMutation.mutate(branch.id)}
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </Button>
+                            {isBranchesLoading ? (
+                                <div className="flex justify-center py-10">
+                                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                                 </div>
-                            ))}
-                            {branches.length === 0 && (
-                                <p className="text-sm text-center text-muted-foreground py-10 italic">
-                                    Нет созданных филиалов
-                                </p>
+                            ) : (
+                                <>
+                                    {currentBranches.map((branch: any) => (
+                                        <div key={branch.id} className="flex items-center justify-between bg-muted/40 p-3 rounded-lg border">
+                                            <div className="flex flex-col">
+                                                <p className="text-sm font-bold text-slate-900">
+                                                    {branch.name || branch.branch_name || "Без названия"}
+                                                </p>
+                                                <code className="text-[10px] font-mono text-slate-500 uppercase">
+                                                    {branch.code || "---"}
+                                                </code>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-slate-400 hover:text-red-500 transition-colors"
+                                                onClick={() => {
+                                                    console.log("Deleting branch:", branch.id);
+                                                    deleteBranchMutation.mutate(branch.id);
+                                                }}
+                                                disabled={deleteBranchMutation.isPending}
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    {currentBranches.length === 0 && (
+                                        <p className="text-sm text-center text-muted-foreground py-10 italic">
+                                            Нет созданных филиалов
+                                        </p>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
