@@ -141,7 +141,6 @@ const Projects = ({ category }: ProjectsProps) => {
             toast.error(error.message || "Ошибка при удалении филиала");
         }
     });
-    });
 
     const addMemberMutation = useMutation({
         mutationFn: ({ projectId, memberId }: { projectId: string; memberId: string }) =>
