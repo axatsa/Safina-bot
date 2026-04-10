@@ -389,16 +389,20 @@ const Projects = ({ category }: ProjectsProps) => {
                             </Button>
                         </div>
                         <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                            {branches.map((branch: Branch) => (
+                            {branches.map((branch: any) => (
                                 <div key={branch.id} className="flex items-center justify-between bg-muted/40 p-3 rounded-lg border">
-                                    <div>
-                                        <p className="text-sm font-bold">{branch.name}</p>
-                                        <code className="text-[10px] opacity-70 uppercase">{branch.code}</code>
+                                    <div className="flex flex-col">
+                                        <p className="text-sm font-bold text-slate-900">
+                                            {branch.name || branch.branch_name || "Без названия"}
+                                        </p>
+                                        <code className="text-[10px] font-mono text-slate-500 uppercase">
+                                            {branch.code || "---"}
+                                        </code>
                                     </div>
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 text-muted-foreground hover:text-red-500"
+                                        className="h-8 w-8 text-slate-400 hover:text-red-500 transition-colors"
                                         onClick={() => deleteBranchMutation.mutate(branch.id)}
                                     >
                                         <Trash2 className="w-3.5 h-3.5" />
