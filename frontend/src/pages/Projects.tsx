@@ -127,7 +127,6 @@ const Projects = ({ category }: ProjectsProps) => {
             toast.error(error.message || "Ошибка при создании филиала");
         }
     });
-    });
 
     const deleteBranchMutation = useMutation({
         mutationFn: (id: string) => store.deleteBranch(id),
