@@ -18,6 +18,7 @@ export interface Project {
     position?: string;
   }>;
   templates?: string[];
+  branches?: Branch[];
 }
 
 export interface TeamMember {

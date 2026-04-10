@@ -44,7 +44,7 @@ class ExpenseItemSchema(BaseModel):
 # Project & Branch Schemas
 class BranchBase(BaseModel):
     name: str
-    code: str
+    code: Optional[str] = None
 
 class BranchCreate(BranchBase):
     pass

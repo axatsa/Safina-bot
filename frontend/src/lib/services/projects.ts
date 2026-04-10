@@ -14,6 +14,10 @@ export const projectsService = {
         lastName: m.last_name,
         firstName: m.first_name,
         position: m.position
+      })),
+      branches: (p.branches || []).map((b: any) => ({
+        ...b,
+        projectId: b.project_id
       }))
     }));
   },
