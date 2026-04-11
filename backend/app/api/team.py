@@ -2,122 +2,88 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 import os
-from app.db import models, schemas, crud
+from app.db import models, schemas
 from app.core import auth, database
+from app.services.core.user_service import user_service
 
 router = APIRouter(prefix="/team", tags=["team"])
 
-@router.get("", response_model=List[schemas.TeamMemberSchema])
+@router.get("", response_model=List[schemas.UserSchema])
 def read_team(
     include_blocked: bool = False,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(database.get_db),
-    current_user: models.TeamMember = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user)
 ):
-    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
+    if not auth.is_admin(current_user):
         raise HTTPException(status_code=403, detail="Only admins can view the team list")
     
-    query = db.query(models.TeamMember)
+    query = db.query(models.User)
     if not include_blocked:
-        query = query.filter(models.TeamMember.status != "blocked")
+        query = query.filter(models.User.status != "blocked")
         
     return query.offset(skip).limit(limit).all()
 
-@router.post("", response_model=schemas.TeamMemberSchema)
-def create_team_member(
-    member: schemas.TeamMemberCreate, 
+@router.post("", response_model=schemas.UserSchema)
+def create_user(
+    user_in: schemas.UserCreate, 
     db: Session = Depends(database.get_db), 
-    current_user: models.TeamMember = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user)
 ):
     if not auth.is_admin(current_user):
-        raise HTTPException(status_code=403, detail="Only admins can create team members")
+        raise HTTPException(status_code=403, detail="Only admins can create users")
         
-    db_user = db.query(models.TeamMember).filter(models.TeamMember.login == member.login).first()
-    if db_user:
-        if db_user.status == "blocked":
-            return crud.reactivate_team_member(db=db, db_user=db_user, member=member)
-        raise HTTPException(status_code=400, detail="Login already registered")
-    return crud.create_team_member(db=db, member=member)
+    return user_service.create_user(db=db, user_in=user_in)
 
-
-@router.delete("/{member_id}")
-def delete_team_member(
-    member_id: str,
+@router.get("/{user_id}", response_model=schemas.UserSchema)
+def read_user(
+    user_id: str,
     db: Session = Depends(database.get_db),
-    current_user: models.TeamMember = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user)
 ):
-    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
-        raise HTTPException(status_code=403, detail="Only admins can delete team members")
+    if not auth.is_admin(current_user) and current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    db_user = user_service.get_user(db, user_id=user_id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return db_user
+
+@router.patch("/{user_id}", response_model=schemas.UserSchema)
+def update_user(
+    user_id: str,
+    update: schemas.UserUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if not auth.is_admin(current_user) and current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Only admins can update other users")
+    
+    return user_service.update_user(db=db, user_id=user_id, user_in=update)
+
+@router.delete("/{user_id}")
+def delete_user(
+    user_id: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if not auth.is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can disable users")
         
-    user = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Member not found")
-    
-    # Мягкое удаление вместо физического
-    user.status = "blocked"
-    user.telegram_chat_id = None  # разлогинить из Telegram бота немедленно
-    db.commit()
-    
-    return {"status": "success", "detail": "Member blocked"}
+    user_service.toggle_user_status(db, user_id=user_id, status="blocked")
+    return {"status": "success", "detail": "User blocked"}
 
-@router.patch("/{member_id}/status")
-def update_member_status(
-    member_id: str,
-    update: schemas.TeamMemberStatusUpdate,
+@router.patch("/{user_id}/status")
+def update_user_status(
+    user_id: str,
+    update: schemas.UserStatusUpdate,
     db: Session = Depends(database.get_db),
-    current_user: models.TeamMember = Depends(auth.get_current_user)
-):
-    if current_user.login != os.getenv("ADMIN_LOGIN", "safina"):
-        raise HTTPException(status_code=403, detail="Only admins can change member status")
-
-    if update.status not in ("active", "blocked"):
-        raise HTTPException(status_code=400, detail="Status must be 'active' or 'blocked'")
-
-    user = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Member not found")
-
-    user.status = update.status
-    db.commit()
-    return {"status": "success", "member_status": update.status}
-
-@router.patch("/{member_id}/templates", response_model=schemas.TeamMemberSchema)
-def update_member_templates(
-    member_id: str,
-    update: schemas.TeamMemberTemplatesUpdate,
-    db: Session = Depends(database.get_db),
-    current_user: models.TeamMember = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user)
 ):
     if not auth.is_admin(current_user):
-        raise HTTPException(status_code=403, detail="Only admins can update member templates")
-    member = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
-    if not member:
-        raise HTTPException(status_code=404, detail="Member not found")
-    member.templates = update.templates
-    db.commit()
-    db.refresh(member)
-    return member
+        raise HTTPException(status_code=403, detail="Only admins can change user status")
 
-@router.patch("/{member_id}", response_model=schemas.TeamMemberSchema)
-def update_team_member(
-    member_id: str,
-    update: schemas.TeamMemberUpdate,
-    db: Session = Depends(database.get_db),
-    current_user: models.TeamMember = Depends(auth.get_current_user)
-):
-    if not auth.is_admin(current_user):
-        raise HTTPException(status_code=403, detail="Only admins can update team members")
-    # Check login uniqueness if being changed
-    if update.login:
-        existing = db.query(models.TeamMember).filter(
-            models.TeamMember.login == update.login,
-            models.TeamMember.id != member_id
-        ).first()
-        if existing:
-            raise HTTPException(status_code=400, detail="Login already taken")
-    member = crud.update_team_member(db=db, member_id=member_id, update=update)
-    if not member:
-        raise HTTPException(status_code=404, detail="Member not found")
-    return member
+    user_service.toggle_user_status(db, user_id=user_id, status=update.status)
+    return {"status": "success", "user_status": update.status}
 

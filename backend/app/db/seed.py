@@ -19,7 +19,7 @@ SEEDED_USERS = [
         "first_name": "Фаррух",
         "last_name": "Носиров",
         "position": "senior_financier",
-        "branch": "Центральный Офис",
+        "role": "senior_financier",
         "status": "active",
     },
     {
@@ -30,7 +30,7 @@ SEEDED_USERS = [
         "first_name": "Ганиев",
         "last_name": "CEO",
         "position": "ceo",
-        "branch": "Центральный Офис",
+        "role": "ceo",
         "status": "active",
     },
     {
@@ -41,8 +41,8 @@ SEEDED_USERS = [
         "first_name": "Финансист",
         "last_name": "Команда",
         "position": "admin",
+        "role": "admin",
         "team": "Финансисты",
-        "branch": "Бухгалтерия",
         "status": "active",
     },
     {
@@ -53,7 +53,7 @@ SEEDED_USERS = [
         "first_name": "Product",
         "last_name": "Manager",
         "position": "product_manager",
-        "branch": "Администрация",
+        "role": "admin",
         "status": "active",
     },
 ]
@@ -73,17 +73,17 @@ def _seed_user(db: Session, user_data: dict) -> None:
         
     hashed_password = auth.get_password_hash(password)
 
-    user = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
+    user = db.query(models.User).filter(models.User.login == login).first()
 
     if not user:
         logger.info(f"Seeding user: {login} (position={user_data['position']}) ...")
-        new_user = models.TeamMember(
+        new_user = models.User(
             login=login,
             password_hash=hashed_password,
             first_name=user_data["first_name"],
             last_name=user_data["last_name"],
             position=user_data["position"],
-            branch=user_data.get("branch"),
+            role=user_data.get("role", "user"),
             team=user_data.get("team"),
             status=user_data["status"],
         )
@@ -96,8 +96,8 @@ def _seed_user(db: Session, user_data: dict) -> None:
         if user.position != user_data["position"]:
             user.position = user_data["position"]
             updated = True
-        if user_data.get("branch") and user.branch != user_data["branch"]:
-            user.branch = user_data["branch"]
+        if user_data.get("role") and user.role != user_data["role"]:
+            user.role = user_data["role"]
             updated = True
         if user_data.get("team") and user.team != user_data["team"]:
             user.team = user_data["team"]

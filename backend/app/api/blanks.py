@@ -52,7 +52,7 @@ class BlankGenerateRequest(BaseModel):
 @router.post("/generate")
 async def generate_blank(
     request: BlankGenerateRequest,
-    current_user: models.TeamMember = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
 ):
     """

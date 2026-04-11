@@ -15,7 +15,7 @@ router = Router()
 async def cmd_start(message: types.Message, state: FSMContext):
     tg_id = message.from_user.id
     with database.database_session() as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == tg_id).first()
+        user = db.query(models.User).filter(models.User.telegram_chat_id == tg_id).first()
         if user:
             await state.update_data(user_id=user.id)
             if user.position == "ceo":
@@ -54,9 +54,9 @@ async def cmd_start(message: types.Message, state: FSMContext):
 async def cmd_logout(message: types.Message, state: FSMContext):
     tg_id = message.from_user.id
     with database.database_session() as db:
-        db.query(models.TeamMember).filter(
-            models.TeamMember.telegram_chat_id == tg_id
-        ).update({models.TeamMember.telegram_chat_id: None})
+        db.query(models.User).filter(
+            models.User.telegram_chat_id == tg_id
+        ).update({models.User.telegram_chat_id: None})
 
         setting = db.query(models.Setting).filter(models.Setting.key == "admin_chat_id").first()
         if setting and setting.value == str(tg_id):
@@ -93,7 +93,7 @@ async def process_login(message: types.Message, state: FSMContext):
         return
 
     with database.database_session() as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
+        user = db.query(models.User).filter(models.User.login == login).first()
         if not (user and auth.verify_password(password, user.password_hash)):
             await message.answer("❌ Неверный логин или пароль. Попробуйте снова:")
             await state.clear()

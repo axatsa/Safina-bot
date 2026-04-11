@@ -11,11 +11,11 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 @router.get("/branches")
 def get_branches(
     db: Session = Depends(database.get_db),
-    current_user: models.TeamMember = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user)
 ):
     from app.core.logging_config import get_logger
     logger = get_logger(__name__)
-    branches = db.query(models.TeamMember.branch).filter(models.TeamMember.branch != None).distinct().all()
+    branches = db.query(models.Branch.name).distinct().all()
     branch_list = [b[0] for b in branches]
     logger.info(f"Unique branches found: {branch_list}")
     return branch_list
@@ -27,7 +27,7 @@ def get_analytics(
     type: str = "all",
     branch: Optional[str] = None,
     db: Session = Depends(database.get_db), 
-    current_user: models.TeamMember = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user)
 ):
     now = datetime.utcnow()
     
@@ -42,35 +42,25 @@ def get_analytics(
     else:
         start_date = now - timedelta(days=30)
         
-    query = db.query(
-        models.ExpenseRequest,
-        models.TeamMember.branch,
-        models.TeamMember.team
-    ).outerjoin(
-        models.TeamMember, models.ExpenseRequest.created_by_id == models.TeamMember.id
-    ).filter(
+    query = db.query(models.ExpenseRequest).filter(
         models.ExpenseRequest.date >= start_date
     )
     
     if branch:
-        query = query.filter(models.TeamMember.branch == branch)
+        query = query.filter(models.ExpenseRequest.branch_name == branch)
         
     expenses = query.all()
     
     timeline_data = {}
     expense_dist_data = {}
     refund_dist_data = {}
-    user_dist_data = {} # New: Tracking stats per user
+    user_dist_data = {} 
     status_summary = {"Pending": 0, "Approved": 0, "Rejected": 0, "Confirmed": 0}
     
-    for expense_tuple in expenses:
-        expense = expense_tuple[0]
-        branch = expense_tuple[1]
-        
-        req_type = expense.request_type # 'expense', 'refund', 'blank', 'blank_refund'
+    for expense in expenses:
+        req_type = expense.request_type 
         is_refund = req_type in ["refund", "blank_refund"]
         
-        # global type filter for entire response
         if type == "refund" and not is_refund:
             continue
         if type == "expense" and is_refund:
@@ -81,7 +71,6 @@ def get_analytics(
             
         date_str = expense.date.strftime("%Y-%m-%d")
         
-        # update status summary
         if expense.status in ["request", "review", "pending_senior", "revision"]:
             status_summary["Pending"] += 1
         elif expense.status in ["approved_senior", "pending_ceo"]:
@@ -91,15 +80,14 @@ def get_analytics(
         elif expense.status in ["confirmed", "approved_ceo"]:
             status_summary["Confirmed"] += 1
             
-        # Only process approved/confirmed for charts
         if expense.status not in ["confirmed", "approved_senior", "approved_ceo", "pending_ceo"]:
             continue
             
         amount = Decimal(str(expense.total_amount)) if expense.total_amount else Decimal("0")
         if expense.currency == "USD" and expense.usd_rate:
             amount *= Decimal(str(expense.usd_rate))
-        elif expense.currency == "RUB" and expense.usd_rate: # Very rough RUB handling if rate is provided
-             amount *= Decimal("135") # Hardcoded rough RUB/UZS if not sure
+        elif expense.currency == "RUB" and expense.usd_rate: 
+             amount *= Decimal("135") 
             
         if date_str not in timeline_data:
             timeline_data[date_str] = {"date": date_str, "expenses": Decimal("0"), "refunds": Decimal("0")}
@@ -109,16 +97,14 @@ def get_analytics(
         else:
             timeline_data[date_str]["expenses"] += amount
             
-        # Distribution
         key = "Unknown"
         if segment == "global":
-            # For global segmentation, we group by Request Category (from template_key) or Type
             if is_refund:
                 key = "Возвраты"
             else:
                 key = "Расходы"
         elif segment == "branch":
-            key = branch if branch else "Другое"
+            key = expense.branch_name if expense.branch_name else "Другое"
         elif segment == "project":
             key = expense.project_name if expense.project_name else "Без проекта"
             
@@ -129,7 +115,6 @@ def get_analytics(
             
         target_dist[key]["value"] += amount
 
-        # Track user stats
         user_name = expense.created_by
         if user_name not in user_dist_data:
             user_dist_data[user_name] = {"name": user_name, "count": 0, "total": Decimal("0")}
@@ -138,8 +123,6 @@ def get_analytics(
         user_dist_data[user_name]["total"] += amount
             
     sorted_timeline = [timeline_data[k] for k in sorted(timeline_data.keys())]
-    
-    # Backward compatibility: 'distribution' field remains for old clients
     combined_dist = list(expense_dist_data.values()) + list(refund_dist_data.values())
     
     return {
@@ -147,6 +130,6 @@ def get_analytics(
         "distribution": combined_dist,
         "expense_distribution": list(expense_dist_data.values()),
         "refund_distribution": list(refund_dist_data.values()),
-        "user_distribution": list(user_dist_data.values()), # New field for PM
+        "user_distribution": list(user_dist_data.values()), 
         "summary": status_summary
     }

@@ -7,9 +7,10 @@ from aiogram.types import WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 from app.core import database
-from app.db import models, schemas, crud
+from app.db import models, schemas
+from app.services.core.expense_service import expense_service
 from ..states import ExpenseWizard
-from ..keyboards import get_confirm_kb, get_date_kb, get_currency_kb, get_projects_kb, get_main_kb, get_back_kb
+from ..keyboards import get_confirm_kb, get_date_kb, get_currency_kb, get_projects_kb, get_main_kb, get_back_kb, get_branches_kb
 from ..utils import tashkent_now, _BACK
 from decimal import Decimal
 from app.services.currency.service import currency_service
@@ -25,7 +26,7 @@ async def start_wizard_selection(message: types.Message, state: FSMContext):
     user_id = None
     
     with database.database_session() as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+        user = db.query(models.User).filter(models.User.telegram_chat_id == message.from_user.id).first()
         if not user:
             user_not_found = True
         else:
@@ -95,7 +96,7 @@ async def process_branch_selection(message: types.Message, state: FSMContext):
         data = await state.get_data()
         user_id = data.get("user_id")
         with database.database_session() as db:
-            user = db.query(models.TeamMember).get(user_id)
+            user = db.query(models.User).get(user_id)
             if user and len(user.projects) > 1:
                 await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
                 await state.set_state(ExpenseWizard.project_selection)
@@ -122,7 +123,7 @@ async def process_date(message: types.Message, state: FSMContext):
         data = await state.get_data()
         user_id = data.get("user_id")
         with database.database_session() as db:
-            user = db.query(models.TeamMember).filter(models.TeamMember.id == user_id).first()
+            user = db.query(models.User).filter(models.User.id == user_id).first()
             if user and len(user.projects) > 1:
                 await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
                 await state.set_state(ExpenseWizard.project_selection)
@@ -272,14 +273,16 @@ async def process_finish(message: types.Message, state: FSMContext):
                 branch_id=data.get("branch_id"),
                 date=datetime.datetime.fromisoformat(data.get("date")),
             )
-            db_expense = crud.create_expense_request(db, expense_create, user_id=data.get("user_id"), usd_rate=usd_rate)
+            db_expense = expense_service.create_expense_request(db, expense_create, user_id=data.get("user_id"), usd_rate=usd_rate)
             expense_req_id = db_expense.id
             request_id = db_expense.request_id
+            # Prepare dict while session is open
+            expense_dict = expense_service.get_expense_dict(db_expense)
         
         # Notify Safina
         admin_chat_id = get_admin_chat_id()
-        if admin_chat_id and expense_req_id:
-            await send_admin_notification(expense_req_id, admin_chat_id)
+        if admin_chat_id:
+            await send_admin_notification(expense_dict, admin_chat_id)
             
         await message.answer(f"✅ Заявка {request_id} создана!", reply_markup=get_main_kb())
     except Exception as e:

@@ -3,7 +3,8 @@ import os
 from aiogram import Router, types, F
 
 from app.core import database
-from app.db import crud, models, schemas
+from app.db import models, schemas
+from app.services.core.expense_service import expense_service
 from ..notifications import send_ceo_decision_notification, get_admin_chat_id, get_senior_financier_chat_ids
 
 router = Router()
@@ -12,7 +13,7 @@ router = Router()
 async def handle_approve_senior(callback: types.CallbackQuery):
     expense_id = callback.data.removeprefix("approve_senior_")
     with database.database_session() as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == callback.from_user.id).first()
+        user = db.query(models.User).filter(models.User.telegram_chat_id == callback.from_user.id).first()
         if not user or user.position not in ["senior_financier", "admin"]:
             await callback.answer("У вас нет прав для этого действия", show_alert=True)
             return
@@ -27,7 +28,7 @@ async def handle_approve_senior(callback: types.CallbackQuery):
             return
 
         update = schemas.ExpenseStatusUpdate(status="approved_senior", comment="Утверждено CFO")
-        crud.update_expense_status(db, expense_id, update, user_name=f"{user.last_name} {user.first_name} (CFO)")
+        expense_service.update_status(db, expense_id, update, user_id=user.id, user_name=f"{user.last_name} {user.first_name} (CFO)")
     
     await callback.message.edit_text(callback.message.text + "\n\n✅ *Утверждено CFO*", parse_mode="Markdown")
     await callback.answer("Инвестиция утверждена!")
@@ -36,7 +37,7 @@ async def handle_approve_senior(callback: types.CallbackQuery):
 async def handle_reject_senior(callback: types.CallbackQuery):
     expense_id = callback.data.removeprefix("reject_senior_")
     with database.database_session() as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == callback.from_user.id).first()
+        user = db.query(models.User).filter(models.User.telegram_chat_id == callback.from_user.id).first()
         if not user or user.position not in ["senior_financier", "admin"]:
             await callback.answer("У вас нет прав для этого действия", show_alert=True)
             return
@@ -51,7 +52,7 @@ async def handle_reject_senior(callback: types.CallbackQuery):
             return
 
         update = schemas.ExpenseStatusUpdate(status="rejected_senior", comment="Отклонено CFO")
-        crud.update_expense_status(db, expense_id, update, user_name=f"{user.last_name} {user.first_name} (CFO)")
+        expense_service.update_status(db, expense_id, update, user_id=user.id, user_name=f"{user.last_name} {user.first_name} (CFO)")
     
     await callback.message.edit_text(callback.message.text + "\n\n❌ *Отклонено CFO*", parse_mode="Markdown")
     await callback.answer("Инвестиция отклонена!")
@@ -60,7 +61,7 @@ async def handle_reject_senior(callback: types.CallbackQuery):
 async def handle_approve_ceo(callback: types.CallbackQuery):
     expense_id = callback.data.removeprefix("approve_ceo_")
     with database.database_session() as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == callback.from_user.id).first()
+        user = db.query(models.User).filter(models.User.telegram_chat_id == callback.from_user.id).first()
         if not user or user.position != "ceo":
             await callback.answer("У вас нет прав для этого действия (Только CEO)", show_alert=True)
             return
@@ -75,7 +76,7 @@ async def handle_approve_ceo(callback: types.CallbackQuery):
             return
             
         update = schemas.ExpenseStatusUpdate(status="approved_ceo", comment="Одобрено CEO")
-        crud.update_expense_status(db, expense_id, update, user_name=f"{user.last_name} {user.first_name} (CEO)")
+        expense_service.update_status(db, expense_id, update, user_id=user.id, user_name=f"{user.last_name} {user.first_name} (CEO)")
         
         # Сохраняем данные для уведомлений ДО выхода из сессии
         req_id = expense.request_id
@@ -104,7 +105,7 @@ async def handle_approve_ceo(callback: types.CallbackQuery):
 async def handle_reject_ceo(callback: types.CallbackQuery):
     expense_id = callback.data.removeprefix("reject_ceo_")
     with database.database_session() as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == callback.from_user.id).first()
+        user = db.query(models.User).filter(models.User.telegram_chat_id == callback.from_user.id).first()
         if not user or user.position != "ceo":
             await callback.answer("У вас нет прав для этого действия (Только CEO)", show_alert=True)
             return
@@ -119,7 +120,7 @@ async def handle_reject_ceo(callback: types.CallbackQuery):
             return
             
         update = schemas.ExpenseStatusUpdate(status="rejected_ceo", comment="Отклонено CEO")
-        crud.update_expense_status(db, expense_id, update, user_name=f"{user.last_name} {user.first_name} (CEO)")
+        expense_service.update_status(db, expense_id, update, user_id=user.id, user_name=f"{user.last_name} {user.first_name} (CEO)")
         
         # Сохраняем данные для уведомлений ДО выхода из сессии
         req_id = expense.request_id

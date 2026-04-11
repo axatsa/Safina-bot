@@ -283,9 +283,9 @@ def _get_chat_id_by_position(position: str) -> list[int]:
     from app.core import database
     from app.db import models
     with database.database_session() as db:
-        users = db.query(models.TeamMember).filter(
-            models.TeamMember.position == position,
-            models.TeamMember.telegram_chat_id.isnot(None),
+        users = db.query(models.User).filter(
+            models.User.position == position,
+            models.User.telegram_chat_id.isnot(None),
         ).all()
         return [u.telegram_chat_id for u in users]
 
@@ -317,9 +317,9 @@ def get_senior_financier_chat_ids() -> list[int]:
     from app.core import database
     from app.db import models
     with database.database_session() as db:
-        users = db.query(models.TeamMember).filter(
-            models.TeamMember.position == "senior_financier",
-            models.TeamMember.telegram_chat_id.isnot(None),
+        users = db.query(models.User).filter(
+            models.User.position == "senior_financier",
+            models.User.telegram_chat_id.isnot(None),
         ).all()
         return [u.telegram_chat_id for u in users]
 

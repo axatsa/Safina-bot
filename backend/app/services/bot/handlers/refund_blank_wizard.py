@@ -4,7 +4,8 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from aiogram.types import WebAppInfo
 from sqlalchemy.orm import joinedload
 from app.core import database, auth
-from app.db import models, schemas, crud
+from app.db import models, schemas
+from app.services.core.expense_service import expense_service
 from ..states import RefundBlankWizard
 from ..keyboards import (
     get_main_kb, get_fill_method_kb, get_back_kb, 
@@ -25,10 +26,10 @@ async def start_direct_refund_bot(message: types.Message, state: FSMContext):
     user_id = None
     
     with database.database_session() as db:
-        user = db.query(models.TeamMember).options(
-            joinedload(models.TeamMember.projects)
+        user = db.query(models.User).options(
+            joinedload(models.User.projects)
         ).filter(
-            models.TeamMember.telegram_chat_id == message.from_user.id
+            models.User.telegram_chat_id == message.from_user.id
         ).first()
         
         if not user:
@@ -104,7 +105,7 @@ async def handle_refund_branch_selection(message: types.Message, state: FSMConte
         # Go back to project selection
         projects_data = []
         with database.database_session() as db:
-            user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+            user = db.query(models.User).filter(models.User.telegram_chat_id == message.from_user.id).first()
             if user:
                 projects_data = [{"id": p.id, "name": p.name, "code": p.code} for p in user.projects]
         
@@ -425,7 +426,7 @@ async def show_refund_summary(message: types.Message, state: FSMContext):
     await message.answer(summary, parse_mode="Markdown", reply_markup=kb.as_markup(resize_keyboard=True))
 
 from app.core import database, auth
-from app.db import models, schemas, crud
+from app.db import models, schemas
 from ..notifications import send_admin_notification, get_admin_chat_id
 from ...currency.service import currency_service
 
@@ -437,7 +438,7 @@ async def handle_refund_final_submit(message: types.Message, state: FSMContext):
     request_id = None
 
     with database.database_session() as db:
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+        user = db.query(models.User).filter(models.User.telegram_chat_id == message.from_user.id).first()
         if not user:
             await message.answer("Ошибка: пользователь не найден.")
             return
@@ -475,14 +476,16 @@ async def handle_refund_final_submit(message: types.Message, state: FSMContext):
         )
 
 
-        expense_req = crud.create_expense_request(db=db, expense=expense_create, user_id=user.id, usd_rate=usd_rate)
+        expense_req = expense_service.create_expense_request(db=db, expense=expense_create, user_id=user.id, usd_rate=usd_rate)
         expense_req_id = expense_req.id
         request_id = expense_req.request_id
+        # Prepare dict while session is open
+        expense_dict = expense_service.get_expense_dict(expense_req)
 
     # 2. Уведомляем админа (вне сессии)
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:
-        await send_admin_notification(expense_req_id, admin_chat_id)
+        await send_admin_notification(expense_dict, admin_chat_id)
 
     await state.clear()
     await message.answer(

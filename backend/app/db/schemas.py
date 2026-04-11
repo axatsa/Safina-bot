@@ -84,31 +84,39 @@ class ProjectSchema(ProjectBase):
     class Config:
         from_attributes = True
 
-# Team Member Schemas
-class TeamMemberBase(BaseModel):
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    SENIOR_FINANCIER = "senior_financier"
+    CEO = "ceo"
+    USER = "user"
+
+# User Schemas
+class UserBase(BaseModel):
     last_name: str
     first_name: str
     login: str
     position: Optional[str] = None
+    role: UserRole = UserRole.USER
     status: str = "active"
-    branch: Optional[str] = None
     team: Optional[str] = None
     templates: List[str] = []
 
-class TeamMemberCreate(TeamMemberBase):
+class UserCreate(UserBase):
     password: str
     project_ids: Optional[List[str]] = []
     branch_ids: Optional[List[str]] = []
 
-class TeamMemberSchema(TeamMemberBase):
+class UserSchema(UserBase):
     id: str
     created_at: datetime
     telegram_chat_id: Optional[int] = None
-    projects: List[ProjectSchema] = []
-    branches: List[BranchSchema] = []
+    projects: List["ProjectSchema"] = []
+    branches: List["BranchSchema"] = []
     
     class Config:
         from_attributes = True
+
+
 
 # Expense Request Schemas
 class RefundDataSchema(BaseModel):
@@ -209,8 +217,10 @@ class LoginRequest(BaseModel):
     login: str
     password: str
 
-class TeamMemberStatusUpdate(BaseModel):
+class UserStatusUpdate(BaseModel):
     status: str  # "active" или "blocked"
+
+
 
 # New schemas for template updates
 class ProjectTemplatesUpdate(BaseModel):
@@ -223,7 +233,7 @@ class ProjectTemplatesUpdate(BaseModel):
             raise ValueError(f"Неизвестные ключи: {invalid}")
         return list(dict.fromkeys(v))  # remove duplicates
 
-class TeamMemberTemplatesUpdate(BaseModel):
+class UserTemplatesUpdate(BaseModel):
     templates: List[str]
 
     @validator("templates")
@@ -233,15 +243,23 @@ class TeamMemberTemplatesUpdate(BaseModel):
             raise ValueError(f"Неизвестные ключи: {invalid}")
         return list(dict.fromkeys(v))
 
-class TeamMemberUpdate(BaseModel):
+
+
+class UserUpdate(BaseModel):
     last_name: Optional[str] = None
     first_name: Optional[str] = None
     position: Optional[str] = None
-    branch: Optional[str] = None
     team: Optional[str] = None
     login: Optional[str] = None
     password: Optional[str] = None
     project_ids: Optional[List[str]] = None
     branch_ids: Optional[List[str]] = None
     templates: Optional[List[str]] = None
+    role: Optional[UserRole] = None
+
+
+
+# Resolve forward references
+UserSchema.update_forward_refs()
+ProjectSchema.update_forward_refs()
 

@@ -13,7 +13,7 @@ async def get_current_user_sse(
     request: Request,
     db: Session = Depends(get_db),
     token: Optional[str] = None
-) -> models.TeamMember:
+) -> models.User:
     """
     Custom dependency for SSE that tries to get token from:
     1. Authorization header
@@ -40,13 +40,13 @@ async def get_current_user_sse(
 @router.get("/stream")
 async def notification_stream(
     request: Request, 
-    current_user: models.TeamMember = Depends(get_current_user_sse)
+    current_user: models.User = Depends(get_current_user_sse)
 ):
     """
     Subscribe to real-time notifications via Server-Sent Events (SSE).
     Admins listen to 'notifications:admin', regular users to 'notifications:{user_id}'.
     """
-    is_admin = current_user.login == "safina" or current_user.position == "admin"
+    is_admin = auth.is_admin(current_user)
     channel = "notifications:admin" if is_admin else f"notifications:{current_user.id}"
     
     return EventSourceResponse(sse_generator(request, channel))

@@ -11,7 +11,7 @@ def tashkent_now() -> datetime.datetime:
 def get_user_position(db, login: str) -> str | None:
     """Sync DB lookup for a user's position."""
     from app.db import models
-    user = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
+    user = db.query(models.User).filter(models.User.login == login).first()
     return user.position if user else None
 
 def prepare_items_data(raw_items) -> list[dict]:

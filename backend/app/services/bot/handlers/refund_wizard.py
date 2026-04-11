@@ -16,11 +16,13 @@ router = Router()
 async def start_refund_wizard(message: types.Message, state: FSMContext):
     with database.database_session() as db:
         from app.db import models
-        user = db.query(models.TeamMember).filter(models.TeamMember.telegram_chat_id == message.from_user.id).first()
+        user = db.query(models.User).filter(models.User.telegram_chat_id == message.from_user.id).first()
         if not user:
             await message.answer("Авторизуйтесь: /start")
             return
-        await state.update_data(user_id=user.id, branch=user.branch, team=user.team)
+        # Get the first branch as a default if it exists
+        branch_name = user.branches[0].name if user.branches else None
+        await state.update_data(user_id=user.id, branch=branch_name, team=user.team)
     await message.answer("Шаг 1/4 — ID ученика:", reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(RefundWizard.student_id)
 

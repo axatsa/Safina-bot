@@ -9,19 +9,19 @@ def generate_uuid():
 
 from sqlalchemy import Table
 
-# Association table for TeamMember <-> Project (Startups or main Project link)
-member_projects = Table(
-    "member_projects",
+# Association table for User <-> Project
+user_projects = Table(
+    "user_projects",
     Base.metadata,
-    Column("member_id", String, ForeignKey("team_members.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("project_id", String, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
 )
 
-# Association table for TeamMember <-> Branch
-member_branches = Table(
-    "member_branches",
+# Association table for User <-> Branch
+user_branches = Table(
+    "user_branches",
     Base.metadata,
-    Column("member_id", String, ForeignKey("team_members.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("branch_id", String, ForeignKey("branches.id", ondelete="CASCADE"), primary_key=True),
 )
 
@@ -35,7 +35,7 @@ class Project(Base):
     templates = Column(JSON, nullable=False, default=list) # Шаблоны назначенные Сафиной
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
-    members = relationship("TeamMember", secondary=member_projects, back_populates="projects")
+    members = relationship("User", secondary=user_projects, back_populates="projects")
     branches = relationship("Branch", back_populates="project", cascade="all, delete-orphan")
     expenses = relationship("ExpenseRequest", back_populates="project", cascade="all, delete-orphan")
 
@@ -49,11 +49,11 @@ class Branch(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     project = relationship("Project", back_populates="branches")
-    members = relationship("TeamMember", secondary=member_branches, back_populates="branches")
+    members = relationship("User", secondary=user_branches, back_populates="branches")
     expenses = relationship("ExpenseRequest", back_populates="branch")
 
-class TeamMember(Base):
-    __tablename__ = "team_members"
+class User(Base):
+    __tablename__ = "users"
     
     id = Column(String, primary_key=True, default=generate_uuid)
     last_name = Column(String, nullable=False)
@@ -61,15 +61,15 @@ class TeamMember(Base):
     login = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
     position = Column(String, nullable=True) # Official title/position
+    role = Column(String, default="user", index=True) # admin, senior_financier, ceo, user
     telegram_chat_id = Column(BigInteger, unique=True, nullable=True, index=True)
     status = Column(String, default="active", index=True) # active, blocked
-    branch = Column(String, nullable=True) # Deprecated: use specific Branch model instead
     team = Column(String, nullable=True) # Team Name (e.g. "Admins")
     templates = Column(JSON, nullable=False, default=list) # Сверх тех что даёт проект
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
-    projects = relationship("Project", secondary=member_projects, back_populates="members")
-    branches = relationship("Branch", secondary=member_branches, back_populates="members")
+    projects = relationship("Project", secondary=user_projects, back_populates="members")
+    branches = relationship("Branch", secondary=user_branches, back_populates="members")
     expenses = relationship("ExpenseRequest", back_populates="created_by_user")
 
 class ExpenseRequest(Base):
@@ -88,7 +88,7 @@ class ExpenseRequest(Base):
     receipt_photo_file_id = Column(String, nullable=True) # Telegram file_id or local path
     refund_data = Column(JSON, nullable=True) # Additonal Refund specific fields
     
-    created_by_id = Column(String, ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_by_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_by = Column(String, nullable=False) # Denormalized Full Name
     created_by_position = Column(String, nullable=True) # Denormalized Position
     
@@ -108,7 +108,7 @@ class ExpenseRequest(Base):
     
     project = relationship("Project", back_populates="expenses")
     branch = relationship("Branch", back_populates="expenses")
-    created_by_user = relationship("TeamMember", back_populates="expenses")
+    created_by_user = relationship("User", back_populates="expenses")
     status_history = relationship("ExpenseStatusHistory", back_populates="expense", cascade="all, delete-orphan")
 
 class ExpenseStatusHistory(Base):
@@ -118,7 +118,7 @@ class ExpenseStatusHistory(Base):
     expense_id = Column(String, ForeignKey("expense_requests.id", ondelete="CASCADE"), index=True)
     status = Column(String, nullable=False)
     comment = Column(Text, nullable=True)
-    changed_by_id = Column(String, ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True)
+    changed_by_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     changed_by_name = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     

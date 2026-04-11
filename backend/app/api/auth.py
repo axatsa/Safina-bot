@@ -15,21 +15,20 @@ def login(request: schemas.LoginRequest, db: Session = Depends(database.get_db))
     admin_login = os.getenv("ADMIN_LOGIN", "safina")
     admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
     
-    # Ensure inputs are strings to avoid attribute errors if pydantic validation is bypassed
     input_login = str(request.login or "").strip()
     input_password = str(request.password or "").strip()
 
-    # Log login attempt (without password)
     logger.info(f"Login attempt for user: {input_login}")
     
+    # 1. Check for system admin login
     if input_login.lower() == admin_login.lower() and input_password == admin_password:
         logger.info(f"Admin login successful: {input_login}")
         access_token = auth.create_access_token(data={"sub": input_login})
         return {"access_token": access_token, "token_type": "bearer", "role": "admin", "team": "Администрация"}
     
-    # Check team members
+    # 2. Check users in database
     try:
-        user = db.query(models.TeamMember).filter(models.TeamMember.login == input_login).first()
+        user = db.query(models.User).filter(models.User.login == input_login).first()
         if user and auth.verify_password(input_password, user.password_hash):
             if user.status != "active":
                 logger.warning(f"Login blocked for user {input_login}: account status is {user.status}")
@@ -38,34 +37,26 @@ def login(request: schemas.LoginRequest, db: Session = Depends(database.get_db))
                     detail="User account is blocked",
                 )
             
-            logger.info(f"User login successful: {user.login} (position={user.position})")
+            logger.info(f"User login successful: {user.login} (role={user.role})")
             access_token = auth.create_access_token(data={"sub": user.login})
             
-            # Use first project ID as default for non-admin frontend views
-            project_id = None
-            if user.projects:
-                project_id = user.projects[0].id
+            project_id = user.projects[0].id if user.projects else None
                 
-            # Return the real position so the frontend can tailor its UI
-            role = user.position if user.position in ("senior_financier", "ceo") else "user"
             return {
                 "access_token": access_token,
                 "token_type": "bearer",
-                "role": role,
+                "role": user.role,
                 "team": user.team,
                 "projectId": project_id,
             }
         
-        if user:
-            logger.warning(f"Invalid password for user: {input_login}")
-        else:
-            logger.warning(f"User not found: {input_login}")
-            
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"DATABASE ERROR during login for '{input_login}': {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database connectivity error: {str(e)}" if os.getenv('DEBUG') == 'true' else "Internal server error during authentication"
+            detail="Internal server error during authentication"
         )
         
     logger.warning(f"AUTH FAILED: Incorrect login or password for user '{input_login}'")

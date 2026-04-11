@@ -56,13 +56,12 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
         logger.warning(f"JWT Validation Error: {str(e)}")
         raise credentials_exception
     
-    user = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
+    user = db.query(models.User).filter(models.User.login == login).first()
     if user is None:
-        # Check if it's the admin user
+        # Check if it's the admin user (virtual user for bootstrap admin if not in DB)
         admin_login = os.getenv("ADMIN_LOGIN", "safina")
         if login.lower() == admin_login.lower():
-            # Return a "virtual" user object for admin
-            return models.TeamMember(
+            return models.User(
                 id="admin", 
                 login=admin_login, 
                 first_name="Admin", 
@@ -71,7 +70,8 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
                 branches=[], 
                 status="active",
                 team="Администрация",
-                position="admin"
+                position="admin",
+                role="admin"
             )
         
         logger.warning(f"Token validated but user not found: {login}")
@@ -93,15 +93,15 @@ def get_current_user_from_token(token: str, db: Session):
         login: str = payload.get("sub")
         if not login:
             return None
-        user = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
-        return user
+        return db.query(models.User).filter(models.User.login == login).first()
     except JWTError:
         return None
 
-def is_admin(user: models.TeamMember) -> bool:
-    """Check if the user has admin privileges (Superuser or Financiers team)."""
-    admins = [os.getenv("ADMIN_LOGIN", "safina").lower(), "farrukh"]
-    if user.login.lower() in admins:
+def is_admin(user: models.User) -> bool:
+    """Check if the user has admin privileges based on the new role field."""
+    # Special case for the environment-defined admin or the admin role
+    admin_login = os.getenv("ADMIN_LOGIN", "safina").lower()
+    if user.login.lower() == admin_login:
         return True
-    return user.team == "Финансисты" or user.position == "product_manager"
+    return user.role == "admin"
 

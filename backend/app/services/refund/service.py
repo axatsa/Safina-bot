@@ -15,7 +15,8 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.db import models, schemas, crud
+from app.db import models, schemas
+from app.services.core.expense_service import expense_service
 from app.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -126,7 +127,7 @@ async def create_refund(
     )
 
     usd_rate = await currency_service.get_usd_rate()
-    db_expense = crud.create_expense_request(db, expense_create, user_id=user_id, usd_rate=usd_rate)
+    db_expense = expense_service.create_expense_request(db, expense_create, user_id=user_id, usd_rate=usd_rate)
     logger.info(
         "Refund created: %s | student=%s | amount=%s | branch=%s",
         db_expense.request_id, student_id, amount, branch,
