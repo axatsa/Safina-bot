@@ -55,6 +55,24 @@ def create_project(db: Session, project: schemas.ProjectCreate):
     db.commit()
     return db_project
 
+def delete_project(db: Session, project_id: str):
+    print(f"DEBUG: Deleting project {project_id}")
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if project:
+        # Delete counters for project
+        db.query(models.ProjectCounter).filter(models.ProjectCounter.project_code == project.code).delete()
+        db.query(models.ProjectCounter).filter(models.ProjectCounter.project_code == f"{project.code}-REF").delete()
+        
+        # Delete counters for branches
+        for branch in project.branches:
+            db.query(models.ProjectCounter).filter(models.ProjectCounter.project_code == branch.code).delete()
+            db.query(models.ProjectCounter).filter(models.ProjectCounter.project_code == f"{branch.code}-REF").delete()
+            
+        db.delete(project)
+        db.commit()
+        return True
+    return False
+
 # Branches
 def get_branches(db: Session, project_id: str = None):
     query = db.query(models.Branch)

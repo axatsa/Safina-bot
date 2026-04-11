@@ -51,31 +51,50 @@ interface ProjectsProps {
 
 const Projects = ({ category }: ProjectsProps) => {
     const queryClient = useQueryClient();
-    const [formData, setFormData] = useState({
-        name: "",
-        code: "",
-    });
-
+    const [formData, setFormData] = useState({ name: "", code: "" });
     const isCorporate = category === "corporate";
     const title = isCorporate ? "Проекты" : "Start Ups";
     const subtitle = isCorporate ? "Корпоративные проекты с филиалами" : "Плоские проекты без структуры";
     const Icon = isCorporate ? Building2 : Rocket;
 
+    // Queries
     const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
         queryKey: ["projects", category],
         queryFn: () => store.getProjects(category),
     });
 
-    // Auto-sync activeProject when projects list is refetched
-    useEffect(() => {
-        if (activeProject && projects.length > 0) {
-            const updated = projects.find(p => p.id === activeProject.id);
-            if (updated) {
-                setActiveProject(updated);
-            }
-        }
-    }, [projects]);
+    const { data: team = [] } = useQuery({
+        queryKey: ["team"],
+        queryFn: () => store.getTeam()
+    });
 
+    // State for modal management
+    const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+    const [branchDialogOpen, setBranchDialogOpen] = useState(false);
+    const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+    const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+    
+    // Sub-states for specific modals
+    const [newBranchName, setNewBranchName] = useState("");
+    const [pendingTemplates, setPendingTemplates] = useState<string[]>([]);
+
+    // Derived active project data from cache and ID state
+    // This removes the need for useEffect sync
+    const activeProject = projects.find(p => p.id === activeProjectId) || null;
+
+    const { data: fetchedBranches = [], isLoading: isBranchesLoading, refetch: refetchBranches } = useQuery({
+        queryKey: ["branches", activeProjectId],
+        queryFn: () => activeProjectId ? store.getBranches(activeProjectId) : Promise.resolve([]),
+        enabled: !!activeProjectId && isCorporate
+    });
+
+    // Merge branches from fetch and cache for maximum reactivity
+    const currentBranches = fetchedBranches.length > 0 ? fetchedBranches : (activeProject?.branches || []);
+    
+    const projectMembers = activeProject?.members || [];
+    const availableMembers = team.filter(m => !projectMembers.some((pm: any) => pm.id === m.id));
+
+    // Mutations
     const mutation = useMutation({
         mutationFn: (newProject: { name: string; code: string; category: string }) => store.createProject(newProject),
         onSuccess: () => {
@@ -91,60 +110,32 @@ const Projects = ({ category }: ProjectsProps) => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects", category] });
             toast.success("Удалено");
+            if (activeProjectId) setActiveProjectId(null);
         },
         onError: () => toast.error("Ошибка при удалении")
     });
 
-    const [memberDialogOpen, setMemberDialogOpen] = useState(false);
-    const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
-    const [branchDialogOpen, setBranchDialogOpen] = useState(false);
-    const [activeProject, setActiveProject] = useState<Project | null>(null);
-    const [pendingTemplates, setPendingTemplates] = useState<string[] | null>(null);
-    const [newBranchName, setNewBranchName] = useState("");
-
-    const { data: team = [] } = useQuery({
-        queryKey: ["team"],
-        queryFn: () => store.getTeam()
-    });
-
-    const { data: fetchedBranches = [], isLoading: isBranchesLoading, refetch: refetchBranches } = useQuery({
-        queryKey: ["branches", activeProject?.id],
-        queryFn: () => activeProject ? store.getBranches(activeProject.id) : Promise.resolve([]),
-        enabled: !!activeProject && isCorporate
-    });
-
-    // Use fetched branches if available, else fallback to what's in the project object
-    const currentBranches = fetchedBranches.length > 0 ? fetchedBranches : (activeProject?.branches || []);
-
     const createBranchMutation = useMutation({
-        mutationFn: (name: string) => store.createBranch(activeProject!.id, { name }),
+        mutationFn: (name: string) => store.createBranch(activeProjectId!, { name }),
         onSuccess: async () => {
-            await Promise.all([
-                queryClient.invalidateQueries({ queryKey: ["branches", activeProject?.id] }),
-                queryClient.invalidateQueries({ queryKey: ["projects", category] })
-            ]);
+            await queryClient.invalidateQueries({ queryKey: ["branches", activeProjectId] });
+            await queryClient.invalidateQueries({ queryKey: ["projects", category] });
             setNewBranchName("");
             toast.success("Филиал добавлен");
             refetchBranches();
         },
-        onError: (error: any) => {
-            console.error("Branch create error:", error);
-            toast.error(error.message || "Ошибка при создании филиала");
-        }
+        onError: (error: any) => toast.error(error.message || "Ошибка при создании филиала")
     });
 
     const deleteBranchMutation = useMutation({
         mutationFn: (id: string) => store.deleteBranch(id),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["branches", activeProject?.id] });
-            queryClient.invalidateQueries({ queryKey: ["projects", category] });
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["branches", activeProjectId] });
+            await queryClient.invalidateQueries({ queryKey: ["projects", category] });
             toast.success("Филиал удален");
             refetchBranches();
         },
-        onError: (error: any) => {
-            console.error("Branch delete error:", error);
-            toast.error(error.message || "Ошибка при удалении филиала");
-        }
+        onError: (error: any) => toast.error(error.message || "Ошибка при удалении филиала")
     });
 
     const addMemberMutation = useMutation({
@@ -170,42 +161,29 @@ const Projects = ({ category }: ProjectsProps) => {
     const updateTemplatesMutation = useMutation({
         mutationFn: ({ projectId, templates }: { projectId: string; templates: string[] }) =>
             store.updateProjectTemplates(projectId, templates),
-        onSuccess: (updatedProject) => {
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects", category] });
-            if (activeProject && updatedProject.id === activeProject.id) {
-                setActiveProject(updatedProject);
-            }
             toast.success("Шаблоны обновлены");
             setTemplateDialogOpen(false);
-            setPendingTemplates(null);
         }
     });
 
+    // Handlers
     const handleTemplateToggle = (templateId: string) => {
-        if (pendingTemplates === null) return;
-        const updated = pendingTemplates.includes(templateId)
-            ? pendingTemplates.filter(id => id !== templateId)
-            : [...pendingTemplates, templateId];
-        setPendingTemplates(updated);
+        setPendingTemplates(prev => 
+            prev.includes(templateId) ? prev.filter(id => id !== templateId) : [...prev, templateId]
+        );
     };
 
     const handleSaveTemplates = () => {
-        if (!activeProject || pendingTemplates === null) return;
+        if (!activeProjectId) return;
         updateTemplatesMutation.mutate({
-            projectId: activeProject.id,
+            projectId: activeProjectId,
             templates: pendingTemplates
         });
     };
 
-    const projectMembers = activeProject
-        ? projects.find((p: Project) => p.id === activeProject.id)?.members || []
-        : [];
-
-    const availableMembers = team.filter(
-        (m) => !projectMembers.some((pm: any) => pm.id === m.id)
-    );
-
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleProjectSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name || !formData.code) {
             toast.error("Заполните все поля");
@@ -240,7 +218,7 @@ const Projects = ({ category }: ProjectsProps) => {
                         <Plus className="w-5 h-5 text-primary" />
                         Создать
                     </h2>
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleProjectSubmit} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="name">Название</Label>
                             <Input
@@ -284,15 +262,9 @@ const Projects = ({ category }: ProjectsProps) => {
                                 <table className="w-full text-left">
                                     <thead>
                                         <tr className="border-b bg-muted/30">
-                                            <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                                Название
-                                            </th>
-                                            <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                                Код
-                                            </th>
-                                            <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider text-right">
-                                                Действия
-                                            </th>
+                                            <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Название</th>
+                                            <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Код</th>
+                                            <th className="px-6 py-4 text-sm font-medium text-muted-foreground uppercase tracking-wider text-right">Действия</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border">
@@ -303,24 +275,18 @@ const Projects = ({ category }: ProjectsProps) => {
                                                         <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
                                                             <FolderKanban className="w-4 h-4" />
                                                         </div>
-                                                        <p className="font-display font-semibold text-sm">
-                                                            {project.name}
-                                                        </p>
+                                                        <p className="font-display font-semibold text-sm">{project.name}</p>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <code className="text-xs bg-muted px-2 py-1 rounded font-bold">
-                                                        {project.code}
-                                                    </code>
+                                                    <code className="text-xs bg-muted px-2 py-1 rounded font-bold">{project.code}</code>
                                                 </td>
                                                 <td className="px-6 py-4 text-right space-x-1">
                                                     {isCorporate && (
                                                         <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="text-muted-foreground hover:text-blue-600"
+                                                            variant="ghost" size="icon" className="text-muted-foreground hover:text-blue-600"
                                                             onClick={() => {
-                                                                setActiveProject(project);
+                                                                setActiveProjectId(project.id);
                                                                 setBranchDialogOpen(true);
                                                             }}
                                                             title="Филиалы"
@@ -329,11 +295,9 @@ const Projects = ({ category }: ProjectsProps) => {
                                                         </Button>
                                                     )}
                                                     <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="text-muted-foreground hover:text-primary transition-colors"
+                                                        variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors"
                                                         onClick={() => {
-                                                            setActiveProject(project);
+                                                            setActiveProjectId(project.id);
                                                             setMemberDialogOpen(true);
                                                         }}
                                                         title="Участники проекта"
@@ -341,11 +305,9 @@ const Projects = ({ category }: ProjectsProps) => {
                                                         <Users className="w-4 h-4" />
                                                     </Button>
                                                     <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="text-muted-foreground hover:text-indigo-600 transition-colors"
+                                                        variant="ghost" size="icon" className="text-muted-foreground hover:text-indigo-600 transition-colors"
                                                         onClick={() => {
-                                                            setActiveProject(project);
+                                                            setActiveProjectId(project.id);
                                                             setPendingTemplates(project.templates || []);
                                                             setTemplateDialogOpen(true);
                                                         }}
@@ -357,8 +319,7 @@ const Projects = ({ category }: ProjectsProps) => {
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
                                                             <Button
-                                                                variant="ghost"
-                                                                size="icon"
+                                                                variant="ghost" size="icon"
                                                                 className="text-muted-foreground hover:text-red-600 transition-colors"
                                                                 title="Удалить"
                                                             >
@@ -367,19 +328,12 @@ const Projects = ({ category }: ProjectsProps) => {
                                                         </AlertDialogTrigger>
                                                         <AlertDialogContent>
                                                             <AlertDialogHeader>
-                                                                <AlertDialogTitle>Удалить?</AlertDialogTitle>
-                                                                <AlertDialogDescription>
-                                                                    Вы уверены, что хотите удалить этот проект?
-                                                                </AlertDialogDescription>
+                                                                <AlertDialogTitle>Удалить проект?</AlertDialogTitle>
+                                                                <AlertDialogDescription>Вы уверены? Все связанные филиалы и счетчики будут также удалены.</AlertDialogDescription>
                                                             </AlertDialogHeader>
                                                             <AlertDialogFooter>
                                                                 <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                                                <AlertDialogAction 
-                                                                    onClick={() => deleteMutation.mutate(project.id)}
-                                                                    className="bg-red-600 hover:bg-red-700"
-                                                                >
-                                                                    Удалить
-                                                                </AlertDialogAction>
+                                                                <AlertDialogAction onClick={() => deleteMutation.mutate(project.id)} className="bg-red-600 hover:bg-red-700">Удалить</AlertDialogAction>
                                                             </AlertDialogFooter>
                                                         </AlertDialogContent>
                                                     </AlertDialog>
@@ -402,54 +356,32 @@ const Projects = ({ category }: ProjectsProps) => {
                     </DialogHeader>
                     <div className="space-y-6 pt-4">
                         <div className="flex gap-2">
-                            <Input 
-                                placeholder="Название филиала" 
-                                value={newBranchName}
-                                onChange={(e) => setNewBranchName(e.target.value)}
-                            />
-                            <Button 
-                                onClick={() => createBranchMutation.mutate(newBranchName)}
-                                disabled={!newBranchName || createBranchMutation.isPending}
-                            >
+                            <Input placeholder="Название филиала" value={newBranchName} onChange={(e) => setNewBranchName(e.target.value)} />
+                            <Button onClick={() => createBranchMutation.mutate(newBranchName)} disabled={!newBranchName || createBranchMutation.isPending}>
                                 <Plus className="w-4 h-4" />
                             </Button>
                         </div>
                         <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                             {isBranchesLoading ? (
-                                <div className="flex justify-center py-10">
-                                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                                </div>
+                                <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
                             ) : (
                                 <>
                                     {currentBranches.map((branch: any) => (
                                         <div key={branch.id} className="flex items-center justify-between bg-muted/40 p-3 rounded-lg border">
                                             <div className="flex flex-col">
-                                                <p className="text-sm font-bold text-slate-900">
-                                                    {branch.name || branch.branch_name || "Без названия"}
-                                                </p>
-                                                <code className="text-[10px] font-mono text-slate-500 uppercase">
-                                                    {branch.code || "---"}
-                                                </code>
+                                                <p className="text-sm font-bold text-slate-900">{branch.name || "Без названия"}</p>
+                                                <code className="text-[10px] font-mono text-slate-500 uppercase">{branch.code}</code>
                                             </div>
                                             <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-slate-400 hover:text-red-500 transition-colors"
-                                                onClick={() => {
-                                                    console.log("Deleting branch:", branch.id);
-                                                    deleteBranchMutation.mutate(branch.id);
-                                                }}
+                                                variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-500 transition-colors"
+                                                onClick={() => deleteBranchMutation.mutate(branch.id)}
                                                 disabled={deleteBranchMutation.isPending}
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />
                                             </Button>
                                         </div>
                                     ))}
-                                    {currentBranches.length === 0 && (
-                                        <p className="text-sm text-center text-muted-foreground py-10 italic">
-                                            Нет созданных филиалов
-                                        </p>
-                                    )}
+                                    {currentBranches.length === 0 && <p className="text-sm text-center text-muted-foreground py-10 italic">Нет созданных филиалов</p>}
                                 </>
                             )}
                         </div>
@@ -457,12 +389,10 @@ const Projects = ({ category }: ProjectsProps) => {
                 </DialogContent>
             </Dialog>
 
+            {/* Members Dialog */}
             <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
                 <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Участники: {activeProject?.name}</DialogTitle>
-                    </DialogHeader>
-
+                    <DialogHeader><DialogTitle>Участники: {activeProject?.name}</DialogTitle></DialogHeader>
                     <div className="space-y-6 pt-4">
                         <div className="space-y-4">
                             <Label className="text-sm font-medium">Текущие участники ({projectMembers.length})</Label>
@@ -474,13 +404,8 @@ const Projects = ({ category }: ProjectsProps) => {
                                             <p className="text-xs text-muted-foreground">{member.position || "Сотрудник"}</p>
                                         </div>
                                         <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-muted-foreground hover:text-red-500"
-                                            onClick={() => removeMemberMutation.mutate({
-                                                projectId: activeProject!.id,
-                                                memberId: member.id
-                                            })}
+                                            variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500"
+                                            onClick={() => removeMemberMutation.mutate({ projectId: activeProjectId!, memberId: member.id })}
                                             disabled={removeMemberMutation.isPending}
                                         >
                                             <X className="w-4 h-4" />
@@ -489,25 +414,13 @@ const Projects = ({ category }: ProjectsProps) => {
                                 ))}
                             </div>
                         </div>
-
                         <div className="space-y-3 pt-2 border-t">
                             <Label className="text-sm font-medium">Добавить участника</Label>
-                            <Select onValueChange={(value) => {
-                                if (activeProject) {
-                                    addMemberMutation.mutate({
-                                        projectId: activeProject.id,
-                                        memberId: value
-                                    });
-                                }
-                            }}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Выберите сотрудника..." />
-                                </SelectTrigger>
+                            <Select onValueChange={(value) => addMemberMutation.mutate({ projectId: activeProjectId!, memberId: value })}>
+                                <SelectTrigger><SelectValue placeholder="Выберите сотрудника..." /></SelectTrigger>
                                 <SelectContent>
                                     {availableMembers.map((m) => (
-                                        <SelectItem key={m.id} value={m.id}>
-                                            {m.lastName} {m.firstName}
-                                        </SelectItem>
+                                        <SelectItem key={m.id} value={m.id}>{m.lastName} {m.firstName}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -516,39 +429,24 @@ const Projects = ({ category }: ProjectsProps) => {
                 </DialogContent>
             </Dialog>
 
-            <Dialog 
-                open={templateDialogOpen} 
-                onOpenChange={(open) => {
-                    setTemplateDialogOpen(open);
-                    if (!open) setPendingTemplates(null);
-                }}
-            >
+            {/* Templates Dialog */}
+            <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
                 <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Шаблоны: {activeProject?.name}</DialogTitle>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle>Шаблоны: {activeProject?.name}</DialogTitle></DialogHeader>
                     <div className="space-y-4 pt-4">
                         <div className="grid grid-cols-1 gap-2">
                             {AVAILABLE_TEMPLATES.map((tpl: any) => (
                                 <div key={tpl.id} className="flex items-center space-x-3 p-3 rounded-lg border bg-muted/20">
                                     <Checkbox 
                                         id={`tpl-${tpl.id}`}
-                                        checked={(pendingTemplates ?? []).includes(tpl.id)}
+                                        checked={pendingTemplates.includes(tpl.id)}
                                         onCheckedChange={() => handleTemplateToggle(tpl.id)}
                                     />
-                                    <Label htmlFor={`tpl-${tpl.id}`} className="text-sm cursor-pointer flex-1">
-                                        {tpl.label}
-                                    </Label>
+                                    <Label htmlFor={`tpl-${tpl.id}`} className="text-sm cursor-pointer flex-1">{tpl.label}</Label>
                                 </div>
                             ))}
                         </div>
-                        <Button
-                            onClick={handleSaveTemplates}
-                            disabled={updateTemplatesMutation.isPending}
-                            className="w-full mt-4"
-                        >
-                            Сохранить
-                        </Button>
+                        <Button onClick={handleSaveTemplates} disabled={updateTemplatesMutation.isPending} className="w-full mt-4">Сохранить</Button>
                     </div>
                 </DialogContent>
             </Dialog>
