@@ -69,10 +69,11 @@ def create_branch(db: Session, project_id: str, branch: schemas.BranchCreate):
     base_code = re.sub(r'[^A-Z0-9]', '', branch.name.upper())[:10]
     if not base_code: base_code = "BRN"
     
-    # Ensure uniqueness
+    # Ensure uniqueness across both Branch and ProjectCounter tables
     code = base_code
     suffix = 1
-    while db.query(models.Branch).filter(models.Branch.code == code).first():
+    while (db.query(models.Branch).filter(models.Branch.code == code).first() or 
+           db.query(models.ProjectCounter).filter(models.ProjectCounter.project_code == code).first()):
         code = f"{base_code}{suffix}"
         suffix += 1
         
@@ -85,10 +86,17 @@ def create_branch(db: Session, project_id: str, branch: schemas.BranchCreate):
     db.commit()
     db.refresh(db_branch)
     
-    # Initialize counters for branch
-    db.add(models.ProjectCounter(project_code=code, counter=0))
-    db.add(models.ProjectCounter(project_code=f"{code}-REF", counter=0))
-    db.commit()
+    # Initialize counters for branch - handle potential existing counters gracefully
+    try:
+        if not db.query(models.ProjectCounter).filter(models.ProjectCounter.project_code == code).first():
+            db.add(models.ProjectCounter(project_code=code, counter=0))
+        if not db.query(models.ProjectCounter).filter(models.ProjectCounter.project_code == f"{code}-REF").first():
+            db.add(models.ProjectCounter(project_code=f"{code}-REF", counter=0))
+        db.commit()
+    except Exception as e:
+        print(f"DEBUG: Counter initialization warning: {e}")
+        db.rollback()
+        # Non-fatal: generate_request_id will create them if needed later
     
     return db_branch
 
@@ -104,7 +112,34 @@ def delete_branch(db: Session, branch_id: str):
         return True
     print(f"DEBUG: Branch {branch_id} not found")
     return False
-    return True
+
+def add_project_member(db: Session, project_id: str, member_id: str):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    member = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
+    if project and member:
+        if project not in member.projects:
+            member.projects.append(project)
+            db.commit()
+            db.refresh(project)
+    return project
+
+def remove_project_member(db: Session, project_id: str, member_id: str):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    member = db.query(models.TeamMember).filter(models.TeamMember.id == member_id).first()
+    if project and member:
+        if project in member.projects:
+            member.projects.remove(project)
+            db.commit()
+            db.refresh(project)
+    return project
+
+def update_project_templates(db: Session, project_id: str, templates: list):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if project:
+        project.templates = templates
+        db.commit()
+        db.refresh(project)
+    return project
 
 # Team
 def get_team(db: Session, skip: int = 0, limit: int = 100):

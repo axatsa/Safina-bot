@@ -60,9 +60,19 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
     if user is None:
         # Check if it's the admin user
         admin_login = os.getenv("ADMIN_LOGIN", "safina")
-        if login == admin_login:
+        if login.lower() == admin_login.lower():
             # Return a "virtual" user object for admin
-            return models.TeamMember(id="admin", login=admin_login, first_name="Admin", last_name="Safina", projects=[], status="active")
+            return models.TeamMember(
+                id="admin", 
+                login=admin_login, 
+                first_name="Admin", 
+                last_name="Safina", 
+                projects=[], 
+                branches=[], 
+                status="active",
+                team="Администрация",
+                position="admin"
+            )
         
         logger.warning(f"Token validated but user not found: {login}")
         raise credentials_exception
@@ -90,8 +100,8 @@ def get_current_user_from_token(token: str, db: Session):
 
 def is_admin(user: models.TeamMember) -> bool:
     """Check if the user has admin privileges (Superuser or Financiers team)."""
-    admins = [os.getenv("ADMIN_LOGIN", "safina"), "farrukh"]
-    if user.login in admins:
+    admins = [os.getenv("ADMIN_LOGIN", "safina").lower(), "farrukh"]
+    if user.login.lower() in admins:
         return True
     return user.team == "Финансисты" or user.position == "product_manager"
 

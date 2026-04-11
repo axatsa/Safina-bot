@@ -25,6 +25,8 @@ dist-ssr
 .env
 backend/.env
 .agents
+.skills
+
 # Python
 __pycache__/
 *.py[cod]

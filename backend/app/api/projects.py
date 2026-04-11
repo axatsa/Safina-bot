@@ -63,3 +63,31 @@ def delete_project(project_id: str, db: Session = Depends(database.get_db), curr
         raise HTTPException(status_code=403, detail="Only admins can delete projects")
     crud.delete_project(db, project_id)
     return {"status": "success"}
+
+# Member Management
+@router.post("/{project_id}/members/{member_id}", response_model=schemas.ProjectSchema)
+def add_project_member(project_id: str, member_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if not auth.is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can manage project members")
+    project = crud.add_project_member(db, project_id, member_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project or Member not found")
+    return project
+
+@router.delete("/{project_id}/members/{member_id}", response_model=schemas.ProjectSchema)
+def remove_project_member(project_id: str, member_id: str, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if not auth.is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can manage project members")
+    project = crud.remove_project_member(db, project_id, member_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project or Member not found")
+    return project
+
+@router.patch("/{project_id}/templates", response_model=schemas.ProjectSchema)
+def update_project_templates(project_id: str, update: schemas.ProjectTemplatesUpdate, db: Session = Depends(database.get_db), current_user: models.TeamMember = Depends(auth.get_current_user)):
+    if not auth.is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can update project templates")
+    project = crud.update_project_templates(db, project_id, update.templates)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project

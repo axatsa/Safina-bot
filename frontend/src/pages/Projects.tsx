@@ -107,17 +107,22 @@ const Projects = ({ category }: ProjectsProps) => {
         queryFn: () => store.getTeam()
     });
 
-    const { data: currentBranches = [], isLoading: isBranchesLoading, refetch: refetchBranches } = useQuery({
+    const { data: fetchedBranches = [], isLoading: isBranchesLoading, refetch: refetchBranches } = useQuery({
         queryKey: ["branches", activeProject?.id],
         queryFn: () => activeProject ? store.getBranches(activeProject.id) : Promise.resolve([]),
         enabled: !!activeProject && isCorporate
     });
 
+    // Use fetched branches if available, else fallback to what's in the project object
+    const currentBranches = fetchedBranches.length > 0 ? fetchedBranches : (activeProject?.branches || []);
+
     const createBranchMutation = useMutation({
         mutationFn: (name: string) => store.createBranch(activeProject!.id, { name }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["branches", activeProject?.id] });
-            queryClient.invalidateQueries({ queryKey: ["projects", category] });
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["branches", activeProject?.id] }),
+                queryClient.invalidateQueries({ queryKey: ["projects", category] })
+            ]);
             setNewBranchName("");
             toast.success("Филиал добавлен");
             refetchBranches();
