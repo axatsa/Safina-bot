@@ -101,6 +101,17 @@ def upgrade() -> None:
     # 3. Add new columns to expense_requests if missing
     existing_expense_cols = [c['name'] for c in inspector.get_columns('expense_requests')]
     existing_expense_indexes = [idx['name'] for idx in inspector.get_indexes('expense_requests')]
+    # Check FKs by constrained columns (not name — create_all uses auto-generated names)
+    existing_expense_fk_cols = {
+        col
+        for fk in inspector.get_foreign_keys('expense_requests')
+        for col in fk['constrained_columns']
+    }
+    existing_history_fk_cols = {
+        col
+        for fk in inspector.get_foreign_keys('expense_status_history')
+        for col in fk['constrained_columns']
+    }
 
     with op.batch_alter_table('expense_requests', schema=None) as batch_op:
         if 'branch_id' not in existing_expense_cols:
@@ -111,11 +122,14 @@ def upgrade() -> None:
             batch_op.add_column(sa.Column('branch_code', sa.String(), nullable=True))
         if 'ix_expense_requests_branch_id' not in existing_expense_indexes:
             batch_op.create_index(batch_op.f('ix_expense_requests_branch_id'), ['branch_id'], unique=False)
-        batch_op.create_foreign_key('fk_expense_requests_created_by_id', 'users', ['created_by_id'], ['id'], ondelete='SET NULL')
-        batch_op.create_foreign_key('fk_expense_requests_branch_id', 'branches', ['branch_id'], ['id'], ondelete='SET NULL')
+        if 'created_by_id' not in existing_expense_fk_cols:
+            batch_op.create_foreign_key('fk_expense_requests_created_by_id', 'users', ['created_by_id'], ['id'], ondelete='SET NULL')
+        if 'branch_id' not in existing_expense_fk_cols:
+            batch_op.create_foreign_key('fk_expense_requests_branch_id', 'branches', ['branch_id'], ['id'], ondelete='SET NULL')
 
     with op.batch_alter_table('expense_status_history', schema=None) as batch_op:
-        batch_op.create_foreign_key('fk_expense_status_history_changed_by_id', 'users', ['changed_by_id'], ['id'], ondelete='SET NULL')
+        if 'changed_by_id' not in existing_history_fk_cols:
+            batch_op.create_foreign_key('fk_expense_status_history_changed_by_id', 'users', ['changed_by_id'], ['id'], ondelete='SET NULL')
 
     existing_project_cols = [c['name'] for c in inspector.get_columns('projects')]
     existing_project_indexes = [idx['name'] for idx in inspector.get_indexes('projects')]
