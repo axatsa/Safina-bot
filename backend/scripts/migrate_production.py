@@ -1,13 +1,13 @@
 import sys
 import os
-from sqlalchemy import text, create_engine
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 import uuid
 
 # Add the project root to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.core import auth, database
+from app.core import auth
 from app.db import models
 
 def migrate():
@@ -64,9 +64,6 @@ def migrate():
         db.close()
 
     print("\n✨ Migration script completed (Note: Core schema is handled by Alembic).")
-
-if __name__ == "__main__":
-    migrate()
 
 if __name__ == "__main__":
     migrate()
