@@ -15,7 +15,7 @@ def test_export():
     # Mock auth.get_current_user to return an admin
     # We can override the dependency
     def get_mock_admin():
-        return models.TeamMember(id="mock-admin", last_name="Admin", first_name="Safina", position="admin")
+        return models.User(id="mock-admin", last_name="Admin", first_name="Safina", position="Administrator", role="admin")
     
     app.dependency_overrides[auth.get_current_user] = get_mock_admin
     

@@ -22,12 +22,13 @@ db = SessionLocal()
 # Test get_analytics
 try:
     # Use a dummy user
-    user = db.query(models.TeamMember).first()
+    user = db.query(models.User).first()
     if not user:
         print("No user found in DB")
         sys.exit(0)
         
-    print(f"Testing for user: {user.first_name} {user.last_name} (Branch: {user.branch})")
+    branch_name = user.branches[0].name if user.branches else "None"
+    print(f"Testing for user: {user.first_name} {user.last_name} (Branch: {branch_name})")
     result = get_analytics(db=db, current_user=user)
     print("Result keys:", result.keys())
     print("Summary:", result['summary'])

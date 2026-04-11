@@ -8,10 +8,10 @@ from sqlalchemy import func
 
 db = SessionLocal()
 try:
-    print("Distribution by Branch:")
-    dist = db.query(models.TeamMember.branch, func.count(models.ExpenseRequest.id)).join(
-        models.ExpenseRequest, models.ExpenseRequest.created_by_id == models.TeamMember.id
-    ).group_by(models.TeamMember.branch).all()
+    print("Distribution by Branch (from ExpenseRequest):")
+    dist = db.query(models.ExpenseRequest.branch_name, func.count(models.ExpenseRequest.id)).group_by(
+        models.ExpenseRequest.branch_name
+    ).all()
     
     for branch, count in dist:
         print(f"Branch: {branch or 'None'} -> {count} items")

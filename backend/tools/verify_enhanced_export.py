@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.db import models, crud
+from app.db import models
 from app.services.analytics import export as export_service
 
 # Use a temporary SQLite database for testing if possible, 
@@ -24,30 +24,32 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def verify_enhanced_export():
     db = SessionLocal()
     try:
-        print("--- Testing CRUD Filtering ---")
+        print("--- Testing Filtering ---")
         # 1. Test filtering by request_type
-        refunds = crud.get_expenses(db, request_type="refund", limit=5)
+        refunds = db.query(models.ExpenseRequest).filter(
+            models.ExpenseRequest.request_type == "refund"
+        ).limit(5).all()
         print(f"Found {len(refunds)} refunds via request_type='refund'")
         for r in refunds:
             assert r.request_type == "refund"
 
         # 2. Test filtering by branch (if any exist)
-        all_expenses = db.query(models.ExpenseRequest).limit(50).all()
-        branches = set()
-        for e in all_expenses:
-            user = db.query(models.TeamMember).filter(models.TeamMember.id == e.created_by_id).first()
-            if user and user.branch:
-                branches.add(user.branch)
+        all_expenses = db.query(models.ExpenseRequest).filter(
+            models.ExpenseRequest.branch_name != None
+        ).limit(50).all()
+        
+        branches = set(e.branch_name for e in all_expenses if e.branch_name)
         
         if branches:
             branch_to_test = list(branches)[0]
-            branch_expenses = crud.get_expenses(db, branch=branch_to_test, limit=10)
+            branch_expenses = db.query(models.ExpenseRequest).filter(
+                models.ExpenseRequest.branch_name == branch_to_test
+            ).limit(10).all()
             print(f"Found {len(branch_expenses)} expenses for branch '{branch_to_test}'")
             for e in branch_expenses:
-                user = db.query(models.TeamMember).filter(models.TeamMember.id == e.created_by_id).first()
-                assert user.branch == branch_to_test
+                assert e.branch_name == branch_to_test
         else:
-            print("No branches found in existing data to test branch filter.")
+            print("No branch data found in existing ExpenseRequest records.")
 
         print("\n--- Testing XLSX Generation with Refund Data ---")
         # Fetch some refunds specifically to test the new columns

@@ -5,7 +5,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.db import models, schemas
-from app.db.crud import create_expense_request, update_expense_status
+from app.services.core.expense_service import expense_service
+from app.db.repository.expense_repository import expense_repository
 from app.core import auth
 import random
 from decimal import Decimal
@@ -24,15 +25,15 @@ def populate_test_data():
         from app.db import seed
         seed.seed_users()
         
-        users = db.query(models.TeamMember).filter(models.TeamMember.login != "admin").all()
+        users = db.query(models.User).filter(models.User.login != "admin").all()
 
         projects = db.query(models.Project).all()
         if not projects:
             print("Проекты не найдены. Создаю тестовые проекты...")
-            from app.db.crud import create_project
-            create_project(db, schemas.ProjectCreate(name="Основной проект", code="MAIN", templates=["land", "drujba", "management"]))
-            create_project(db, schemas.ProjectCreate(name="Школа Safina", code="SCH", templates=["school", "management"]))
-            create_project(db, schemas.ProjectCreate(name="Детский сад", code="KND", templates=["drujba"]))
+            from app.db.repository.project_repository import project_repository
+            project_repository.create(db, obj_in=schemas.ProjectCreate(name="Основной проект", code="MAIN", templates=["land", "drujba", "management"]))
+            project_repository.create(db, obj_in=schemas.ProjectCreate(name="Школа Safina", code="SCH", templates=["school", "management"]))
+            project_repository.create(db, obj_in=schemas.ProjectCreate(name="Детский сад", code="KND", templates=["drujba"]))
             projects = db.query(models.Project).all()
         
         if not users:
@@ -40,27 +41,40 @@ def populate_test_data():
             return
 
         # Создаем еще несколько случайных сотрудников для разнообразия филиалов
+        print("Создание филиалов...")
+        from app.db.repository.branch_repository import branch_repository
         additional_branches = ["Школа", "Детский сад", "СПАРТА", "Администрация", "Бухгалтерия"]
-        for i, branch in enumerate(additional_branches):
+        branch_objs = {}
+        for branch_name in additional_branches:
+            br = db.query(models.Branch).filter(models.Branch.name == branch_name).first()
+            if not br:
+                br = branch_repository.create(db, obj_in=schemas.BranchCreate(
+                    name=branch_name, 
+                    code=branch_name[:3].upper() + str(random.randint(10, 99))
+                ), project_id=projects[0].id)
+            branch_objs[branch_name] = br
+
+        for i, (branch_name, br_obj) in enumerate(branch_objs.items()):
             login = f"staff_{i+1}"
-            existing = db.query(models.TeamMember).filter(models.TeamMember.login == login).first()
+            existing = db.query(models.User).filter(models.User.login == login).first()
             if not existing:
-                print(f"Создание сотрудника для филиала: {branch}...")
-                new_staff = models.TeamMember(
+                print(f"Создание сотрудника для филиала: {branch_name}...")
+                new_staff = models.User(
                     login=login,
                     password_hash=auth.get_password_hash("password123"),
                     first_name=f"Сотрудник",
-                    last_name=f"{branch}",
+                    last_name=f"{branch_name}",
                     position="staff",
-                    branch=branch,
                     status="active",
-                    team="Стандарт"
+                    team="Стандарт",
+                    role="user"
                 )
+                new_staff.branches = [br_obj]
                 db.add(new_staff)
                 db.commit()
         
         # Обновляем список пользователей для генерации
-        users = db.query(models.TeamMember).filter(models.TeamMember.login != "admin").all()
+        users = db.query(models.User).filter(models.User.login != "admin").all()
 
         print("Генерация 100 тестовых заявок с полными данными...")
         
@@ -113,12 +127,12 @@ def populate_test_data():
             refund_data = None
             if "refund" in req_type:
                 # Генерируем "полные" данные для возврата
-                branch = random.choice(["Школа", "Детский сад", "Спарта"])
+                branch_name = random.choice(["Школа", "Детский сад", "Спарта"])
                 client_name = f"Клиент {random.randint(100, 999)} Тестовый"
                 refund_data = schemas.RefundDataSchema(
                     student_id=f"STD-{random.randint(1000, 9999)}",
                     retention=random.choice([True, False]),
-                    branch=branch,
+                    branch=branch_name,
                     team="Группа-" + str(random.randint(1, 10)),
                     client_name=client_name,
                     passport_series="AA",
@@ -147,6 +161,7 @@ def populate_test_data():
                 purpose=f"Тестовая заявка #{i+1} ({req_type})",
                 items=items,
                 project_id=project.id if project else None,
+                branch_id=user.branches[0].id if user.branches else None,
                 total_amount=total_amount,
                 currency=currency,
                 date=req_date,
@@ -156,26 +171,25 @@ def populate_test_data():
                 refund_data=refund_data
             )
             
+            from app.services.currency.service import currency_service
+            # We bypass the async await here by manually setting usd_rate if needed
             usd_rate = Decimal("12850.0") if currency == schemas.CurrencyEnum.USD else None
 
             # Создаем заявку
-            new_req = create_expense_request(
+            new_req = expense_service.create_expense_request(
                 db=db,
-                expense=expense_in,
+                expense_in=expense_in,
                 user_id=user.id,
                 usd_rate=usd_rate
             )
             
             # Обновляем статус
             if status != schemas.ExpenseStatusEnum.request:
-                status_update = schemas.ExpenseStatusUpdate(
-                    status=status,
-                    comment="Автоматический тестовый статус для аналитики"
-                )
-                update_expense_status(
+                expense_repository.update_status(
                     db=db,
-                    expense_id=new_req.id,
-                    update=status_update,
+                    db_obj=new_req,
+                    new_status=status,
+                    comment="Автоматический тестовый статус для аналитики",
                     user_id=user.id,
                     user_name=f"{user.last_name} {user.first_name}"
                 )

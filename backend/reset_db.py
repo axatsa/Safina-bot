@@ -21,18 +21,17 @@ def reset_db():
         
         # 2. Clear project data
         print("  Cleaning project data...")
-        # Since member_projects is an association table, we handle it via the relationship or raw SQL if needed.
-        # But deleting projects should cascade if configured, or we can be explicit.
-        db.execute(text("DELETE FROM member_projects"))
+        # Since user_projects is an association table, we handle it via raw SQL if needed.
+        db.execute(text("DELETE FROM user_projects"))
         db.query(models.Project).delete()
         
         # 3. Clear non-essential users
-        print("  Cleaning team members...")
+        print("  Cleaning users...")
         # We keep users defined in seed.py and the main admin from .env
         admin_login = os.getenv("ADMIN_LOGIN", "safina")
         essential_logins = ["farrukh", "ganiev", "financier", "abd", admin_login]
         
-        db.query(models.TeamMember).filter(models.TeamMember.login.notin_(essential_logins)).delete()
+        db.query(models.User).filter(models.User.login.notin_(essential_logins)).delete()
         
         db.commit()
         print("✅ Data cleared successfully.")
