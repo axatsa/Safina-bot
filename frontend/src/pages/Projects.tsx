@@ -374,21 +374,26 @@ const Projects = ({ category }: ProjectsProps) => {
                                 <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
                             ) : (
                                 <>
-                                    {currentBranches.map((branch: any) => (
-                                        <div key={branch.id} className="flex items-center justify-between bg-muted/40 p-3 rounded-lg border">
-                                            <div className="flex flex-col">
-                                                <p className="text-sm font-bold text-slate-900">{branch.name || "Без названия"}</p>
-                                                <code className="text-[10px] font-mono text-slate-500 uppercase">{branch.code}</code>
+                                    {currentBranches.map((branch: any) => {
+                                        const branchId = branch.id || branch.project_id; // Absolute fallback for key
+                                        const branchName = branch.name || branch.Name || "Без названия";
+                                        
+                                        return (
+                                            <div key={branchId || Math.random()} className="flex items-center justify-between bg-muted/40 p-3 rounded-lg border">
+                                                <div className="flex flex-col">
+                                                    <p className="text-sm font-bold text-slate-900">{branchName}</p>
+                                                    <code className="text-[10px] font-mono text-slate-500 uppercase">{branch.code}</code>
+                                                </div>
+                                                <Button
+                                                    variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-500 transition-colors"
+                                                    onClick={() => branch.id ? deleteBranchMutation.mutate(branch.id) : toast.error("Не удалось определить ID филиала")}
+                                                    disabled={deleteBranchMutation.isPending || !branch.id}
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </Button>
                                             </div>
-                                            <Button
-                                                variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-500 transition-colors"
-                                                onClick={() => deleteBranchMutation.mutate(branch.id)}
-                                                disabled={deleteBranchMutation.isPending}
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </Button>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                     {currentBranches.length === 0 && <p className="text-sm text-center text-muted-foreground py-10 italic">Нет созданных филиалов</p>}
                                 </>
                             )}

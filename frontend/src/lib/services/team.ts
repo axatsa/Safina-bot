@@ -12,7 +12,15 @@ function mapMember(m: any): TeamMember {
       createdAt: new Date(p.created_at)
     })),
     branchIds: (m.branches || []).map((b: any) => b.id),
-    branches: m.branches || [],
+    branches: (m.branches || []).map((b: any) => ({
+      ...b,
+      id: b.id,
+      name: b.name,
+      code: b.code,
+      projectId: b.project_id,
+      project_id: b.project_id,
+      createdAt: b.created_at
+    })),
     login: m.login,
     position: m.position,
     branch: m.branch,

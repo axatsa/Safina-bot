@@ -17,7 +17,12 @@ export const projectsService = {
       })),
       branches: (p.branches || []).map((b: any) => ({
         ...b,
-        projectId: b.project_id
+        id: b.id,
+        name: b.name,
+        code: b.code,
+        projectId: b.project_id,
+        project_id: b.project_id,
+        createdAt: b.created_at
       }))
     }));
   },
@@ -44,8 +49,11 @@ export const projectsService = {
     const data = await res.json();
     return data.map((b: any) => ({
       ...b,
-      id: b.id, // Explicitly map ID to ensure it's not lost
+      id: b.id,
+      name: b.name,
+      code: b.code,
       projectId: b.project_id,
+      project_id: b.project_id,
       createdAt: b.created_at
     }));
   },
@@ -58,8 +66,11 @@ export const projectsService = {
     const data = await res.json();
     return {
       ...data,
-      id: data.id, // Explicitly map ID
+      id: data.id,
+      name: data.name,
+      code: data.code,
       projectId: data.project_id,
+      project_id: data.project_id,
       createdAt: data.created_at
     };
   },
