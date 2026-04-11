@@ -88,8 +88,11 @@ const Projects = ({ category }: ProjectsProps) => {
         enabled: !!activeProjectId && isCorporate
     });
 
-    // Merge branches from fetch and cache for maximum reactivity
-    const currentBranches = fetchedBranches.length > 0 ? fetchedBranches : (activeProject?.branches || []);
+    // Merge branches from fetch and cache
+    // We prioritize fetchedBranches if they exist and we're not currently loading them for a new project
+    const currentBranches = (isBranchesLoading && activeProject?.branches) 
+        ? activeProject.branches 
+        : (fetchedBranches.length > 0 ? fetchedBranches : (activeProject?.branches || []));
     
     const projectMembers = activeProject?.members || [];
     const availableMembers = team.filter(m => !projectMembers.some((pm: any) => pm.id === m.id));
@@ -116,13 +119,18 @@ const Projects = ({ category }: ProjectsProps) => {
     });
 
     const createBranchMutation = useMutation({
-        mutationFn: (name: string) => store.createBranch(activeProjectId!, { name }),
+        mutationFn: (name: string) => {
+            if (!name.trim()) throw new Error("Имя филиала не может быть пустым");
+            return store.createBranch(activeProjectId!, { name: name.trim() });
+        },
         onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["branches", activeProjectId] });
-            await queryClient.invalidateQueries({ queryKey: ["projects", category] });
+            // Force immediate refetch of both branches and the project list (which contains branches in objects)
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["branches", activeProjectId] }),
+                queryClient.invalidateQueries({ queryKey: ["projects", category] })
+            ]);
             setNewBranchName("");
             toast.success("Филиал добавлен");
-            refetchBranches();
         },
         onError: (error: any) => toast.error(error.message || "Ошибка при создании филиала")
     });

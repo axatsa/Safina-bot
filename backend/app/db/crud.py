@@ -81,22 +81,32 @@ def get_branches(db: Session, project_id: str = None):
     return query.all()
 
 def create_branch(db: Session, project_id: str, branch: schemas.BranchCreate):
-    print(f"DEBUG: Creating branch '{branch.name}' for project {project_id}")
-    # Auto-generate unique code from name if possible, or use name-slug
-    import re
-    base_code = re.sub(r'[^A-Z0-9]', '', branch.name.upper())[:10]
-    if not base_code: base_code = "BRN"
+    # Ensure name is not empty or just whitespace
+    name = branch.name.strip()
+    if not name:
+        raise ValueError("Имя филиала не может быть пустым")
+
+    # Ensure project exists
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise ValueError("Проект не найден")
     
-    # Ensure uniqueness across both Branch and ProjectCounter tables
-    code = base_code
-    suffix = 1
-    while (db.query(models.Branch).filter(models.Branch.code == code).first() or 
-           db.query(models.ProjectCounter).filter(models.ProjectCounter.project_code == code).first()):
-        code = f"{base_code}{suffix}"
-        suffix += 1
-        
+    # Check for code uniqueness across branches AND project counters
+    # Generate code based on project code and branch name
+    branch_slug = "".join(x for x in name if x.isalnum()).upper()[:4]
+    code = f"{project.code}-{branch_slug}"
+    
+    # Verify code is unique
+    existing_branch = db.query(models.Branch).filter(models.Branch.code == code).first()
+    existing_counter = db.query(models.ProjectCounter).filter(models.ProjectCounter.project_code == code).first()
+    
+    if existing_branch or existing_counter:
+        # Append unique suffix if necessary
+        import uuid
+        code = f"{code}-{uuid.uuid4().hex[:4].upper()}"
+
     db_branch = models.Branch(
-        name=branch.name,
+        name=name,
         code=code,
         project_id=project_id
     )

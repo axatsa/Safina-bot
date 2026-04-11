@@ -43,7 +43,7 @@ class ExpenseItemSchema(BaseModel):
 
 # Project & Branch Schemas
 class BranchBase(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=100)
     code: Optional[str] = None
 
 class BranchCreate(BranchBase):
@@ -58,8 +58,8 @@ class BranchSchema(BranchBase):
         from_attributes = True
 
 class ProjectBase(BaseModel):
-    name: str
-    code: str
+    name: str = Field(..., min_length=1, max_length=100)
+    code: str = Field(..., min_length=1, max_length=10)
     category: str = "startup" # startup, corporate
     templates: List[str] = []
 
