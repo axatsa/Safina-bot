@@ -219,6 +219,7 @@ async def web_submit_refund(
 
     retention_bool = retention.lower() == "true"
 
+    try:
         # Try to infer branch from user
         branch_name = None
         if user.branches:
