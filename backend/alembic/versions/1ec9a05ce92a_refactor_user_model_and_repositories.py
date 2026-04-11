@@ -180,7 +180,20 @@ def upgrade() -> None:
             ON CONFLICT DO NOTHING
         """)
 
-    # 5. Drop old tables (only if they still exist)
+    # 4b. Migrate member_branches → user_branches (production DB has this table)
+    if 'member_branches' in existing_tables and 'user_branches' in existing_tables:
+        op.execute("""
+            INSERT INTO user_branches (user_id, branch_id)
+            SELECT mb.member_id, mb.branch_id
+            FROM member_branches mb
+            WHERE EXISTS (SELECT 1 FROM users u WHERE u.id = mb.member_id)
+              AND EXISTS (SELECT 1 FROM branches b WHERE b.id = mb.branch_id)
+            ON CONFLICT DO NOTHING
+        """)
+
+    # 5. Drop old tables (order matters: drop dependents first to avoid FK errors)
+    if 'member_branches' in existing_tables:
+        op.drop_table('member_branches')
     if 'member_projects' in existing_tables:
         op.drop_table('member_projects')
     if 'team_members' in existing_tables:
