@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { store } from "@/lib/store";
 import { Project, Branch } from "@/lib/types";
 import { Button } from "@/components/ui/button";
