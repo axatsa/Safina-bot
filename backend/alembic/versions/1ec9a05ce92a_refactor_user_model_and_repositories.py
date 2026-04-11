@@ -98,20 +98,36 @@ def upgrade() -> None:
             FROM team_members
         """)
 
-    # 3. Add new columns to expense_requests if missing
+    # 3. Add new columns to expense_requests and re-point FKs from team_members → users
     existing_expense_cols = [c['name'] for c in inspector.get_columns('expense_requests')]
     existing_expense_indexes = [idx['name'] for idx in inspector.get_indexes('expense_requests')]
-    # Check FKs by constrained columns (not name — create_all uses auto-generated names)
-    existing_expense_fk_cols = {
-        col
-        for fk in inspector.get_foreign_keys('expense_requests')
-        for col in fk['constrained_columns']
-    }
-    existing_history_fk_cols = {
-        col
-        for fk in inspector.get_foreign_keys('expense_status_history')
-        for col in fk['constrained_columns']
-    }
+    expense_fks = inspector.get_foreign_keys('expense_requests')
+    history_fks = inspector.get_foreign_keys('expense_status_history')
+
+    # FK to team_members that BLOCKS DROP TABLE team_members later — must drop first
+    expense_fk_to_team = next(
+        (fk for fk in expense_fks
+         if fk['referred_table'] == 'team_members' and 'created_by_id' in fk['constrained_columns']),
+        None
+    )
+    history_fk_to_team = next(
+        (fk for fk in history_fks
+         if fk['referred_table'] == 'team_members' and 'changed_by_id' in fk['constrained_columns']),
+        None
+    )
+    # Already pointing to users → don't recreate
+    expense_has_created_by_to_users = any(
+        fk['referred_table'] == 'users' and 'created_by_id' in fk['constrained_columns']
+        for fk in expense_fks
+    )
+    expense_has_branch_id_to_branches = any(
+        fk['referred_table'] == 'branches' and 'branch_id' in fk['constrained_columns']
+        for fk in expense_fks
+    )
+    history_has_changed_by_to_users = any(
+        fk['referred_table'] == 'users' and 'changed_by_id' in fk['constrained_columns']
+        for fk in history_fks
+    )
 
     with op.batch_alter_table('expense_requests', schema=None) as batch_op:
         if 'branch_id' not in existing_expense_cols:
@@ -122,14 +138,29 @@ def upgrade() -> None:
             batch_op.add_column(sa.Column('branch_code', sa.String(), nullable=True))
         if 'ix_expense_requests_branch_id' not in existing_expense_indexes:
             batch_op.create_index(batch_op.f('ix_expense_requests_branch_id'), ['branch_id'], unique=False)
-        if 'created_by_id' not in existing_expense_fk_cols:
-            batch_op.create_foreign_key('fk_expense_requests_created_by_id', 'users', ['created_by_id'], ['id'], ondelete='SET NULL')
-        if 'branch_id' not in existing_expense_fk_cols:
-            batch_op.create_foreign_key('fk_expense_requests_branch_id', 'branches', ['branch_id'], ['id'], ondelete='SET NULL')
+        # Drop old FK to team_members (MUST happen before DROP TABLE team_members)
+        if expense_fk_to_team:
+            batch_op.drop_constraint(expense_fk_to_team['name'], type_='foreignkey')
+        # Create new FK to users (only if not already pointing there)
+        if not expense_has_created_by_to_users:
+            batch_op.create_foreign_key(
+                'fk_expense_requests_created_by_id', 'users', ['created_by_id'], ['id'], ondelete='SET NULL'
+            )
+        # Create FK for branch_id → branches
+        if not expense_has_branch_id_to_branches:
+            batch_op.create_foreign_key(
+                'fk_expense_requests_branch_id', 'branches', ['branch_id'], ['id'], ondelete='SET NULL'
+            )
 
     with op.batch_alter_table('expense_status_history', schema=None) as batch_op:
-        if 'changed_by_id' not in existing_history_fk_cols:
-            batch_op.create_foreign_key('fk_expense_status_history_changed_by_id', 'users', ['changed_by_id'], ['id'], ondelete='SET NULL')
+        # Drop old FK to team_members
+        if history_fk_to_team:
+            batch_op.drop_constraint(history_fk_to_team['name'], type_='foreignkey')
+        # Create new FK to users
+        if not history_has_changed_by_to_users:
+            batch_op.create_foreign_key(
+                'fk_expense_status_history_changed_by_id', 'users', ['changed_by_id'], ['id'], ondelete='SET NULL'
+            )
 
     existing_project_cols = [c['name'] for c in inspector.get_columns('projects')]
     existing_project_indexes = [idx['name'] for idx in inspector.get_indexes('projects')]
@@ -141,7 +172,13 @@ def upgrade() -> None:
 
     # 4. Migrate associations (only if source tables exist)
     if 'member_projects' in existing_tables and 'user_projects' in existing_tables:
-        op.execute("INSERT INTO user_projects (user_id, project_id) SELECT member_id, project_id FROM member_projects")
+        op.execute("""
+            INSERT INTO user_projects (user_id, project_id)
+            SELECT mp.member_id, mp.project_id
+            FROM member_projects mp
+            WHERE EXISTS (SELECT 1 FROM users u WHERE u.id = mp.member_id)
+            ON CONFLICT DO NOTHING
+        """)
 
     # 5. Drop old tables (only if they still exist)
     if 'member_projects' in existing_tables:
