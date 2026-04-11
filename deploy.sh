@@ -12,9 +12,9 @@ git remote set-url origin https://github.com/axatsa/Safina-bot.git
 echo '🔄 Загрузка кода из GitHub...'
 git pull origin main
 
-# 4. Собираем backend
+# 4. Собираем backend (--no-cache чтобы гарантировать свежие миграции)
 echo '🔨 Сборка backend образа...'
-docker build -t gitlab.thompson.uz:5050/finance/backend:main ./backend
+docker build --no-cache -t gitlab.thompson.uz:5050/finance/backend:main ./backend
 
 # 5. Собираем frontend
 echo '🔨 Сборка frontend образа (с очисткой кэша)...'
