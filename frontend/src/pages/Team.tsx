@@ -267,7 +267,7 @@ const Team = () => {
                           checked={formData.projectIds.includes(p.id)}
                           onCheckedChange={() => toggleProject(p.id)}
                         />
-                        <span className="text-xs truncate">{p.name} {p.category === 'corporate' ? '(Корп)' : ''}</span>
+                        <span className="text-xs truncate">{p.name} {p.category === 'corporate' ? '' : ''}</span>
                       </label>
                     ))}
                   </div>
