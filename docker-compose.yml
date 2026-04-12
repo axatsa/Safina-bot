@@ -82,3 +82,5 @@ networks:
 volumes:
   uploads_data:
   postgres_data:
+    external: true
+    name: finance-backend-main_pgdata
