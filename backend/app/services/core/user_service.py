@@ -11,11 +11,23 @@ class UserService:
         existing_user = user_repository.get_by_login(db, login=user_in.login)
         if existing_user:
             if existing_user.status == "blocked":
-                # Handle reactivation if necessary or just error
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_MESSAGE,
-                    detail="Login already exists (blocked)"
+                # Automatically reactivate and update the blocked user with new info
+                user_update = UserUpdate(
+                    last_name=user_in.last_name,
+                    first_name=user_in.first_name,
+                    position=user_in.position,
+                    login=user_in.login,
+                    password=user_in.password,
+                    project_ids=user_in.project_ids,
+                    branch_ids=user_in.branch_ids,
+                    role=user_in.role,
+                    team=user_in.team
                 )
+                # Add status update to move from blocked to active
+                update_dict = user_update.dict(exclude_unset=True)
+                update_dict["status"] = "active"
+                return user_repository.update(db, db_obj=existing_user, obj_in=update_dict)
+            
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Login already registered"
