@@ -22,7 +22,7 @@ echo '🔨 Сборка frontend образа (с очисткой кэша)...'
 rm -rf ./frontend/dist
 rm -rf ./frontend/node_modules/.vite
 
-docker build --build-arg VITE_APP_API_URL=https://finance.thompson.uz/api -t gitlab.thompson.uz:5050/finance/frontend:main ./frontend
+docker build --no-cache --build-arg VITE_APP_API_URL=https://finance.thompson.uz/api -t gitlab.thompson.uz:5050/finance/frontend:main ./frontend
 
 # 6. Перезапускаем контейнеры backend
 echo '🔄 Перезапуск backend сервисов...'

@@ -1,5 +1,25 @@
 import { apiFetch } from "../api-client";
-import { TeamMember } from "../types";
+import { TeamMember, Branch } from "../types";
+
+const normalizeBranch = (b: any): Branch => {
+  if (typeof b === "string") {
+    return {
+      id: b,
+      name: b,
+      code: "",
+      project_id: ""
+    };
+  }
+  return {
+    ...b,
+    id: b.id || b.Id || b.ID || b._id || b.project_id || b.name,
+    name: b.name || b.Name || b.Name_ || b.branch_name || "Без названия",
+    code: b.code || b.Code || b.branch_code || "",
+    projectId: b.project_id || b.projectId || b.branch_id || "",
+    project_id: b.project_id || b.projectId || b.branch_id || "",
+    createdAt: b.created_at || b.createdAt
+  };
+};
 
 function mapMember(m: any): TeamMember {
   return {
@@ -11,16 +31,7 @@ function mapMember(m: any): TeamMember {
       ...p,
       createdAt: new Date(p.created_at)
     })),
-    branchIds: (m.branches || []).map((b: any) => b.id),
-    branches: (m.branches || []).map((b: any) => ({
-      ...b,
-      id: b.id,
-      name: b.name,
-      code: b.code,
-      projectId: b.project_id,
-      project_id: b.project_id,
-      createdAt: b.created_at
-    })),
+    branches: (m.branches || []).map(normalizeBranch),
     login: m.login,
     position: m.position,
     branch: m.branch,
