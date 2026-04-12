@@ -49,7 +49,7 @@ def setup_admin_and_project():
     if not project:
         project = models.Project(id="proj_uuid", name="Test Project", code="TEST", category="startup")
         db.add(project)
-        branch = models.Branch(id="branch_uuid", name="Test Branch", project_id="proj_uuid")
+        branch = models.Branch(id="branch_uuid", name="Test Branch", code="TBR", project_id="proj_uuid")
         db.add(branch)
         db.commit()
 
@@ -57,7 +57,7 @@ def setup_admin_and_project():
     return "admin_uuid", "proj_uuid", "branch_uuid"
 
 def get_admin_token():
-    resp = client.post("/api/auth/token", data={"username": "testadmin", "password": "testpass"})
+    resp = client.post("/api/auth/login", json={"login": "testadmin", "password": "testpass"})
     return resp.json()["access_token"]
 
 def teardown_test_data():
@@ -101,7 +101,7 @@ def run_tests():
 
     def test_expense(login, user_id):
         # login
-        u_token = client.post("/api/auth/token", data={"username": login, "password": "123"}).json()["access_token"]
+        u_token = client.post("/api/auth/login", json={"login": login, "password": "123"}).json()["access_token"]
         u_header = {"Authorization": f"Bearer {u_token}"}
         
         # post expense

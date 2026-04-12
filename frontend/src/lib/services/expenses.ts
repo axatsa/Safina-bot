@@ -1,34 +1,36 @@
 import { apiFetch } from "../api-client";
 import { ExpenseRequest, ExpenseStatus, PaginatedResponse } from "../types";
 
+const mapExpense = (e: any): ExpenseRequest => ({
+  id: e.id,
+  requestId: e.request_id,
+  purpose: e.purpose,
+  items: e.items,
+  totalAmount: e.total_amount,
+  currency: e.currency,
+  projectId: e.project_id,
+  projectName: e.project_name,
+  projectCode: e.project_code,
+  status: e.status,
+  statusComment: e.status_comment,
+  internalComment: e.internal_comment,
+  createdBy: e.created_by,
+  createdById: e.created_by_id,
+  requestType: e.request_type,
+  refundData: e.refund_data,
+  receiptPhotoFileId: e.receipt_photo_file_id,
+  branchId: e.branch_id,
+  branchName: e.branch_name,
+  branchCode: e.branch_code,
+  date: new Date(e.date),
+  createdAt: new Date(e.created_at),
+});
+
 export const expensesService = {
   getExpenseById: async (id: string): Promise<ExpenseRequest> => {
     const res = await apiFetch(`/expenses/${id}`);
     const e = await res.json();
-    return {
-        id: e.id,
-        requestId: e.request_id,
-        purpose: e.purpose,
-        items: e.items,
-        totalAmount: e.total_amount,
-        currency: e.currency,
-        projectId: e.project_id,
-        projectName: e.project_name,
-        projectCode: e.project_code,
-        status: e.status,
-        statusComment: e.status_comment,
-        internalComment: e.internal_comment,
-        createdBy: e.created_by,
-        createdById: e.created_by_id,
-        requestType: e.request_type,
-        refundData: e.refund_data,
-        receiptPhotoFileId: e.receipt_photo_file_id,
-        branchId: e.branch_id,
-        branchName: e.branch_name,
-        branchCode: e.branch_code,
-        date: new Date(e.date),
-        createdAt: new Date(e.created_at),
-    };
+    return mapExpense(e);
   },
 
   getExpenses: async (params?: { 
@@ -57,30 +59,7 @@ export const expensesService = {
     const data = await res.json();
     
     return {
-      items: data.items.map((e: any) => ({
-        id: e.id,
-        requestId: e.request_id,
-        purpose: e.purpose,
-        items: e.items,
-        totalAmount: e.total_amount,
-        currency: e.currency,
-        projectId: e.project_id,
-        projectName: e.project_name,
-        projectCode: e.project_code,
-        status: e.status,
-        statusComment: e.status_comment,
-        internalComment: e.internal_comment,
-        createdBy: e.created_by,
-        createdById: e.created_by_id,
-        requestType: e.request_type,
-        refundData: e.refund_data,
-        receiptPhotoFileId: e.receipt_photo_file_id,
-        branchId: e.branch_id,
-        branchName: e.branch_name,
-        branchCode: e.branch_code,
-        date: new Date(e.date),
-        createdAt: new Date(e.created_at),
-      })),
+      items: data.items.map(mapExpense),
       total: data.total,
       skip: data.skip,
       limit: data.limit,
@@ -93,7 +72,7 @@ export const expensesService = {
       method: "PATCH",
       body: JSON.stringify({ status, comment }),
     });
-    return res.json();
+    return mapExpense(await res.json());
   },
 
   updateInternalComment: async (expenseId: string, internalComment: string): Promise<void> => {
@@ -105,12 +84,12 @@ export const expensesService = {
 
   forwardToSenior: async (expenseId: string): Promise<ExpenseRequest> => {
     const res = await apiFetch(`/expenses/${expenseId}/forward_senior`, { method: "POST" });
-    return res.json();
+    return mapExpense(await res.json());
   },
 
   forwardToCeo: async (expenseId: string): Promise<ExpenseRequest> => {
     const res = await apiFetch(`/expenses/${expenseId}/forward_ceo`, { method: "POST" });
-    return res.json();
+    return mapExpense(await res.json());
   },
 
   submitExpenseFromWeb: async (data: any) => {
@@ -118,7 +97,7 @@ export const expensesService = {
       method: "POST",
       body: JSON.stringify(data),
     });
-    return await res.json();
+    return mapExpense(await res.json());
   },
 
   submitBlankFromWeb: async (data: any) => {
@@ -126,7 +105,7 @@ export const expensesService = {
       method: "POST",
       body: JSON.stringify(data),
     });
-    return await res.json();
+    return mapExpense(await res.json());
   },
 
   submitRefundApplicationFromWeb: async (data: any) => {
@@ -134,7 +113,7 @@ export const expensesService = {
       method: "POST",
       body: JSON.stringify(data),
     });
-    return await res.json();
+    return mapExpense(await res.json());
   },
 
   createExpenseRequest: async (data: any) => {
@@ -142,7 +121,7 @@ export const expensesService = {
       method: "POST",
       body: JSON.stringify(data),
     });
-    return await res.json();
+    return mapExpense(await res.json());
   },
 
   exportXLSX: async (params: { project?: string; user?: string; from?: string; to?: string; allStatuses?: boolean; status?: string; request_type?: string; search?: string }): Promise<void> => {
@@ -210,7 +189,7 @@ export const expensesService = {
       body: formData,
     });
 
-    return res.json();
+    return mapExpense(await res.json());
   },
 
   getExpenseHistory: async (expenseId: string): Promise<any[]> => {

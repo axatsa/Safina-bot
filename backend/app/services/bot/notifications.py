@@ -10,6 +10,7 @@ following the pattern of send_senior_notification / send_ceo_notification.
 
 import datetime
 import os
+from typing import Optional, Union
 from aiogram import Bot
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from dotenv import load_dotenv
@@ -22,9 +23,9 @@ from decimal import Decimal
 logger = get_logger(__name__)
 TASHKENT_TZ = datetime.timezone(datetime.timedelta(hours=5))
 
-_bot: Bot | None = None
+_bot: Optional[Bot] = None
 
-def get_bot() -> Bot | None:
+def get_bot() -> Optional[Bot]:
     global _bot
     token = os.getenv("BOT_TOKEN")
     if not token:
@@ -69,7 +70,7 @@ async def send_status_notification(
     raw_status: str,
     amount: Decimal,
     currency: str,
-    comment: str | None = None,
+    comment: Optional[str] = None,
 ) -> None:
     """Notify the submitter about a status change."""
     status_map = {
@@ -222,7 +223,7 @@ async def send_ceo_decision_notification(
     total_amount: Decimal,
     currency: str,
     approved: bool,
-    comment: str | None = None,
+    comment: Optional[str] = None,
 ) -> None:
     """Notify Safina AND CFO about CEO's final decision."""
     emoji = "✅" if approved else "❌"
@@ -290,7 +291,7 @@ def _get_chat_id_by_position(position: str) -> list[int]:
         return [u.telegram_chat_id for u in users]
 
 
-def get_admin_chat_id() -> int | None:
+def get_admin_chat_id() -> Optional[int]:
     from app.core import database
     from app.db import models
     with database.database_session() as db:
@@ -324,7 +325,7 @@ def get_senior_financier_chat_ids() -> list[int]:
         return [u.telegram_chat_id for u in users]
 
 
-def get_ceo_chat_id() -> int | None:
+def get_ceo_chat_id() -> Optional[int]:
     """Return CEO Telegram chat_id (first linked CEO found)."""
     ids = _get_chat_id_by_position("ceo")
     return ids[0] if ids else None
