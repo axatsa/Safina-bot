@@ -32,8 +32,10 @@ class DocxService:
 
         # 3. Fallback: по филиалу сотрудника (старая логика)
         branch = None
-        if expense.created_by_user and expense.created_by_user.branch:
-            branch = expense.created_by_user.branch.lower()
+        if expense.branch_name:
+            branch = expense.branch_name.lower()
+        elif expense.created_by_user and expense.created_by_user.branches:
+            branch = expense.created_by_user.branches[0].name.lower()
         elif expense.refund_data and expense.refund_data.get("branch"):
             branch = expense.refund_data.get("branch").lower()
 
@@ -125,9 +127,11 @@ class DocxService:
             else:
                 data["reason_drugoe_text"] = rd.get("reason_other", "")
 
-            # Branch from user profile if not in refund_data
-            if expense.created_by_user and expense.created_by_user.branch:
-                data["branch"] = expense.created_by_user.branch
+            # Branch from profile if not in refund_data
+            if expense.branch_name:
+                data["branch"] = expense.branch_name
+            elif expense.created_by_user and expense.created_by_user.branches:
+                data["branch"] = expense.created_by_user.branches[0].name
             elif not data.get("branch"):
                 data["branch"] = ""
 
