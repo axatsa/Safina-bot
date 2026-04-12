@@ -162,11 +162,12 @@ async def handle_refund_submit(callback: types.CallbackQuery, state: FSMContext)
             # Store necessary attributes before session closes
             expense_id = expense_req.id
             request_id = expense_req.request_id
+            expense_dict = expense_service.get_expense_dict(expense_req)
 
         # Notify Safina
         admin_chat_id = get_admin_chat_id()
         if admin_chat_id:
-            await send_admin_notification(expense_id, admin_chat_id)
+            await send_admin_notification(expense_dict, admin_chat_id)
 
         await callback.message.answer(
             f"✅ Заявка {request_id} отправлена Сафине!",

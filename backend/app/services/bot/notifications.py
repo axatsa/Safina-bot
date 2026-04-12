@@ -19,6 +19,7 @@ load_dotenv()
 
 from app.core.logging_config import get_logger
 from decimal import Decimal
+from app.services.notifications.sse import publish_notification
 
 logger = get_logger(__name__)
 TASHKENT_TZ = datetime.timezone(datetime.timedelta(hours=5))
@@ -145,6 +146,15 @@ async def send_admin_notification(expense: dict, admin_chat_id: int) -> None:
     builder.adjust(1)
 
     await _send_message(admin_chat_id, text, reply_markup=builder.as_markup())
+    
+    # Also notify via SSE for the admin panel
+    await publish_notification(
+        "notifications:admin", 
+        {
+            "title": "Новая заявка", 
+            "message": f"Заявка {request_id} от {created_by} ({project_name})"
+        }
+    )
 
 
 # ---------------------------------------------------------------------------

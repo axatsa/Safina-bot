@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import { store } from "@/lib/store";
+import NotificationListener from "./NotificationListener";
 
 const AppLayout = () => {
   const role = localStorage.getItem("safina_role");
@@ -12,6 +13,7 @@ const AppLayout = () => {
 
   return (
     <div className="flex min-h-screen w-full">
+      <NotificationListener />
       <AppSidebar />
       <main className="flex-1 overflow-auto">
         <Outlet />

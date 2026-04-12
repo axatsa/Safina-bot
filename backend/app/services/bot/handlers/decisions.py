@@ -6,6 +6,7 @@ from app.core import database
 from app.db import models, schemas
 from app.services.core.expense_service import expense_service
 from ..notifications import send_ceo_decision_notification, get_admin_chat_id, get_senior_financier_chat_ids
+from app.services.notifications.sse import publish_notification
 
 router = Router()
 
@@ -29,6 +30,12 @@ async def handle_approve_senior(callback: types.CallbackQuery):
 
         update = schemas.ExpenseStatusUpdate(status="approved_senior", comment="Утверждено CFO")
         expense_service.update_status(db, expense_id, update, user_id=user.id, user_name=f"{user.last_name} {user.first_name} (CFO)")
+        req_id = expense.request_id
+
+    await publish_notification(
+        "notifications:admin",
+        {"title": "Статус обновлен", "message": f"Заявка {req_id}: Одобрено CFO"}
+    )
     
     await callback.message.edit_text(callback.message.text + "\n\n✅ *Утверждено CFO*", parse_mode="Markdown")
     await callback.answer("Инвестиция утверждена!")
@@ -53,6 +60,12 @@ async def handle_reject_senior(callback: types.CallbackQuery):
 
         update = schemas.ExpenseStatusUpdate(status="rejected_senior", comment="Отклонено CFO")
         expense_service.update_status(db, expense_id, update, user_id=user.id, user_name=f"{user.last_name} {user.first_name} (CFO)")
+        req_id = expense.request_id
+
+    await publish_notification(
+        "notifications:admin",
+        {"title": "Статус обновлен", "message": f"Заявка {req_id}: Отклонено CFO"}
+    )
     
     await callback.message.edit_text(callback.message.text + "\n\n❌ *Отклонено CFO*", parse_mode="Markdown")
     await callback.answer("Инвестиция отклонена!")
@@ -86,6 +99,11 @@ async def handle_approve_ceo(callback: types.CallbackQuery):
 
     await callback.message.edit_text(callback.message.text + "\n\n✅ *Одобрено CEO*", parse_mode="Markdown")
     await callback.answer("Инвестиция одобрена CEO!")
+
+    await publish_notification(
+        "notifications:admin",
+        {"title": "Статус одобрен CEO", "message": f"Заявка {req_id} одобрена Г-ном Ганиевым."}
+    )
 
     # Notifications
     admin_id = get_admin_chat_id()
@@ -130,6 +148,11 @@ async def handle_reject_ceo(callback: types.CallbackQuery):
 
     await callback.message.edit_text(callback.message.text + "\n\n❌ *Отклонено CEO*", parse_mode="Markdown")
     await callback.answer("Инвестиция отклонена CEO!")
+
+    await publish_notification(
+        "notifications:admin",
+        {"title": "Статус отклонен CEO", "message": f"Заявка {req_id} отклонена CEO."}
+    )
 
     admin_id = get_admin_chat_id()
     cfo_ids = get_senior_financier_chat_ids()

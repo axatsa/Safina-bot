@@ -174,7 +174,7 @@ async def web_submit_expense(
 
     admin_chat_id = get_admin_chat_id()
     if admin_chat_id:
-        background_tasks.add_task(send_admin_notification, get_expense_dict(expense_req), admin_chat_id)
+        background_tasks.add_task(send_admin_notification, expense_service.get_expense_dict(expense_req), admin_chat_id)
     return expense_req
 
 
@@ -522,6 +522,13 @@ def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, backgrou
             expense.currency,
             update.comment
         )
+    
+    from app.services.notifications.sse import publish_notification
+    background_tasks.add_task(
+        publish_notification,
+        "notifications:admin",
+        {"title": "Статус обновлен", "message": f"Заявка {expense.request_id}: {expense.status}"}
+    )
     return expense
 
 @router.get("/{expense_id}/history", response_model=List[schemas.ExpenseStatusHistorySchema])
