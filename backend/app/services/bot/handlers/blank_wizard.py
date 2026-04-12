@@ -33,7 +33,8 @@ async def start_blank_wizard(message: types.Message, state: FSMContext):
     
     with database.database_session() as db:
         user = db.query(models.User).options(
-            joinedload(models.User.projects)
+            joinedload(models.User.projects).joinedload(models.Project.branches),
+            joinedload(models.User.branches)
         ).filter(
             models.User.telegram_chat_id == message.from_user.id
         ).first()
@@ -43,13 +44,27 @@ async def start_blank_wizard(message: types.Message, state: FSMContext):
         else:
             user_id = user.id
             # Extract data while session is open
-            user_templates = list(user.templates or [])
+            user_branch_ids = {b.id for b in user.branches}
+            user_is_privileged = user.role in ["admin", "ceo", "senior_financier"]
+            
             for p in user.projects:
+                p_branches = p.branches
+                # Filter branches: if user has assigned branches, show only those.
+                # If admin has no assigned branches, show all.
+                if user_branch_ids:
+                    filtered_branches = [b for b in p_branches if b.id in user_branch_ids]
+                elif user_is_privileged:
+                    filtered_branches = list(p_branches)
+                else:
+                    filtered_branches = []
+
                 projects_data.append({
                     "id": p.id,
                     "name": p.name,
                     "code": p.code,
-                    "templates": list(p.templates or [])
+                    "templates": list(p.templates or []),
+                    "category": p.category,
+                    "branches_data": [{"id": b.id, "name": b.name} for b in filtered_branches]
                 })
             
             if not projects_data and not user_templates:
@@ -67,21 +82,18 @@ async def start_blank_wizard(message: types.Message, state: FSMContext):
 
     # 2. Логика по количеству проектов
     if len(projects_data) > 1:
+        await state.update_data(projects_data=projects_data, user_id=user_id)
         await state.set_state(BlankWizard.project_selection)
         await message.answer("Для какого проекта бланк?", reply_markup=get_projects_kb(projects_data))
     elif projects_data:
         # 1 проект
         proj = projects_data[0]
-        await state.update_data(project_id=proj["id"])
+        await state.update_data(project_id=proj["id"], user_id=user_id)
         
-        # Check for branches BEFORE templates if it's corporate
-        with database.database_session() as db:
-            db_proj = db.query(models.Project).get(proj["id"])
-            if db_proj and db_proj.category == "corporate" and db_proj.branches:
-                branches_data = [{"id": b.id, "name": b.name} for b in db_proj.branches]
-                await message.answer("Выберите филиал:", reply_markup=get_branches_kb(branches_data))
-                await state.set_state(BlankWizard.branch_selection)
-                return
+        if proj["category"] == "corporate" and proj["branches_data"]:
+            await message.answer("Выберите филиал:", reply_markup=get_branches_kb(proj["branches_data"]))
+            await state.set_state(BlankWizard.branch_selection)
+            return
 
         await proceed_to_templates(message, state, user_templates, projects_data, proj["id"])
     else:
@@ -99,12 +111,12 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
     user_not_found = False
     project_obj = None
     projects_data = []
-    user_templates = []
     user_id = None
 
     with database.database_session() as db:
         user = db.query(models.User).options(
-            joinedload(models.User.projects).joinedload(models.Project.branches)
+            joinedload(models.User.projects).joinedload(models.Project.branches),
+            joinedload(models.User.branches)
         ).filter(
             models.User.telegram_chat_id == message.from_user.id
         ).first()
@@ -113,15 +125,25 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
             user_not_found = True
         else:
             user_id = user.id
-            user_templates = list(user.templates or [])
+            user_branch_ids = {b.id for b in user.branches}
+            user_is_privileged = user.role in ["admin", "ceo", "senior_financier"]
+            
             for p in user.projects:
+                p_branches = p.branches
+                if user_branch_ids:
+                    filtered_branches = [b for b in p_branches if b.id in user_branch_ids]
+                elif user_is_privileged:
+                    filtered_branches = list(p_branches)
+                else:
+                    filtered_branches = []
+
                 p_data = {
                     "id": p.id,
                     "name": p.name,
                     "code": p.code,
                     "templates": list(p.templates or []),
                     "category": p.category,
-                    "branches_data": [{"id": b.id, "name": b.name} for b in p.branches]
+                    "branches_data": [{"id": b.id, "name": b.name} for b in filtered_branches]
                 }
                 projects_data.append(p_data)
                 if f"{p.name} ({p.code})" == message.text:
@@ -131,7 +153,7 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
         await message.answer("Пользователь не найден.")
         return
         
-    await state.update_data(user_id=user_id)
+    await state.update_data(user_id=user_id, projects_data=projects_data)
 
     if not project_obj:
         await message.answer("Выберите проект из списка кнопок.")
@@ -150,11 +172,8 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
 async def handle_branch_selection(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         # Go back to project selection
-        projects_data = []
-        with database.database_session() as db:
-            user = db.query(models.User).filter(models.User.telegram_chat_id == message.from_user.id).first()
-            if user:
-                projects_data = [{"id": p.id, "name": p.name, "code": p.code} for p in user.projects]
+        data = await state.get_data()
+        projects_data = data.get("projects_data", [])
         
         if len(projects_data) > 1:
             await state.set_state(BlankWizard.project_selection)
@@ -166,25 +185,29 @@ async def handle_branch_selection(message: types.Message, state: FSMContext):
 
     data = await state.get_data()
     project_id = data.get("project_id")
+    projects_data = data.get("projects_data", [])
+    project_obj = next((p for p in projects_data if p["id"] == project_id), None)
     
-    with database.database_session() as db:
-        branches = db.query(models.Branch).filter(models.Branch.project_id == project_id).all()
-        selected = next((b for b in branches if b.name == message.text), None)
+    if project_obj:
+        branches = project_obj.get("branches_data", [])
+        selected = next((b for b in branches if b["name"] == message.text), None)
         if selected:
-            await state.update_data(branch_id=selected.id)
+            await state.update_data(branch_id=selected["id"])
             
             # Now proceed to templates
             user_templates = []
-            projects_data = []
-            user = db.query(models.User).filter(models.User.telegram_chat_id == message.from_user.id).first()
-            if user:
-                user_templates = list(user.templates or [])
-                for p in user.projects:
-                    projects_data.append({"id": p.id, "templates": list(p.templates or [])})
+            with database.database_session() as db:
+                user = db.query(models.User).filter(models.User.telegram_chat_id == message.from_user.id).first()
+                if user:
+                    user_templates = list(user.templates or [])
             
             await proceed_to_templates(message, state, user_templates, projects_data, project_id)
+            return
         else:
             await message.answer("Выберите из списка или отмените.", reply_markup=get_branches_kb(branches))
+    else:
+        await message.answer("Ошибка сессии. Начните заново.", reply_markup=get_main_kb())
+        await state.clear()
 
 async def proceed_to_templates(message: types.Message, state: FSMContext, user_templates: list, projects_data: list, project_id: Optional[str]):
     # Собираем доступные шаблоны: личные + этого проекта

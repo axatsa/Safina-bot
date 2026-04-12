@@ -26,13 +26,34 @@ async def start_wizard_selection(message: types.Message, state: FSMContext):
     user_id = None
     
     with database.database_session() as db:
-        user = db.query(models.User).filter(models.User.telegram_chat_id == message.from_user.id).first()
+        user = db.query(models.User).options(
+            joinedload(models.User.projects).joinedload(models.Project.branches),
+            joinedload(models.User.branches)
+        ).filter(models.User.telegram_chat_id == message.from_user.id).first()
         if not user:
             user_not_found = True
         else:
             user_id = user.id
-            # Capture project data while session is open to avoid DetachedInstanceError
-            projects_data = [{"id": p.id, "name": p.name, "code": p.code} for p in (user.projects or [])]
+            user_branch_ids = {b.id for b in user.branches}
+            user_is_privileged = user.role in ["admin", "ceo", "senior_financier"]
+            
+            for p in user.projects:
+                p_branches = p.branches
+                if user_branch_ids:
+                    filtered_branches = [b for b in p_branches if b.id in user_branch_ids]
+                elif user_is_privileged:
+                    filtered_branches = list(p_branches)
+                else:
+                    filtered_branches = []
+
+                projects_data.append({
+                    "id": p.id,
+                    "name": p.name,
+                    "code": p.code,
+                    "category": p.category,
+                    "branches_data": [{"id": b.id, "name": b.name} for b in filtered_branches]
+                })
+            
             if not projects_data:
                 no_projects = True
 
@@ -45,22 +66,18 @@ async def start_wizard_selection(message: types.Message, state: FSMContext):
         return
 
     if len(projects_data) > 1:
-        await state.update_data(user_id=user_id)
+        await state.update_data(user_id=user_id, projects_data=projects_data)
         await message.answer("Выберите проект:", reply_markup=get_projects_kb(projects_data))
         await state.set_state(ExpenseWizard.project_selection)
     else:
         # Exactly one project
         proj = projects_data[0]
-        await state.update_data(project_id=proj["id"], user_id=user_id)
+        await state.update_data(project_id=proj["id"], user_id=user_id, projects_data=projects_data)
         
-        # Check for branches
-        with database.database_session() as db:
-            db_proj = db.query(models.Project).get(proj["id"])
-            if db_proj and db_proj.category == "corporate" and db_proj.branches:
-                branches_data = [{"id": b.id, "name": b.name} for b in db_proj.branches]
-                await message.answer("Выберите филиал:", reply_markup=get_branches_kb(branches_data))
-                await state.set_state(ExpenseWizard.branch_selection)
-                return
+        if proj["category"] == "corporate" and proj["branches_data"]:
+            await message.answer("Выберите филиал:", reply_markup=get_branches_kb(proj["branches_data"]))
+            await state.set_state(ExpenseWizard.branch_selection)
+            return
 
         await message.answer("Введите дату или «Сейчас»:", reply_markup=get_date_kb())
         await state.set_state(ExpenseWizard.date)
@@ -72,23 +89,54 @@ async def process_project_selection(message: types.Message, state: FSMContext):
         await message.answer("Отменено.", reply_markup=get_main_kb())
         return
         
-    with database.database_session() as db:
-        projects = db.query(models.Project).all()
-        selected = next((p for p in projects if f"{p.name} ({p.code})" == message.text), None)
-        if selected:
-            await state.update_data(project_id=selected.id)
-            
-            # Check for branches
-            if selected.category == "corporate" and selected.branches:
-                branches_data = [{"id": b.id, "name": b.name} for b in selected.branches]
-                await message.answer("Выберите филиал:", reply_markup=get_branches_kb(branches_data))
-                await state.set_state(ExpenseWizard.branch_selection)
-                return
+    user_id = None
+    project_obj = None
+    projects_data = []
 
-            await message.answer(f"Проект выбран. Введите дату:", reply_markup=get_date_kb())
-            await state.set_state(ExpenseWizard.date)
-        else:
-            await message.answer("Выберите из списка или отмените.", reply_markup=get_projects_kb(projects))
+    with database.database_session() as db:
+        user = db.query(models.User).options(
+            joinedload(models.User.projects).joinedload(models.Project.branches),
+            joinedload(models.User.branches)
+        ).filter(models.User.telegram_chat_id == message.from_user.id).first()
+        
+        if user:
+            user_id = user.id
+            user_branch_ids = {b.id for b in user.branches}
+            user_is_privileged = user.role in ["admin", "ceo", "senior"]
+            
+            for p in user.projects:
+                p_branches = p.branches
+                if user_branch_ids:
+                    filtered_branches = [b for b in p_branches if b.id in user_branch_ids]
+                elif user_is_privileged:
+                    filtered_branches = list(p_branches)
+                else:
+                    filtered_branches = []
+
+                p_data = {
+                    "id": p.id,
+                    "name": p.name,
+                    "code": p.code,
+                    "category": p.category,
+                    "branches_data": [{"id": b.id, "name": b.name} for b in filtered_branches]
+                }
+                projects_data.append(p_data)
+                if f"{p.name} ({p.code})" == message.text:
+                    project_obj = p_data
+
+    if project_obj:
+        await state.update_data(project_id=project_obj["id"], projects_data=projects_data)
+        
+        # Check for branches
+        if project_obj["category"] == "corporate" and project_obj["branches_data"]:
+            await message.answer("Выберите филиал:", reply_markup=get_branches_kb(project_obj["branches_data"]))
+            await state.set_state(ExpenseWizard.branch_selection)
+            return
+
+        await message.answer(f"Проект выбран. Введите дату:", reply_markup=get_date_kb())
+        await state.set_state(ExpenseWizard.date)
+    else:
+        await message.answer("Выберите из списка или отмените.", reply_markup=get_projects_kb(projects_data))
 
 @router.message(ExpenseWizard.branch_selection)
 async def process_branch_selection(message: types.Message, state: FSMContext):
@@ -107,15 +155,23 @@ async def process_branch_selection(message: types.Message, state: FSMContext):
 
     data = await state.get_data()
     project_id = data.get("project_id")
-    with database.database_session() as db:
-        branches = db.query(models.Branch).filter(models.Branch.project_id == project_id).all()
-        selected = next((b for b in branches if b.name == message.text), None)
+    data = await state.get_data()
+    project_id = data.get("project_id")
+    projects_data = data.get("projects_data", [])
+    project_obj = next((p for p in projects_data if p["id"] == project_id), None)
+    
+    if project_obj:
+        branches = project_obj.get("branches_data", [])
+        selected = next((b for b in branches if b["name"] == message.text), None)
         if selected:
-            await state.update_data(branch_id=selected.id)
+            await state.update_data(branch_id=selected["id"])
             await message.answer("Филиал выбран. Введите дату:", reply_markup=get_date_kb())
             await state.set_state(ExpenseWizard.date)
         else:
             await message.answer("Выберите из списка или отмените.", reply_markup=get_branches_kb(branches))
+    else:
+        await message.answer("Ошибка сессии. Начните заново.", reply_markup=get_main_kb())
+        await state.clear()
 
 @router.message(ExpenseWizard.date)
 async def process_date(message: types.Message, state: FSMContext):

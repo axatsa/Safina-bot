@@ -27,7 +27,8 @@ async def start_direct_refund_bot(message: types.Message, state: FSMContext):
     
     with database.database_session() as db:
         user = db.query(models.User).options(
-            joinedload(models.User.projects)
+            joinedload(models.User.projects).joinedload(models.Project.branches),
+            joinedload(models.User.branches)
         ).filter(
             models.User.telegram_chat_id == message.from_user.id
         ).first()
@@ -37,11 +38,24 @@ async def start_direct_refund_bot(message: types.Message, state: FSMContext):
             return
             
         user_id = user.id
+        user_branch_ids = {b.id for b in user.branches}
+        user_is_privileged = user.role in ["admin", "ceo", "senior_financier"]
+        
         for p in user.projects:
+            p_branches = p.branches
+            if user_branch_ids:
+                filtered_branches = [b for b in p_branches if b.id in user_branch_ids]
+            elif user_is_privileged:
+                filtered_branches = list(p_branches)
+            else:
+                filtered_branches = []
+
             projects_data.append({
                 "id": p.id,
                 "name": p.name,
-                "code": p.code
+                "code": p.code,
+                "category": p.category,
+                "branches_data": [{"id": b.id, "name": b.name} for b in filtered_branches]
             })
 
     await state.update_data(user_id=user_id)
@@ -52,20 +66,18 @@ async def start_direct_refund_bot(message: types.Message, state: FSMContext):
 
     if len(projects_data) > 1:
         await state.set_state(RefundBlankWizard.project_selection)
+        await state.update_data(projects_data=projects_data)
         await message.answer("Для какого проекта возврат?", reply_markup=get_projects_kb(projects_data))
     elif projects_data:
         # 1 проект
         proj = projects_data[0]
-        await state.update_data(project_id=proj["id"])
+        await state.update_data(project_id=proj["id"], projects_data=projects_data)
         
         # Check for branches BEFORE client name if it's corporate
-        with database.database_session() as db:
-            db_proj = db.query(models.Project).get(proj["id"])
-            if db_proj and db_proj.category == "corporate" and db_proj.branches:
-                branches_data = [{"id": b.id, "name": b.name} for b in db_proj.branches]
-                await message.answer("Выберите филиал:", reply_markup=get_branches_kb(branches_data))
-                await state.set_state(RefundBlankWizard.branch_selection)
-                return
+        if proj["category"] == "corporate" and proj["branches_data"]:
+            await message.answer("Выберите филиал:", reply_markup=get_branches_kb(proj["branches_data"]))
+            await state.set_state(RefundBlankWizard.branch_selection)
+            return
 
         await state.set_state(RefundBlankWizard.client_name)
         await message.answer("ФИО клиента (родителя):", reply_markup=get_back_kb())
@@ -79,25 +91,51 @@ async def handle_refund_project_selection(message: types.Message, state: FSMCont
         await message.answer("Главное меню", reply_markup=get_main_kb())
         return
 
-    selected_proj = None
+    selected_proj_obj = None
+    projects_data = []
     with database.database_session() as db:
-        projects = db.query(models.Project).all()
-        selected_proj = next((p for p in projects if f"{p.name} ({p.code})" == message.text), None)
+        user = db.query(models.User).options(
+            joinedload(models.User.projects).joinedload(models.Project.branches),
+            joinedload(models.User.branches)
+        ).filter(models.User.telegram_chat_id == message.from_user.id).first()
         
-        if selected_proj:
-            await state.update_data(project_id=selected_proj.id)
+        if user:
+            user_branch_ids = {b.id for b in user.branches}
+            user_is_privileged = user.role in ["admin", "ceo", "senior_financier"]
             
-            # Check for branches
-            if selected_proj.category == "corporate" and selected_proj.branches:
-                branches_data = [{"id": b.id, "name": b.name} for b in selected_proj.branches]
-                await message.answer("Выберите филиал:", reply_markup=get_branches_kb(branches_data))
-                await state.set_state(RefundBlankWizard.branch_selection)
-                return
+            for p in user.projects:
+                p_branches = p.branches
+                if user_branch_ids:
+                    filtered_branches = [b for b in p_branches if b.id in user_branch_ids]
+                elif user_is_privileged:
+                    filtered_branches = list(p_branches)
+                else:
+                    filtered_branches = []
 
-            await state.set_state(RefundBlankWizard.client_name)
-            await message.answer("ФИО клиента (родителя):", reply_markup=get_back_kb())
-        else:
-            await message.answer("Выберите проект из списка кнопок.")
+                p_data = {
+                    "id": p.id,
+                    "name": p.name,
+                    "code": p.code,
+                    "category": p.category,
+                    "branches_data": [{"id": b.id, "name": b.name} for b in filtered_branches]
+                }
+                projects_data.append(p_data)
+                if f"{p.name} ({p.code})" == message.text:
+                    selected_proj_obj = p_data
+        
+    if selected_proj_obj:
+        await state.update_data(project_id=selected_proj_obj["id"], projects_data=projects_data)
+        
+        # Check for branches
+        if selected_proj_obj["category"] == "corporate" and selected_proj_obj["branches_data"]:
+            await message.answer("Выберите филиал:", reply_markup=get_branches_kb(selected_proj_obj["branches_data"]))
+            await state.set_state(RefundBlankWizard.branch_selection)
+            return
+
+        await state.set_state(RefundBlankWizard.client_name)
+        await message.answer("ФИО клиента (родителя):", reply_markup=get_back_kb())
+    else:
+        await message.answer("Выберите проект из списка кнопок.")
 
 @router.message(RefundBlankWizard.branch_selection)
 async def handle_refund_branch_selection(message: types.Message, state: FSMContext):
@@ -119,16 +157,21 @@ async def handle_refund_branch_selection(message: types.Message, state: FSMConte
 
     data = await state.get_data()
     project_id = data.get("project_id")
+    projects_data = data.get("projects_data", [])
+    project_obj = next((p for p in projects_data if p["id"] == project_id), None)
     
-    with database.database_session() as db:
-        branches = db.query(models.Branch).filter(models.Branch.project_id == project_id).all()
-        selected = next((b for b in branches if b.name == message.text), None)
+    if project_obj:
+        branches = project_obj.get("branches_data", [])
+        selected = next((b for b in branches if b["name"] == message.text), None)
         if selected:
-            await state.update_data(branch_id=selected.id)
+            await state.update_data(branch_id=selected["id"])
             await state.set_state(RefundBlankWizard.client_name)
             await message.answer("Филиал выбран.\nФИО клиента (родителя):", reply_markup=get_back_kb())
         else:
             await message.answer("Выберите филиал из списка кнопок.", reply_markup=get_branches_kb(branches))
+    else:
+        await message.answer("Ошибка сессии. Начните заново.", reply_markup=get_main_kb())
+        await state.clear()
 
 @router.message(F.text == "Заявление на возврат (Web-App)")
 async def open_direct_refund_webapp(message: types.Message):

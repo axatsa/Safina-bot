@@ -21,6 +21,7 @@ class ExpenseWizard(StatesGroup):
     waiting_for_admin_password = State()
 
 class RefundWizard(StatesGroup):
+    branch_selection = State()
     student_id = State()
     reason = State()
     reason_other = State()

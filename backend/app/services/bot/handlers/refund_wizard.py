@@ -9,22 +9,58 @@ from ..states import RefundWizard
 from ..keyboards import get_reason_kb, get_back_kb, get_refund_confirm_markup, get_main_kb, get_currency_kb, get_retention_kb
 from ..utils import _BACK, tashkent_now
 import re
+from sqlalchemy.orm import joinedload
 
 router = Router()
 
 @router.message(F.text == "Оформить возврат (в боте)")
 async def start_refund_wizard(message: types.Message, state: FSMContext):
+    user_branches = []
+    user_id = None
+    user_team = None
     with database.database_session() as db:
         from app.db import models
-        user = db.query(models.User).filter(models.User.telegram_chat_id == message.from_user.id).first()
+        user = db.query(models.User).options(joinedload(models.User.branches)).filter(models.User.telegram_chat_id == message.from_user.id).first()
         if not user:
             await message.answer("Авторизуйтесь: /start")
             return
-        # Get the first branch as a default if it exists
-        branch_name = user.branches[0].name if user.branches else None
-        await state.update_data(user_id=user.id, branch=branch_name, team=user.team)
-    await message.answer("Шаг 1/4 — ID ученика:", reply_markup=types.ReplyKeyboardRemove())
-    await state.set_state(RefundWizard.student_id)
+        user_id = user.id
+        user_team = user.team
+        user_branches = [{"id": b.id, "name": b.name} for b in user.branches]
+
+    await state.update_data(user_id=user_id, team=user_team, branches_data=user_branches)
+    
+    if len(user_branches) > 1:
+        from ..keyboards import get_branches_kb
+        await message.answer("Выберите филиал:", reply_markup=get_branches_kb(user_branches))
+        await state.set_state(RefundWizard.branch_selection)
+    elif len(user_branches) == 1:
+        await state.update_data(branch=user_branches[0]["name"], branch_id=user_branches[0]["id"])
+        await message.answer("Шаг 1/4 — ID ученика:", reply_markup=types.ReplyKeyboardRemove())
+        await state.set_state(RefundWizard.student_id)
+    else:
+        # No branches - maybe just proceed without branch or fail?
+        # For refunds, branch is usually required in create_refund
+        await message.answer("Шаг 1/4 — ID ученика:", reply_markup=types.ReplyKeyboardRemove())
+        await state.set_state(RefundWizard.student_id)
+
+@router.message(RefundWizard.branch_selection)
+async def process_refund_branch_selection(message: types.Message, state: FSMContext):
+    if message.text == _BACK:
+        await state.clear()
+        await message.answer("Главное меню", reply_markup=get_main_kb())
+        return
+
+    data = await state.get_data()
+    branches = data.get("branches_data", [])
+    selected = next((b for b in branches if b["name"] == message.text), None)
+    if selected:
+        await state.update_data(branch=selected["name"], branch_id=selected["id"])
+        await message.answer("Шаг 1/4 — ID ученика:", reply_markup=types.ReplyKeyboardRemove())
+        await state.set_state(RefundWizard.student_id)
+    else:
+        from ..keyboards import get_branches_kb
+        await message.answer("Выберите филиал из списка кнопок.", reply_markup=get_branches_kb(branches))
 
 @router.message(RefundWizard.student_id)
 async def process_refund_student_id(message: types.Message, state: FSMContext):
