@@ -1,11 +1,24 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 from app.db import models, schemas
 from app.core import auth, database
 from app.services.core.project_service import project_service
 
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+@router.get("/by-chat-id/{chat_id}", response_model=List[schemas.ProjectSchema])
+def get_projects_by_chat_id(
+    chat_id: int,
+    db: Session = Depends(database.get_db),
+):
+    """Returns projects assigned to a Telegram user by chat_id. No auth required (called from WebApp)."""
+    user = db.query(models.User).options(
+        joinedload(models.User.projects).joinedload(models.Project.branches)
+    ).filter(models.User.telegram_chat_id == chat_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user.projects
 
 @router.get("", response_model=List[schemas.ProjectSchema])
 def read_projects(
