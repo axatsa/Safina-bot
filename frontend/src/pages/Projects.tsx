@@ -53,7 +53,7 @@ const Projects = ({ category }: ProjectsProps) => {
     const queryClient = useQueryClient();
     const [formData, setFormData] = useState({ name: "", code: "" });
     const isCorporate = category === "corporate";
-    const title = isCorporate ? "Проекты" : "Start Ups";
+    const title = isCorporate ? "Проекты" : "Startup";
     const subtitle = isCorporate ? "Корпоративные проекты с филиалами" : "Плоские проекты без структуры";
     const Icon = isCorporate ? Building2 : Rocket;
 
