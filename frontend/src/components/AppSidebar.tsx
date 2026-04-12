@@ -95,7 +95,7 @@ const AppSidebar = () => {
             <span>Выход</span>
           </button>
           <div className="px-2 py-1 rounded bg-muted text-[8px] font-mono font-bold text-muted-foreground whitespace-nowrap">
-            v3.1-STABLE
+            v3.2-STABLE
           </div>
         </div>
       </div>

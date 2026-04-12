@@ -7,7 +7,7 @@ export const analyticsService = {
     const res = await apiFetch(`/analytics?${params.toString()}`);
     return await res.json();
   },
-  getBranches: async () => {
+  getAnalyticsBranches: async () => {
     const res = await apiFetch("/analytics/branches");
     return await res.json();
   },

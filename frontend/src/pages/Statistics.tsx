@@ -69,8 +69,8 @@ const Statistics = () => {
     const [selectedBranch, setSelectedBranch] = useState("all");
 
     const { data: branches = [] } = useQuery({
-        queryKey: ["branches"],
-        queryFn: () => store.getBranches(),
+        queryKey: ["analytics-branches"],
+        queryFn: () => store.getAnalyticsBranches(),
     });
 
     const { data: analytics, isLoading } = useQuery({
