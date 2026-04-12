@@ -16,6 +16,8 @@ const normalizeBranch = (b: any): Branch => {
     name: b.name || b.Name || b.Name_ || b.branch_name || "Без названия",
     code: b.code || b.Code || b.branch_code || "",
     projectId: b.project_id || b.projectId || b.branch_id || "",
+    project_id: b.project_id || b.projectId || b.branch_id || "",
+  };
 };
 
 const mapProject = (p: any): Project => ({
