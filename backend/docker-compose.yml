@@ -18,6 +18,22 @@ services:
     networks:
       - finance-network
 
+  bot_worker:
+    container_name: finance-bot-worker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python bot_worker.py
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - REDIS_URL=redis://redis:6379
+      - BOT_TOKEN=${BOT_TOKEN}
+    depends_on:
+      - db
+      - redis
+    networks:
+      - finance-network
+
   db:
     container_name: finance-db
     image: postgres:15-alpine

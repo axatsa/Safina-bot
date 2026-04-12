@@ -26,10 +26,11 @@ Run commands from the directory noted in each section.
   - `python3 -m venv .venv`
   - `source .venv/bin/activate`
   - `pip install -r requirements.txt`
-- Run API locally: `uvicorn main:app --reload --host 0.0.0.0 --port 8000`
+- Run FastAPI locally: `uvicorn main:app --reload --host 0.0.0.0 --port 8000`
+- Run Bot worker locally: `python bot_worker.py`
 - Run migrations: `alembic upgrade head`
 - Local backend stack via Docker: `docker compose up --build`
-  - Uses `backend/docker-compose.yml` and starts app + postgres + redis.
+  - Uses `backend/docker-compose.yml` and starts app + bot_worker + postgres + redis.
 
 ### Full stack with Docker (repo root)
 - Start all services: `docker compose up -d --build`
@@ -67,8 +68,8 @@ Run commands from the directory noted in each section.
   - XLSX via `app/services/analytics/export.py` / `app/services/excel/*`.
 
 ### Notifications and bot integration
-- Telegram bot logic lives under `backend/app/services/bot/`.
-- The bot is started from FastAPI lifespan, so API and bot run in one process in normal deployment.
+- The bot logic lives under `backend/app/services/bot/`.
+- The bot runs in its own dedicated microservice/process (e.g. `docker-compose up bot_worker` or `python bot_worker.py`), decoupled from the main FastAPI app.
 - Real-time web notifications use SSE endpoint `/api/notifications/stream`, backed by Redis pub/sub (`backend/app/services/notifications/sse.py`).
 
 ### Frontend architecture and data access

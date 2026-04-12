@@ -54,6 +54,15 @@ print('OK')
     sleep 2
 done
 
+# Проверяем что bot_worker не упал
+echo '⏳ Проверка статуса bot_worker...'
+if docker ps | grep -q 'finance-bot-worker'; then
+    echo '✅ Bot worker запущен и работает!'
+else
+    echo '⚠️ Внимание: finance-bot-worker возможно упал. Логи:'
+    docker logs finance-bot-worker --tail 15
+fi
+
 # Запускаем скрипт создания admin-пользователя
 echo '🛠 Создание/обновление admin пользователя...'
 docker-compose exec -T app python3 scripts/migrate_production.py

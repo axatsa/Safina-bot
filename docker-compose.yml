@@ -20,6 +20,19 @@ services:
       - "traefik.http.routers.finance-backend.tls.certresolver=le"
       - "traefik.http.services.finance-backend.loadbalancer.server.port=8000"
 
+  bot_worker:
+    image: gitlab.thompson.uz:5050/finance/backend:main
+    command: python bot_worker.py
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - REDIS_URL=redis://redis:6379
+      - BOT_TOKEN=${BOT_TOKEN}
+    depends_on:
+      - db
+      - redis
+    networks:
+      - internal
+
   frontend:
     image: gitlab.thompson.uz:5050/finance/frontend:main
     depends_on:

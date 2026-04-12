@@ -20,26 +20,13 @@ from app.core.database import engine, Base
 from app.core import database
 from app.api import auth, projects, expenses, team, notifications, analytics, blanks
 from app.db import models, schemas, seed
-from app.services.bot.main import main as bot_main
+from app.db import models, schemas, seed
 
 # Setup logging
 setup_logging()
 logger = get_logger(__name__)
 
-async def run_bot_with_watchdog():
-    """Run the bot in a loop, restarting it if it crashes."""
-    retry_delay = 5  # Start with 5 seconds
-    while True:
-        try:
-            logger.info("Starting Telegram Bot task...")
-            await bot_main()
-            logger.warning("Bot main task finished unexpectedly without error.")
-        except Exception as e:
-            logger.error(f"Bot crashed with error: {str(e)}", exc_info=True)
-        
-        logger.info(f"Restarting bot in {retry_delay} seconds...")
-        await asyncio.sleep(retry_delay)
-        retry_delay = min(retry_delay * 2, 60) # Exponential backoff up to 1 min
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -49,22 +36,11 @@ async def lifespan(app: FastAPI):
     # 2. Seed initial data (e.g., Senior Financier)
     seed.seed_users()
 
-    # 3. Start Telegram Bot task in the background
-    bot_task = None
-    if os.getenv("BOT_TOKEN"):
-        bot_task = asyncio.create_task(run_bot_with_watchdog())
-    else:
-        logger.warning("BOT_TOKEN not found in environment. Bot will not be started.")
-    
+    # 3. Telegram bot moved to standalone bot_worker.py microservice
     yield
     
     # Shutdown
     logger.info("Shutting down application...")
-    if bot_task:
-        logger.info("Cancelling bot task...")
-        bot_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await bot_task
 
 app = FastAPI(title="Safina API", lifespan=lifespan)
 
