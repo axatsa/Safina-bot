@@ -36,6 +36,11 @@ if [ $? -ne 0 ]; then
 fi
 echo "✅ Migrations applied successfully."
 
-# Start the application
-echo "Starting application..."
-exec uvicorn main:app --host 0.0.0.0 --port 8000
+# Start the application or bot_worker based on arguments
+if [ $# -gt 0 ]; then
+    echo "Starting command: $@"
+    exec "$@"
+else
+    echo "Starting application (uvicorn)..."
+    exec uvicorn main:app --host 0.0.0.0 --port 8000
+fi

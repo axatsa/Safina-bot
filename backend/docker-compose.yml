@@ -28,6 +28,7 @@ services:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       - REDIS_URL=redis://redis:6379
       - BOT_TOKEN=${BOT_TOKEN}
+    restart: unless-stopped
     depends_on:
       - db
       - redis
