@@ -92,9 +92,12 @@ def upgrade() -> None:
 
     # 2. Migrate data from team_members to users (only if team_members still exists)
     if 'team_members' in existing_tables and 'users' not in existing_tables:
-        op.execute("""
+        tm_cols = {c['name'] for c in inspector.get_columns('team_members')}
+        team_expr = "team" if "team" in tm_cols else "NULL::varchar"
+        templates_expr = "templates" if "templates" in tm_cols else "'[]'::json"
+        op.execute(f"""
             INSERT INTO users (id, last_name, first_name, login, password_hash, position, telegram_chat_id, status, team, templates, created_at, role)
-            SELECT id, last_name, first_name, login, password_hash, position, telegram_chat_id, status, team, templates, created_at, 'user'
+            SELECT id, last_name, first_name, login, password_hash, position, telegram_chat_id, status, {team_expr}, {templates_expr}, created_at, 'user'
             FROM team_members
         """)
 
