@@ -519,7 +519,7 @@ async def handle_refund_final_submit(message: types.Message, state: FSMContext):
         )
 
 
-        expense_req = expense_service.create_expense_request(db=db, expense=expense_create, user_id=user.id, usd_rate=usd_rate)
+        expense_req = expense_service.create_expense_request(db=db, expense_in=expense_create, user_id=user.id, usd_rate=usd_rate)
         expense_req_id = expense_req.id
         request_id = expense_req.request_id
         # Prepare dict while session is open

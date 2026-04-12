@@ -146,7 +146,8 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
                     "branches_data": [{"id": b.id, "name": b.name} for b in filtered_branches]
                 }
                 projects_data.append(p_data)
-                if f"{p.name} ({p.code})" == message.text:
+                label = f"{p.name} ({p.code})" if p.code else p.name
+                if label == message.text:
                     project_obj = p_data
         
     if user_not_found:
@@ -161,12 +162,20 @@ async def handle_project_selection(message: types.Message, state: FSMContext):
 
     await state.update_data(project_id=project_obj["id"])
     
+    # Get user templates for the selected project
+    user_templates = []
+    with database.database_session() as db:
+        u = db.query(models.User).filter(models.User.telegram_chat_id == message.from_user.id).first()
+        if u:
+            user_templates = list(u.templates or [])
+    
     # Check for branches
     if project_obj["category"] == "corporate" and project_obj["branches_data"]:
         await message.answer("Выберите филиал:", reply_markup=get_branches_kb(project_obj["branches_data"]))
         await state.set_state(BlankWizard.branch_selection)
     else:
         await proceed_to_templates(message, state, user_templates, projects_data, project_obj["id"])
+        return
 
 @router.message(BlankWizard.branch_selection)
 async def handle_branch_selection(message: types.Message, state: FSMContext):
@@ -471,7 +480,7 @@ async def handle_final_submit(message: types.Message, state: FSMContext):
             template_key=data["template"]
         )
         
-        expense_req = expense_service.create_expense_request(db=db, expense=expense_create, user_id=user.id, usd_rate=usd_rate)
+        expense_req = expense_service.create_expense_request(db=db, expense_in=expense_create, user_id=user.id, usd_rate=usd_rate)
         expense_req_id = expense_req.id
         request_id = expense_req.request_id
         # Prepare dict while session is open
