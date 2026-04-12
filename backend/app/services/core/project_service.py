@@ -20,6 +20,9 @@ class ProjectService:
     def create_branch(self, db: Session, project_id: str, branch_in: BranchCreate) -> Branch:
         return branch_repository.create_with_project(db, obj_in=branch_in, project_id=project_id)
 
+    def get_branches(self, db: Session, project_id: str) -> List[Branch]:
+        return branch_repository.get_multi_by_project(db, project_id=project_id)
+
     def delete_branch(self, db: Session, branch_id: str) -> bool:
         branch = branch_repository.remove(db, id=branch_id)
         return branch is not None

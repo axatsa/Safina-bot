@@ -50,7 +50,7 @@ def read_branches(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    return project_service.branch_repository.get_multi_by_project(db, project_id=project_id)
+    return project_service.get_branches(db, project_id=project_id)
 
 @router.post("/{project_id}/branches", response_model=schemas.BranchSchema)
 def create_branch(
