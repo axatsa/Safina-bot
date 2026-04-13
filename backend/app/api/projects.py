@@ -12,13 +12,41 @@ def get_projects_by_chat_id(
     chat_id: int,
     db: Session = Depends(database.get_db),
 ):
-    """Returns projects assigned to a Telegram user by chat_id. No auth required (called from WebApp)."""
+    """Returns projects assigned to a Telegram user by chat_id, with branches filtered to user-assigned ones. No auth required (called from WebApp)."""
     user = db.query(models.User).options(
-        joinedload(models.User.projects).joinedload(models.Project.branches)
+        joinedload(models.User.projects).joinedload(models.Project.branches),
+        joinedload(models.User.branches)
     ).filter(models.User.telegram_chat_id == chat_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return user.projects
+
+    user_branch_ids = {b.id for b in user.branches}
+    is_privileged = user.role in ["admin", "ceo", "senior_financier"]
+
+    result = []
+    for project in user.projects:
+        if user_branch_ids:
+            filtered = [b for b in project.branches if b.id in user_branch_ids]
+        elif is_privileged:
+            filtered = list(project.branches)
+        else:
+            filtered = []
+
+        result.append({
+            "id": project.id,
+            "name": project.name,
+            "code": project.code,
+            "category": project.category,
+            "templates": project.templates or [],
+            "created_at": project.created_at,
+            "branches": [
+                {"id": b.id, "name": b.name, "code": b.code,
+                 "project_id": b.project_id, "created_at": b.created_at}
+                for b in filtered
+            ],
+            "members": [],
+        })
+    return result
 
 @router.get("", response_model=List[schemas.ProjectSchema])
 def read_projects(

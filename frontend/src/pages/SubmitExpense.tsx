@@ -189,8 +189,13 @@ const SubmitExpense = () => {
     const isCorporate = activeProject?.category === "corporate";
 
     const { data: branches = [] } = useQuery({
-        queryKey: ["branches", projectId],
-        queryFn: () => store.getBranches(projectId),
+        queryKey: ["branches", projectId, chatId],
+        queryFn: () => {
+            if (chatId) {
+                return Promise.resolve((activeProject?.branches ?? []) as any[]);
+            }
+            return store.getBranches(projectId);
+        },
         enabled: !!projectId && isCorporate
     });
 
