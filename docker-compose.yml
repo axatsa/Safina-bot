@@ -9,6 +9,7 @@ services:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       - REDIS_URL=redis://redis:6379
       - UPLOAD_DIR=/app/uploads
+      - BOT_TOKEN=${BOT_TOKEN}
     depends_on:
       - db
       - redis
