@@ -25,12 +25,19 @@ def get_projects_by_chat_id(
 
     result = []
     for project in user.projects:
-        if user_branch_ids:
-            filtered = [b for b in project.branches if b.id in user_branch_ids]
-        elif is_privileged:
+        # Get branches of this project that the user is explicitly assigned to
+        user_project_branch_ids = [b.id for b in user.branches if b.project_id == project.id]
+
+        if is_privileged:
+            # Admins, CEOs, and Senior Financiers see all branches
             filtered = list(project.branches)
+        elif user_project_branch_ids:
+            # If restricted to specific branches in this project, show only those
+            filtered = [b for b in project.branches if b.id in user_project_branch_ids]
         else:
-            filtered = []
+            # Default for project members: show all branches of the project 
+            # if no specific branch restrictions exist for this project.
+            filtered = list(project.branches)
 
         result.append({
             "id": project.id,
