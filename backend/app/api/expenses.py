@@ -886,3 +886,17 @@ def read_expense_by_id(
     if not auth.is_admin(current_user) and expense.created_by_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
     return expense
+
+@router.delete("/{expense_id}")
+def delete_expense(expense_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    """Hard delete an expense request. Safina only."""
+    if not auth.is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only admins can delete expenses")
+    
+    expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+        
+    db.delete(expense)
+    db.commit()
+    return {"status": "success"}

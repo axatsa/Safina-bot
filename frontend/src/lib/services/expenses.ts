@@ -199,5 +199,11 @@ export const expensesService = {
       ...h,
       createdAt: new Date(h.created_at)
     }));
+  },
+
+  deleteExpense: async (expenseId: string): Promise<void> => {
+    await apiFetch(`/expenses/${expenseId}`, {
+      method: "DELETE",
+    });
   }
 };

@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft, Download, Clock, CheckCircle, XCircle,
   RotateCcw, Archive, Send, Loader2, FastForward, Crown,
-  HelpCircle, FileText, Camera, Users, Check
+  HelpCircle, FileText, Camera, Users, Check, Trash2
 
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -168,6 +168,16 @@ const ExpenseDetail = () => {
     onError: (e: Error) => toast.error(e.message || "Ошибка при отправке CEO"),
   });
 
+  const deleteExpenseMutation = useMutation({
+    mutationFn: () => store.deleteExpense(id),
+    onSuccess: () => {
+      toast.success("Заявка успешно удалена");
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      navigate("/dashboard");
+    },
+    onError: (e: Error) => toast.error(e.message || "Ошибка при удалении заявки"),
+  });
+
   if (isLoading) {
     return (
       <div className="p-6 text-center flex justify-center items-center h-48">
@@ -271,6 +281,31 @@ const ExpenseDetail = () => {
           <p className="text-sm text-muted-foreground mt-1">{expense.purpose}</p>
         </div>
         <div className="flex gap-2">
+          {isAdmin && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="gap-2" disabled={deleteExpenseMutation.isPending}>
+                  {deleteExpenseMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Удалить
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Вы уверены, что хотите полностью удалить эту заявку? Это действие необратимо.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deleteExpenseMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Удалить
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+
           {rbac.canDownload() && (
             <Button variant="outline" size="sm" className="gap-2" onClick={() => store.exportDocx(expense.id, expense.requestType === "blank" || expense.requestType === "blank_refund")}>
               <Download className="w-4 h-4" />
