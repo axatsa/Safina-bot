@@ -88,7 +88,7 @@ async def start_blank_wizard(message: types.Message, state: FSMContext):
     elif projects_data:
         # 1 проект
         proj = projects_data[0]
-        await state.update_data(project_id=proj["id"], user_id=user_id)
+        await state.update_data(project_id=proj["id"], user_id=user_id, projects_data=projects_data)
         
         if proj["category"] == "corporate" and proj["branches_data"]:
             await message.answer("Выберите филиал:", reply_markup=get_branches_kb(proj["branches_data"]))

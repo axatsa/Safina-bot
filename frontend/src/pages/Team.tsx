@@ -514,7 +514,7 @@ const Team = () => {
                     <p className="text-sm font-semibold">Назначенные проекты</p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg bg-muted/10">
-                    {projects.map((p: Project) => (
+                    {allProjects.map((p: Project) => (
                       <label key={p.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded cursor-pointer transition-colors">
                         <Checkbox
                           checked={editForm.projectIds.includes(p.id)}
