@@ -54,7 +54,8 @@ def read_expenses(
 ):
     # Если зашел не админ, он видит только свои заявки
     # Permissions check
-    effective_user_id = user_id if auth.is_admin(current_user) else current_user.id
+    has_global_view = auth.is_admin(current_user) or current_user.login.lower() == "farrukh" or current_user.position in ["senior_financier", "ceo"] or current_user.role in ["senior_financier", "ceo"]
+    effective_user_id = user_id if has_global_view else current_user.id
     if effective_user_id == "all":
         effective_user_id = None
         
@@ -683,7 +684,8 @@ def export_expenses(
             final_status = ",".join(EXPORTABLE_STATUSES)
 
     # Права доступа
-    effective_user_id = clean_user if auth.is_admin(current_user) else current_user.id
+    has_global_view = auth.is_admin(current_user) or current_user.login.lower() == "farrukh" or current_user.position in ["senior_financier", "ceo"] or current_user.role in ["senior_financier", "ceo"]
+    effective_user_id = clean_user if has_global_view else current_user.id
     
     expenses = expense_repository.get_multi_filtered(
         db,
@@ -795,7 +797,8 @@ def export_expenses_xlsx(
         if not allStatuses:
             final_status = ",".join(EXPORTABLE_STATUSES)
 
-    effective_user_id = clean_user if auth.is_admin(current_user) else current_user.id
+    has_global_view = auth.is_admin(current_user) or current_user.login.lower() == "farrukh" or current_user.position in ["senior_financier", "ceo"] or current_user.role in ["senior_financier", "ceo"]
+    effective_user_id = clean_user if has_global_view else current_user.id
     
     expenses = expense_repository.get_multi_filtered(
         db,

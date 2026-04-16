@@ -249,13 +249,35 @@ const ExpenseDetail = () => {
 
   const isArchived = expense.status === "archived";
 
-  const actionButtons: { status: ExpenseStatus; label: string; icon: React.ReactNode; variant: "default" | "outline" | "destructive" | "ghost"; className?: string; needsConfirm?: boolean }[] = [
+  let actionButtons: { status: ExpenseStatus; label: string; icon: React.ReactNode; variant: "default" | "outline" | "destructive" | "ghost"; className?: string; needsConfirm?: boolean }[] = [];
+
+  const baseButtons: { status: ExpenseStatus; label: string; icon: React.ReactNode; variant: "default" | "outline" | "destructive" | "ghost"; className?: string; needsConfirm?: boolean }[] = [
     { status: "review", label: "В рассмотрение", icon: <Clock className="w-4 h-4" />, variant: "outline" },
     { status: "confirmed", label: "Подтвердить", icon: <CheckCircle className="w-4 h-4" />, variant: "default", className: "bg-emerald-600 hover:bg-emerald-700 text-white", needsConfirm: true },
     { status: "declined", label: "Отклонить", icon: <XCircle className="w-4 h-4" />, variant: "destructive" },
     { status: "revision", label: "На доработку", icon: <RotateCcw className="w-4 h-4" />, variant: "default", className: "bg-amber-500 hover:bg-amber-600 text-white" },
     { status: "archived", label: "В архив", icon: <Archive className="w-4 h-4" />, variant: "secondary", className: "bg-secondary text-secondary-foreground" },
   ];
+
+  if (expense.status === "pending_senior") {
+      if (isFarrukh || (store.isSeniorFinancier() && !store.isSafina())) {
+          actionButtons = [
+             { status: "approved_senior", label: "Одобрить (CFO)", icon: <CheckCircle className="w-4 h-4" />, variant: "default", className: "bg-teal-600 hover:bg-teal-700 text-white", needsConfirm: true },
+             { status: "rejected_senior", label: "Отклонить (CFO)", icon: <XCircle className="w-4 h-4" />, variant: "destructive" },
+             { status: "revision", label: "На доработку", icon: <RotateCcw className="w-4 h-4" />, variant: "default", className: "bg-amber-500 hover:bg-amber-600 text-white" }
+          ];
+      }
+  } else if (expense.status === "pending_ceo") {
+      if (store.isCeo() && !store.isSafina() && !isFarrukh) {
+          actionButtons = [
+             { status: "approved_ceo", label: "Одобрить (CEO)", icon: <CheckCircle className="w-4 h-4" />, variant: "default", className: "bg-green-600 hover:bg-green-700 text-white", needsConfirm: true },
+             { status: "rejected_ceo", label: "Отклонить (CEO)", icon: <XCircle className="w-4 h-4" />, variant: "destructive" },
+             { status: "revision", label: "На доработку", icon: <RotateCcw className="w-4 h-4" />, variant: "default", className: "bg-amber-500 hover:bg-amber-600 text-white" }
+          ];
+      }
+  } else {
+      actionButtons = baseButtons;
+  }
 
   return (
     <div className="p-6 space-y-6 animate-slide-in max-w-5xl">
