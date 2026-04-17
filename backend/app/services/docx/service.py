@@ -86,7 +86,7 @@ class DocxService:
             "sender_position": sender_position,
             "purpose": expense.purpose,
             "items": items_data,
-            "total_amount": Decimal(str(expense.total_amount)),
+            "total_amount": Decimal(str(expense.total_amount or 0)),
             "currency": expense.currency,
             "request_id": expense.request_id,
             "date": expense.date.strftime("%d.%m.%Y") if hasattr(expense.date, "strftime") else expense.date,

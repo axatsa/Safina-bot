@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from app.db import models
 from app.core import database, auth
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, List
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -26,6 +26,8 @@ def get_analytics(
     segment: str = "global", 
     type: str = "all",
     branch: Optional[str] = None,
+    branch_names: Optional[List[str]] = Query(None),
+    project_ids: Optional[List[str]] = Query(None),
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth.get_current_user)
 ):
@@ -48,6 +50,12 @@ def get_analytics(
     
     if branch:
         query = query.filter(models.ExpenseRequest.branch_name == branch)
+        
+    if branch_names:
+        query = query.filter(models.ExpenseRequest.branch_name.in_(branch_names))
+        
+    if project_ids:
+        query = query.filter(models.ExpenseRequest.project_id.in_(project_ids))
         
     expenses = query.all()
     

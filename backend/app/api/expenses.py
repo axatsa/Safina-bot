@@ -30,6 +30,8 @@ from app.services.bot.notifications import (
     send_senior_notification,
     send_ceo_notification,
     get_ceo_chat_id,
+    send_ceo_decision_notification,
+    get_senior_financier_chat_ids,
 )
 
 logger = get_logger(__name__)
@@ -524,6 +526,33 @@ def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, backgrou
             update.comment
         )
     
+    # Extended notifications for other stakeholders
+    if update.status in ["approved_ceo", "rejected_ceo"]:
+        admin_chat_id = get_admin_chat_id()
+        senior_chat_ids = get_senior_financier_chat_ids()
+        approved = update.status == "approved_ceo"
+        
+        if admin_chat_id:
+            background_tasks.add_task(
+                send_ceo_decision_notification,
+                admin_chat_id,
+                expense.request_id,
+                expense.total_amount,
+                expense.currency,
+                approved,
+                update.comment
+            )
+        for chat_id in senior_chat_ids:
+            background_tasks.add_task(
+                send_ceo_decision_notification,
+                chat_id,
+                expense.request_id,
+                expense.total_amount,
+                expense.currency,
+                approved,
+                update.comment
+            )
+
     from app.services.notifications.sse import publish_notification
     background_tasks.add_task(
         publish_notification,
@@ -571,7 +600,7 @@ def forward_to_senior_financier(
     senior_chat_ids = get_senior_financier_chat_ids()
     if senior_chat_ids:
         for chat_id in senior_chat_ids:
-            background_tasks.add_task(send_senior_notification, get_expense_dict(expense), chat_id)
+            background_tasks.add_task(send_senior_notification, expense_service.get_expense_dict(expense), chat_id)
     else:
         logger.warning(f"No linked Senior Financiers (CFO) found for expense {expense.request_id}")
 
@@ -616,7 +645,7 @@ def forward_to_ceo(
     logger.info(f"Forwarding expense {expense.request_id} (status: {expense.status}) to CEO")
     ceo_chat_id = get_ceo_chat_id()
     if ceo_chat_id:
-        background_tasks.add_task(send_ceo_notification, get_expense_dict(expense), ceo_chat_id)
+        background_tasks.add_task(send_ceo_notification, expense_service.get_expense_dict(expense), ceo_chat_id)
     else:
         logger.warning("CEO has not linked their Telegram account yet.")
 

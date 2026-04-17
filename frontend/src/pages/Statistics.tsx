@@ -5,8 +5,12 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, TrendingUp, AlertCircle, FileText, CheckCircle, PieChart as PieChartIcon } from "lucide-react";
+import { Loader2, TrendingUp, AlertCircle, FileText, CheckCircle, PieChart as PieChartIcon, Filter, X, Building2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
 const COLORS_REFUNDS = ['#f43f5e', '#fb923c', '#facc15', '#a78bfa', '#34d399', '#60a5fa', '#f472b6'];
@@ -66,20 +70,27 @@ const Statistics = () => {
     const [period, setPeriod] = useState("1m");
     const [segment, setSegment] = useState("branch");
     const [requestType, setRequestType] = useState("all");
-    const [selectedBranch, setSelectedBranch] = useState("all");
+    const [selectedBranchNames, setSelectedBranchNames] = useState<string[]>([]);
+    const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
 
     const { data: branches = [] } = useQuery({
         queryKey: ["analytics-branches"],
         queryFn: () => store.getAnalyticsBranches(),
     });
 
+    const { data: projects = [] } = useQuery({
+        queryKey: ["all-projects"],
+        queryFn: () => store.getProjects(),
+    });
+
     const { data: analytics, isLoading } = useQuery({
-        queryKey: ["analytics", period, segment, requestType, selectedBranch],
+        queryKey: ["analytics", period, segment, requestType, selectedBranchNames, selectedProjectIds],
         queryFn: () => store.getAnalytics({ 
             period, 
             segment, 
             type: requestType, 
-            branch: selectedBranch === "all" ? undefined : selectedBranch 
+            branchNames: selectedBranchNames,
+            projectIds: selectedProjectIds
         }),
     });
 
@@ -116,19 +127,129 @@ const Statistics = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                        <SelectTrigger className="w-[180px] bg-background shadow-sm rounded-xl border-primary/20">
-                            <SelectValue placeholder="Все филиалы" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Все филиалы</SelectItem>
-                            {Array.isArray(branches) && branches.map((branch: any) => (
-                                typeof branch === 'string' && branch.trim() !== "" ? (
-                                    <SelectItem key={branch} value={branch}>{branch}</SelectItem>
-                                ) : null
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="h-10 border-primary/20 bg-background px-3 rounded-xl shadow-sm ring-1 ring-primary/5 hover:ring-primary/20 transition-all">
+                                <Building2 className="w-4 h-4 mr-2 text-primary" />
+                                <span className="text-sm font-medium">
+                                    {selectedBranchNames.length === 0 
+                                        ? "Все филиалы" 
+                                        : `Филиалы: ${selectedBranchNames.length}`}
+                                </span>
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[280px] p-0 rounded-2xl shadow-xl border-primary/10 overflow-hidden" align="end">
+                            <div className="p-4 border-b bg-muted/20">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="font-semibold text-sm">Фильтр по филиалам</h3>
+                                    {selectedBranchNames.length > 0 && (
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            onClick={() => setSelectedBranchNames([])}
+                                            className="h-8 text-xs text-primary hover:text-primary hover:bg-primary/10"
+                                        >
+                                            Сбросить
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="max-h-[300px] overflow-y-auto p-2 space-y-1">
+                                {Array.isArray(branches) && branches.map((branch: any) => {
+                                    if (typeof branch !== 'string' || branch.trim() === "") return null;
+                                    return (
+                                        <div 
+                                            key={branch} 
+                                            className="flex items-center space-x-3 p-2.5 rounded-xl hover:bg-primary/5 cursor-pointer transition-colors group"
+                                            onClick={() => {
+                                                setSelectedBranchNames(prev => 
+                                                    prev.includes(branch) 
+                                                    ? prev.filter(b => b !== branch) 
+                                                    : [...prev, branch]
+                                                );
+                                            }}
+                                        >
+                                            <Checkbox 
+                                                id={`branch-${branch}`}
+                                                checked={selectedBranchNames.includes(branch)}
+                                                onCheckedChange={() => {}} 
+                                                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{branch}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {(!branches || branches.length === 0) && (
+                                    <div className="text-center py-6 text-muted-foreground text-sm italic">
+                                        Филиалы не найдены
+                                    </div>
+                                )}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="h-10 border-primary/20 bg-background px-3 rounded-xl shadow-sm ring-1 ring-primary/5 hover:ring-primary/20 transition-all">
+                                <Filter className="w-4 h-4 mr-2 text-primary" />
+                                <span className="text-sm font-medium">
+                                    {selectedProjectIds.length === 0 
+                                        ? "Все проекты" 
+                                        : `Проекты: ${selectedProjectIds.length}`}
+                                </span>
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[280px] p-0 rounded-2xl shadow-xl border-primary/10 overflow-hidden" align="end">
+                            <div className="p-4 border-b bg-muted/20">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="font-semibold text-sm">Фильтр по проектам</h3>
+                                    {selectedProjectIds.length > 0 && (
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            onClick={() => setSelectedProjectIds([])}
+                                            className="h-8 text-xs text-primary hover:text-primary hover:bg-primary/10"
+                                        >
+                                            Сбросить
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="max-h-[300px] overflow-y-auto p-2 space-y-1">
+                                {projects.map((project) => (
+                                    <div 
+                                        key={project.id} 
+                                        className="flex items-center space-x-3 p-2.5 rounded-xl hover:bg-primary/5 cursor-pointer transition-colors group"
+                                        onClick={() => {
+                                            setSelectedProjectIds(prev => 
+                                                prev.includes(project.id) 
+                                                ? prev.filter(id => id !== project.id) 
+                                                : [...prev, project.id]
+                                            );
+                                        }}
+                                    >
+                                        <Checkbox 
+                                            id={`project-${project.id}`}
+                                            checked={selectedProjectIds.includes(project.id)}
+                                            onCheckedChange={() => {}} // Handled by parent click
+                                            className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{project.name}</p>
+                                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{project.code}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                                {projects.length === 0 && (
+                                    <div className="text-center py-6 text-muted-foreground text-sm italic">
+                                        Проекты не найдены
+                                    </div>
+                                )}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
 
                     <Select value={period} onValueChange={setPeriod}>
                         <SelectTrigger className="w-[160px] bg-background shadow-sm rounded-xl">
