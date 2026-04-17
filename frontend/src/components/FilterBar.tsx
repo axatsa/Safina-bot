@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon, Download, Filter, X, Search } from "lucide-react";
+import { Calendar as CalendarIcon, Download, Filter, X, Search, Building2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -13,8 +13,10 @@ import { Project, TeamMember } from "@/lib/types";
 
 interface FilterBarProps {
   projects: Project[];
-  selectedProject: string;
-  onProjectChange: (v: string) => void;
+  selectedProjectIds: string[];
+  onProjectIdsChange: (v: string[]) => void;
+  selectedBranchIds: string[];
+  onBranchIdsChange: (v: string[]) => void;
   team?: TeamMember[];
   selectedUser?: string;
   onUserChange?: (v: string) => void;
@@ -27,7 +29,8 @@ interface FilterBarProps {
 }
 
 const FilterBar = ({
-  projects, selectedProject, onProjectChange,
+  projects, selectedProjectIds, onProjectIdsChange,
+  selectedBranchIds, onBranchIdsChange,
   team, selectedUser, onUserChange,
   dateRange, onDateRangeChange, onExport,
   searchQuery, onSearchChange,
@@ -37,14 +40,26 @@ const FilterBar = ({
   const [exportOpen, setExportOpen] = useState(false);
   const [allStatuses, setAllStatuses] = useState(false);
 
-  const hasFilters = selectedProject !== "all" || (selectedUser && selectedUser !== "all") || dateRange.from || dateRange.to || searchQuery;
+  const hasFilters = selectedProjectIds.length > 0 || selectedBranchIds.length > 0 || (selectedUser && selectedUser !== "all") || dateRange.from || dateRange.to || searchQuery;
 
   const clearFilters = () => {
-    onProjectChange("all");
+    onProjectIdsChange([]);
+    onBranchIdsChange([]);
     if (onUserChange) onUserChange("all");
     onDateRangeChange({});
     onSearchChange("");
   };
+
+  const getAvailableBranches = () => {
+    if (selectedProjectIds.length === 0) {
+      return projects.flatMap(p => p.branches || []);
+    }
+    return projects
+      .filter(p => selectedProjectIds.includes(p.id))
+      .flatMap(p => p.branches || []);
+  };
+
+  const availableBranches = getAvailableBranches();
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -62,17 +77,81 @@ const FilterBar = ({
         />
       </div>
 
-      <Select value={selectedProject} onValueChange={onProjectChange}>
-        <SelectTrigger className="w-[180px] h-9 text-sm">
-          <SelectValue placeholder="Все проекты" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Все проекты</SelectItem>
-          {projects.map((p) => (
-            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="h-9 min-w-[200px] justify-between text-sm px-3 font-normal">
+            <span className="truncate flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-primary" />
+              {selectedProjectIds.length === 0 && selectedBranchIds.length === 0 
+                ? "Проекты и филиалы" 
+                : (selectedProjectIds.length > 0 ? `Проектов: ${selectedProjectIds.length}` : "") + 
+                  (selectedProjectIds.length > 0 && selectedBranchIds.length > 0 ? ", " : "") +
+                  (selectedBranchIds.length > 0 ? `Филиалов: ${selectedBranchIds.length}` : "")
+              }
+            </span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[320px] p-0" align="start">
+          <div className="p-2 border-b bg-muted/20 flex items-center justify-between">
+            <span className="text-xs font-bold uppercase text-muted-foreground px-2">Фильтр объектов</span>
+            {(selectedProjectIds.length > 0 || selectedBranchIds.length > 0) && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => { onProjectIdsChange([]); onBranchIdsChange([]); }}
+                className="h-7 text-[10px] hover:text-destructive"
+              >
+                Сбросить
+              </Button>
+            )}
+          </div>
+          <div className="max-h-[400px] overflow-y-auto p-2 space-y-2">
+            {projects.map((p) => (
+              <div key={p.id} className="space-y-1">
+                <label className="flex items-center space-x-2 p-1.5 hover:bg-primary/5 rounded-md cursor-pointer group">
+                  <Checkbox
+                    checked={selectedProjectIds.includes(p.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        onProjectIdsChange([...selectedProjectIds, p.id]);
+                      } else {
+                        onProjectIdsChange(selectedProjectIds.filter(id => id !== p.id));
+                        // Also unselect all branches of this project if project is unselected? 
+                        // Usually better to keep them if they were individually selected, but nested UI implies dependence.
+                        const pBranches = (p.branches || []).map(b => b.id);
+                        onBranchIdsChange(selectedBranchIds.filter(id => !pBranches.includes(id)));
+                      }
+                    }}
+                    className="data-[state=checked]:bg-primary"
+                  />
+                  <span className="text-sm font-bold truncate group-hover:text-primary transition-colors">{p.name}</span>
+                </label>
+                
+                {p.branches && p.branches.length > 0 && (
+                  <div className="pl-6 space-y-1 border-l ml-3.5 border-primary/20 animate-in slide-in-from-left-1">
+                    {p.branches.map((b) => (
+                      <label key={b.id} className="flex items-center space-x-2 p-1 hover:bg-muted rounded-md cursor-pointer group">
+                        <Checkbox
+                          checked={selectedBranchIds.includes(b.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              onBranchIdsChange([...selectedBranchIds, b.id]);
+                            } else {
+                              onBranchIdsChange(selectedBranchIds.filter(id => id !== b.id));
+                            }
+                          }}
+                        />
+                        <span className="text-xs truncate group-hover:text-foreground transition-colors">{b.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            {projects.length === 0 && <div className="p-4 text-xs text-muted-foreground text-center italic">Нет доступных проектов</div>}
+          </div>
+        </PopoverContent>
+      </Popover>
 
       {team && selectedUser !== undefined && onUserChange && (
         <Select value={selectedUser} onValueChange={onUserChange}>

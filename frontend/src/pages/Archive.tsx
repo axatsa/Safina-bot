@@ -16,15 +16,16 @@ import { formatCurrency } from "@/lib/utils";
 
 const Archive = () => {
   const navigate = useNavigate();
-  const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+  const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
 
   const { data: expensesPage, isLoading, isError } = useQuery({
-    queryKey: ["expenses", { limit: 100, status: "archived" }],
-    queryFn: () => store.getExpenses({ limit: 100, status: "archived" }),
+    queryKey: ["expenses", { limit: 100, status: "archived,confirmed,declined,rejected_ceo,rejected_senior,approved_ceo" }],
+    queryFn: () => store.getExpenses({ limit: 100, status: "archived,confirmed,declined,rejected_ceo,rejected_senior,approved_ceo" }),
     refetchInterval: 60000, // Refresh every minute
   });
   const expenses = expensesPage?.items ?? [];
@@ -40,9 +41,9 @@ const Archive = () => {
   });
 
   const filtered = expenses.filter((e) => {
-    // Note: status filter is now redundant if we filter on backend, 
-    // but kept for safety if backend doesn't support status param.
-    if (e.status !== "archived") return false;
+    // Basic status validation (ensure we only show terminal/completed statuses)
+    const validStatuses = ["archived", "confirmed", "declined", "rejected_ceo", "rejected_senior", "approved_ceo"];
+    if (!validStatuses.includes(e.status)) return false;
     
     // Filter by tab 
     if (activeTab === "refunds") {
@@ -51,7 +52,8 @@ const Archive = () => {
       if (e.requestType === "refund" || e.requestType === "blank_refund") return false;
     }
     
-    if (selectedProject !== "all" && e.projectId !== selectedProject) return false;
+    if (selectedProjectIds.length > 0 && (!e.projectId || !selectedProjectIds.includes(e.projectId))) return false;
+    if (selectedBranchIds.length > 0 && (!e.branchId || !selectedBranchIds.includes(e.branchId))) return false;
     if (selectedUser !== "all" && e.createdById !== selectedUser) return false;
     if (dateRange.from && new Date(e.date) < dateRange.from) return false;
     if (dateRange.to) {
@@ -67,7 +69,8 @@ const Archive = () => {
 
   const handleExport = (allStatuses: boolean) => {
     store.exportXLSX({
-      project: selectedProject,
+      projectIds: selectedProjectIds,
+      branchIds: selectedBranchIds,
       user: selectedUser,
       search: searchQuery,
       from: dateRange.from?.toISOString(),
@@ -141,8 +144,10 @@ const Archive = () => {
 
       <FilterBar
         projects={projects}
-        selectedProject={selectedProject}
-        onProjectChange={setSelectedProject}
+        selectedProjectIds={selectedProjectIds}
+        onProjectIdsChange={setSelectedProjectIds}
+        selectedBranchIds={selectedBranchIds}
+        onBranchIdsChange={setSelectedBranchIds}
         team={team}
         selectedUser={selectedUser}
         onUserChange={setSelectedUser}

@@ -258,37 +258,40 @@ const Team = () => {
                   <Input id="position" value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} placeholder="Напр: Учитель, Бухгалтер..." />
                 </div>
                 
-                <div className="space-y-1">
-                  <Label>Назначить на проекты</Label>
-                  <div className="space-y-1.5 max-h-[120px] overflow-y-auto p-2 border rounded-md bg-muted/20">
+                <div className="space-y-1.5 pt-2">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5 text-primary">
+                    <FolderKanban className="w-4 h-4" /> Назначить проекты и филиалы
+                  </Label>
+                  <div className="space-y-3 max-h-[250px] overflow-y-auto p-3 border rounded-xl bg-muted/20 ring-1 ring-primary/5">
                     {allProjects.map((p: Project) => (
-                      <label key={p.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded cursor-pointer transition-colors">
-                        <Checkbox
-                          checked={formData.projectIds.includes(p.id)}
-                          onCheckedChange={() => toggleProject(p.id)}
-                        />
-                        <span className="text-xs truncate">{p.name} {p.category === 'corporate' ? '' : ''}</span>
-                      </label>
+                      <div key={p.id} className="space-y-1.5 border-b border-white/50 pb-2 mb-2 last:border-0 last:mb-0">
+                        <label className="flex items-center gap-2 hover:bg-white/40 p-1.5 rounded-lg cursor-pointer transition-all group">
+                          <Checkbox
+                            checked={formData.projectIds.includes(p.id)}
+                            onCheckedChange={() => toggleProject(p.id)}
+                            className="w-4 h-4 data-[state=checked]:bg-primary"
+                          />
+                          <span className="text-xs font-bold truncate group-hover:text-primary transition-colors">{p.name}</span>
+                        </label>
+                        
+                        {formData.projectIds.includes(p.id) && p.branches && p.branches.length > 0 && (
+                          <div className="pl-6 space-y-1.5 animate-in slide-in-from-top-1">
+                            {p.branches.map((b: Branch) => (
+                              <label key={b.id} className="flex items-center gap-2 hover:bg-white/30 p-1 rounded-md cursor-pointer transition-colors group/branch">
+                                <Checkbox
+                                  checked={formData.branchIds.includes(b.id)}
+                                  onCheckedChange={() => toggleBranch(b.id)}
+                                  className="w-3.5 h-3.5"
+                                />
+                                <span className="text-[11px] truncate group-hover/branch:text-foreground">{b.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
-
-                {availableBranches.length > 0 && (
-                    <div className="space-y-1">
-                        <Label className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" /> Выбрать филиалы</Label>
-                        <div className="space-y-1.5 max-h-[120px] overflow-y-auto p-2 border rounded-md bg-muted/20">
-                            {availableBranches.map((b: Branch) => (
-                                <label key={b.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded cursor-pointer transition-colors">
-                                    <Checkbox
-                                        checked={formData.branchIds.includes(b.id)}
-                                        onCheckedChange={() => toggleBranch(b.id)}
-                                    />
-                                    <span className="text-xs truncate">{b.name}</span>
-                                </label>
-                            ))}
-                        </div>
-                    </div>
-                )}
 
                 <div className="space-y-1 pt-2 border-t">
                   <Label htmlFor="login">Логин</Label>
@@ -455,50 +458,54 @@ const Team = () => {
                 <Label>Должность</Label>
                 <Input value={editForm.position} onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))} placeholder="Учитель, admin, ceo..." />
               </div>
-              <div className="space-y-1">
-                <Label>Проекты и Филиалы</Label>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2 p-3 border rounded-lg bg-muted/5">
-                        <Label className="text-[10px] uppercase text-muted-foreground font-bold">Проекты</Label>
-                        <div className="space-y-1 max-h-[150px] overflow-y-auto">
-                            {allProjects.map(p => (
-                                <label key={p.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded cursor-pointer">
-                                    <Checkbox
-                                        checked={editForm.projectIds.includes(p.id)}
-                                        onCheckedChange={(checked) => {
-                                            setEditForm(prev => ({
-                                                ...prev,
-                                                projectIds: checked ? [...prev.projectIds, p.id] : prev.projectIds.filter(id => id !== p.id)
-                                            }));
-                                        }}
-                                    />
-                                    <span className="text-xs truncate">{p.name}</span>
-                                </label>
-                            ))}
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold flex items-center gap-1.5 text-primary">
+                  <FolderKanban className="w-4 h-4" /> Проекты и филиалы
+                </Label>
+                <div className="space-y-3 max-h-[300px] overflow-y-auto p-3 border rounded-xl bg-muted/5 ring-1 ring-primary/5">
+                  {allProjects.map(p => (
+                    <div key={p.id} className="space-y-1.5 border-b last:border-0 pb-2 mb-2 last:mb-0">
+                      <label className="flex items-center gap-2 hover:bg-primary/5 p-1.5 rounded-lg cursor-pointer transition-all group">
+                        <Checkbox
+                          checked={editForm.projectIds.includes(p.id)}
+                          onCheckedChange={(checked) => {
+                            setEditForm(prev => {
+                              const newProjects = checked ? [...prev.projectIds, p.id] : prev.projectIds.filter(id => id !== p.id);
+                              // If unchecking project, also uncheck its branches
+                              let newBranches = prev.branchIds;
+                              if (!checked && p.branches) {
+                                const pBranchIds = p.branches.map(b => b.id);
+                                newBranches = prev.branchIds.filter(id => !pBranchIds.includes(id));
+                              }
+                              return { ...prev, projectIds: newProjects, branchIds: newBranches };
+                            });
+                          }}
+                          className="w-4 h-4 data-[state=checked]:bg-primary"
+                        />
+                        <span className="text-xs font-bold truncate group-hover:text-primary transition-colors">{p.name}</span>
+                      </label>
+                      
+                      {editForm.projectIds.includes(p.id) && p.branches && p.branches.length > 0 && (
+                        <div className="pl-6 space-y-1.5 animate-in slide-in-from-top-1">
+                          {p.branches.map(b => (
+                            <label key={b.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded-md cursor-pointer group/branch">
+                              <Checkbox
+                                checked={editForm.branchIds.includes(b.id)}
+                                onCheckedChange={(checked) => {
+                                  setEditForm(prev => ({
+                                    ...prev,
+                                    branchIds: checked ? [...prev.branchIds, b.id] : prev.branchIds.filter(id => id !== b.id)
+                                  }));
+                                }}
+                                className="w-3.5 h-3.5"
+                              />
+                              <span className="text-[11px] truncate group-hover/branch:text-foreground">{b.name}</span>
+                            </label>
+                          ))}
                         </div>
+                      )}
                     </div>
-                    <div className="space-y-2 p-3 border rounded-lg bg-muted/5">
-                        <Label className="text-[10px] uppercase text-muted-foreground font-bold">Филиалы</Label>
-                        <div className="space-y-1 max-h-[150px] overflow-y-auto">
-                            {editAvailableBranches.map(b => (
-                                <label key={b.id} className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded cursor-pointer">
-                                    <Checkbox
-                                        checked={editForm.branchIds.includes(b.id)}
-                                        onCheckedChange={(checked) => {
-                                            setEditForm(prev => ({
-                                                ...prev,
-                                                branchIds: checked ? [...prev.branchIds, b.id] : prev.branchIds.filter(id => id !== b.id)
-                                            }));
-                                        }}
-                                    />
-                                    <span className="text-xs truncate">{b.name}</span>
-                                </label>
-                            ))}
-                            {editAvailableBranches.length === 0 && (
-                                <p className="text-[10px] text-muted-foreground italic">Сперва выберите проект</p>
-                            )}
-                        </div>
-                    </div>
+                  ))}
                 </div>
               </div>
             </div>

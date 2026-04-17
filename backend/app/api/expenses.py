@@ -44,7 +44,9 @@ router = APIRouter(prefix="/expenses", tags=["expenses"])
 @router.get("", response_model=schemas.PaginatedExpensesSchema)
 def read_expenses(
     project: str = None,
+    project_ids: Optional[List[str]] = Query(None),
     branch_id: str = None,
+    branch_ids: Optional[List[str]] = Query(None),
     status: str = None,
     user_id: str = None,
     request_type: str = None,
@@ -61,10 +63,13 @@ def read_expenses(
     if effective_user_id == "all":
         effective_user_id = None
         
+    p_ids = project_ids if project_ids else ([project] if project and project != "all" else None)
+    b_ids = branch_ids if branch_ids else ([branch_id] if branch_id and branch_id != "all" else None)
+
     items = expense_repository.get_multi_filtered(
         db,
-        project_id=None if project == "all" else project,
-        branch_id=branch_id,
+        project_ids=p_ids,
+        branch_ids=b_ids,
         user_id=effective_user_id,
         status=status,
         request_type=request_type,
@@ -74,8 +79,8 @@ def read_expenses(
     )
     total = expense_repository.count_filtered(
         db,
-        project_id=None if project == "all" else project,
-        branch_id=branch_id,
+        project_ids=p_ids,
+        branch_ids=b_ids,
         user_id=effective_user_id,
         status=status,
         request_type=request_type,
@@ -527,10 +532,12 @@ def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, backgrou
         )
     
     # Extended notifications for other stakeholders
-    if update.status in ["approved_ceo", "rejected_ceo"]:
+    is_ceo_or_senior = current_user.position in ["ceo", "senior_financier"] or current_user.role in ["ceo", "senior_financier"]
+    
+    if is_ceo_or_senior or update.status in ["approved_ceo", "rejected_ceo", "approved_senior", "rejected_senior"]:
         admin_chat_id = get_admin_chat_id()
         senior_chat_ids = get_senior_financier_chat_ids()
-        approved = update.status == "approved_ceo"
+        approved = update.status in ["approved_ceo", "approved_senior", "confirmed"]
         
         if admin_chat_id:
             background_tasks.add_task(
@@ -542,16 +549,19 @@ def update_status(expense_id: str, update: schemas.ExpenseStatusUpdate, backgrou
                 approved,
                 update.comment
             )
-        for chat_id in senior_chat_ids:
-            background_tasks.add_task(
-                send_ceo_decision_notification,
-                chat_id,
-                expense.request_id,
-                expense.total_amount,
-                expense.currency,
-                approved,
-                update.comment
-            )
+        
+        # If CEO is making a decision, also notify Senior Financiers (CFO)
+        if current_user.position == "ceo":
+            for chat_id in senior_chat_ids:
+                background_tasks.add_task(
+                    send_ceo_decision_notification,
+                    chat_id,
+                    expense.request_id,
+                    expense.total_amount,
+                    expense.currency,
+                    approved,
+                    update.comment
+                )
 
     from app.services.notifications.sse import publish_notification
     background_tasks.add_task(
@@ -669,7 +679,8 @@ def update_internal_comment(expense_id: str, update: schemas.InternalCommentUpda
 
 @router.get("/export")
 def export_expenses(
-    project: str = None, 
+    project: str = None,
+    project_ids: Optional[List[str]] = Query(None),
     status: str = None,
     user_id: str = None, 
     from_date: str = None, 
@@ -677,6 +688,7 @@ def export_expenses(
     allStatuses: bool = False, 
     request_type: str = None,
     branch: str = None,
+    branch_ids: Optional[List[str]] = Query(None),
     team: str = None,
     search: str = None,
     db: Session = Depends(database.get_db), 
@@ -716,9 +728,13 @@ def export_expenses(
     has_global_view = auth.is_admin(current_user) or current_user.login.lower() == "farrukh" or current_user.position in ["senior_financier", "ceo"] or current_user.role in ["senior_financier", "ceo"]
     effective_user_id = clean_user if has_global_view else current_user.id
     
+    p_ids = project_ids if project_ids else ([project] if project and project != "all" else None)
+    b_ids = branch_ids if branch_ids else ([branch] if branch and branch != "all" else None)
+
     expenses = expense_repository.get_multi_filtered(
         db,
-        project_id=clean_project,
+        project_ids=p_ids,
+        branch_ids=b_ids,
         user_id=effective_user_id,
         status=final_status,
         request_type=request_type,
@@ -786,6 +802,7 @@ def export_expenses(
 @router.get("/export-xlsx")
 def export_expenses_xlsx(
     project: str = None, 
+    project_ids: Optional[List[str]] = Query(None),
     status: str = None,
     user_id: str = None, 
     from_date: str = None, 
@@ -793,6 +810,7 @@ def export_expenses_xlsx(
     allStatuses: bool = False, 
     request_type: str = None,
     branch: str = None,
+    branch_ids: Optional[List[str]] = Query(None),
     team: str = None,
     search: str = None,
     db: Session = Depends(database.get_db), 
@@ -829,9 +847,13 @@ def export_expenses_xlsx(
     has_global_view = auth.is_admin(current_user) or current_user.login.lower() == "farrukh" or current_user.position in ["senior_financier", "ceo"] or current_user.role in ["senior_financier", "ceo"]
     effective_user_id = clean_user if has_global_view else current_user.id
     
+    p_ids = project_ids if project_ids else ([project] if project and project != "all" else None)
+    b_ids = branch_ids if branch_ids else ([branch] if branch and branch != "all" else None)
+
     expenses = expense_repository.get_multi_filtered(
         db,
-        project_id=clean_project,
+        project_ids=p_ids,
+        branch_ids=b_ids,
         user_id=effective_user_id,
         status=final_status,
         request_type=request_type,

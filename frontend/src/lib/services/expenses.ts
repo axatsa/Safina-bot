@@ -34,7 +34,8 @@ export const expensesService = {
   },
 
   getExpenses: async (params?: { 
-    project?: string; 
+    projectIds?: string[]; 
+    branchIds?: string[];
     status?: string;
     user_id?: string;
     search?: string;
@@ -44,7 +45,12 @@ export const expensesService = {
     limit?: number;
   }): Promise<PaginatedResponse<ExpenseRequest>> => {
     const searchParams = new URLSearchParams();
-    if (params?.project && params.project !== "all") searchParams.append("project", params.project);
+    if (params?.projectIds && params.projectIds.length > 0) {
+      params.projectIds.forEach(id => searchParams.append("project_ids", id));
+    }
+    if (params?.branchIds && params.branchIds.length > 0) {
+      params.branchIds.forEach(id => searchParams.append("branch_ids", id));
+    }
     if (params?.status && params.status !== "all") searchParams.append("status", params.status);
     if (params?.user_id && params.user_id !== "all") searchParams.append("user_id", params.user_id);
     if (params?.search) searchParams.append("search", params.search);
@@ -124,9 +130,14 @@ export const expensesService = {
     return mapExpense(await res.json());
   },
 
-  exportXLSX: async (params: { project?: string; user?: string; from?: string; to?: string; allStatuses?: boolean; status?: string; request_type?: string; search?: string }): Promise<void> => {
+  exportXLSX: async (params: { projectIds?: string[]; branchIds?: string[]; user?: string; from?: string; to?: string; allStatuses?: boolean; status?: string; request_type?: string; search?: string }): Promise<void> => {
     const searchParams = new URLSearchParams();
-    if (params.project && params.project !== "all") searchParams.append("project", params.project);
+    if (params?.projectIds && params.projectIds.length > 0) {
+      params.projectIds.forEach(id => searchParams.append("project_ids", id));
+    }
+    if (params?.branchIds && params.branchIds.length > 0) {
+      params.branchIds.forEach(id => searchParams.append("branch_ids", id));
+    }
     if (params.user && params.user !== "all") searchParams.append("user_id", params.user);
     if (params.search) searchParams.append("search", params.search);
     if (params.from) searchParams.append("from_date", params.from);

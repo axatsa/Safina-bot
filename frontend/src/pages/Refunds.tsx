@@ -52,7 +52,8 @@ const Refunds = () => {
   const [collapsedColumns, setCollapsedColumns] = useState<Record<string, boolean>>({});
   
   // Filters
-  const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+  const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
 
@@ -84,9 +85,12 @@ const Refunds = () => {
   const filtered = useMemo(() => {
     let items = refunds;
 
-    // Project Filter
-    if (selectedProject !== "all") {
-        items = items.filter(e => e.projectId === selectedProject);
+    // Project & Branch Filter
+    if (selectedProjectIds.length > 0) {
+        items = items.filter(e => e.projectId && selectedProjectIds.includes(e.projectId));
+    }
+    if (selectedBranchIds.length > 0) {
+        items = items.filter(e => e.branchId && selectedBranchIds.includes(e.branchId));
     }
 
     // User Filter
@@ -117,7 +121,7 @@ const Refunds = () => {
     }
 
     return items;
-  }, [refunds, search, selectedProject, selectedUser, dateRange]);
+  }, [refunds, search, selectedProjectIds, selectedBranchIds, selectedUser, dateRange]);
 
   const mutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ExpenseStatus }) =>
@@ -177,7 +181,8 @@ const Refunds = () => {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => store.exportXLSX({ 
-              project: selectedProject, 
+              projectIds: selectedProjectIds,
+              branchIds: selectedBranchIds,
               user: selectedUser,
               search: search,
               from: dateRange.from?.toISOString(),
@@ -196,8 +201,10 @@ const Refunds = () => {
 
       <FilterBar
         projects={projects}
-        selectedProject={selectedProject}
-        onProjectChange={setSelectedProject}
+        selectedProjectIds={selectedProjectIds}
+        onProjectIdsChange={setSelectedProjectIds}
+        selectedBranchIds={selectedBranchIds}
+        onBranchIdsChange={setSelectedBranchIds}
         team={team}
         selectedUser={selectedUser}
         onUserChange={setSelectedUser}

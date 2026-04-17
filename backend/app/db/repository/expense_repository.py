@@ -35,8 +35,8 @@ class ExpenseRepository(BaseRepository[ExpenseRequest, ExpenseRequestCreate, Any
         self, 
         db: Session, 
         *, 
-        project_id: Optional[str] = None, 
-        branch_id: Optional[str] = None,
+        project_ids: Optional[Union[str, List[str]]] = None, 
+        branch_ids: Optional[Union[str, List[str]]] = None,
         user_id: Optional[str] = None,
         status: Optional[str] = None,
         request_type: Optional[str] = None,
@@ -48,10 +48,14 @@ class ExpenseRepository(BaseRepository[ExpenseRequest, ExpenseRequestCreate, Any
     ) -> List[ExpenseRequest]:
         query = db.query(ExpenseRequest)
         
-        if project_id:
-            query = query.filter(ExpenseRequest.project_id == project_id)
-        if branch_id:
-            query = query.filter(ExpenseRequest.branch_id == branch_id)
+        if project_ids:
+            p_ids = [p.strip() for p in (project_ids.split(",") if isinstance(project_ids, str) else project_ids) if p.strip()]
+            if p_ids:
+                query = query.filter(ExpenseRequest.project_id.in_(p_ids))
+        if branch_ids:
+            b_ids = [b.strip() for b in (branch_ids.split(",") if isinstance(branch_ids, str) else branch_ids) if b.strip()]
+            if b_ids:
+                query = query.filter(ExpenseRequest.branch_id.in_(b_ids))
         if user_id:
             query = query.filter(ExpenseRequest.created_by_id == user_id)
         if status:
@@ -77,10 +81,16 @@ class ExpenseRepository(BaseRepository[ExpenseRequest, ExpenseRequestCreate, Any
         # Avoid full list retrieval for counting
         query = db.query(func.count(ExpenseRequest.id))
         
-        if kwargs.get("project_id"):
-            query = query.filter(ExpenseRequest.project_id == kwargs["project_id"])
-        if kwargs.get("branch_id"):
-            query = query.filter(ExpenseRequest.branch_id == kwargs["branch_id"])
+        project_ids = kwargs.get("project_ids")
+        if project_ids:
+            p_ids = [p.strip() for p in (project_ids.split(",") if isinstance(project_ids, str) else project_ids) if p.strip()]
+            if p_ids:
+                query = query.filter(ExpenseRequest.project_id.in_(p_ids))
+        branch_ids = kwargs.get("branch_ids")
+        if branch_ids:
+            b_ids = [b.strip() for b in (branch_ids.split(",") if isinstance(branch_ids, str) else branch_ids) if b.strip()]
+            if b_ids:
+                query = query.filter(ExpenseRequest.branch_id.in_(b_ids))
         if kwargs.get("user_id"):
             query = query.filter(ExpenseRequest.created_by_id == kwargs["user_id"])
         if kwargs.get("status"):

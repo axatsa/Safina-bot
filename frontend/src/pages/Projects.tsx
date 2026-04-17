@@ -45,6 +45,12 @@ const AVAILABLE_TEMPLATES = [
     { id: "refund", label: "Заявление на возврат" },
 ];
 
+/**
+ * TODO: FUTURE FEATURE
+ * Добавить возможность загружать свои шаблоны (.docx) напрямую в проекты и филиалы.
+ * Это позволит финансистам самостоятельно настраивать формы без участия разработчика.
+ */
+
 interface ProjectsProps {
     category: "startup" | "corporate";
 }

@@ -26,7 +26,8 @@ const kanbanColors: Record<string, string> = {
 const Applications = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+  const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,7 +41,8 @@ const Applications = () => {
   const { data: expensesPage, isLoading, isFetching } = useQuery({
     queryKey: ["expenses", { 
       skip, 
-      project: selectedProject, 
+      projectIds: selectedProjectIds,
+      branchIds: selectedBranchIds,
       user: selectedUser, 
       search: searchQuery, 
       from: dateRange.from?.toISOString(),
@@ -49,7 +51,8 @@ const Applications = () => {
     queryFn: () => store.getExpenses({ 
       skip, 
       limit: LIMIT,
-      project: selectedProject,
+      projectIds: selectedProjectIds,
+      branchIds: selectedBranchIds,
       user_id: selectedUser,
       search: searchQuery,
       from_date: dateRange.from?.toISOString(),
@@ -62,7 +65,7 @@ const Applications = () => {
   useEffect(() => {
     setSkip(0);
     setAllExpenses([]);
-  }, [selectedProject, selectedUser, searchQuery, dateRange]);
+  }, [selectedProjectIds, selectedBranchIds, selectedUser, searchQuery, dateRange]);
 
   // Accumulate items when pages are loaded
   useEffect(() => {
@@ -142,7 +145,8 @@ const Applications = () => {
 
   const handleExport = (allStatuses: boolean) => {
     store.exportXLSX({
-      project: selectedProject,
+      projectIds: selectedProjectIds,
+      branchIds: selectedBranchIds,
       user: selectedUser,
       search: searchQuery,
       from: dateRange.from?.toISOString(),
@@ -188,8 +192,10 @@ const Applications = () => {
 
       <FilterBar
         projects={projects}
-        selectedProject={selectedProject}
-        onProjectChange={setSelectedProject}
+        selectedProjectIds={selectedProjectIds}
+        onProjectIdsChange={setSelectedProjectIds}
+        selectedBranchIds={selectedBranchIds}
+        onBranchIdsChange={setSelectedBranchIds}
         team={team}
         selectedUser={selectedUser}
         onUserChange={setSelectedUser}

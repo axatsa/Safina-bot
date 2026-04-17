@@ -66,6 +66,8 @@ Run commands from the directory noted in each section.
 - Document exports are generated server-side:
   - DOCX via `app/services/docx/*`
   - XLSX via `app/services/analytics/export.py` / `app/services/excel/*`.
+- **Future Roadmap**:
+  - Implement self-service template uploading for financiers. Currently, templates are hardcoded/semi-manual. Goal: allow .docx template uploads per project/branch in the admin panel.
 
 ### Notifications and bot integration
 - The bot logic lives under `backend/app/services/bot/`.
