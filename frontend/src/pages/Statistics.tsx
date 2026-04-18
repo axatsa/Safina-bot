@@ -293,6 +293,7 @@ const Statistics = () => {
                         </SelectContent>
                     </Select>
                 </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card className="relative overflow-hidden border-0 shadow-lg rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white">
