@@ -196,7 +196,7 @@ async def send_senior_notification(expense: dict, senior_chat_id: int) -> None:
 # CEO (Ganiev) notification
 # ---------------------------------------------------------------------------
 
-async def send_ceo_notification(expense: dict, ceo_chat_id: int) -> None:
+async def send_ceo_notification(expense: dict, ceo_chat_id: int, source_path: str = "Safina") -> None:
     project_name = expense.get("project_name") or "—"
     project_code = expense.get("project_code") or "—"
     created_by = expense["created_by"]
@@ -209,6 +209,7 @@ async def send_ceo_notification(expense: dict, ceo_chat_id: int) -> None:
 
     text = (
         f"🟣 *Safina | На согласование CEO*\n"
+        f"📍 Путь: *{source_path}*\n"
         f"🟢 {project_name} ({project_code})\n"
         f"🔸 Инициатор: {created_by}\n"
         f"🔸 Цель: {purpose}\n"

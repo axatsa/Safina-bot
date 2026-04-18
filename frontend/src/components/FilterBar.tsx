@@ -91,64 +91,136 @@ const FilterBar = ({
             </span>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[320px] p-0" align="start">
-          <div className="p-2 border-b bg-muted/20 flex items-center justify-between">
-            <span className="text-xs font-bold uppercase text-muted-foreground px-2">Фильтр объектов</span>
-            {(selectedProjectIds.length > 0 || selectedBranchIds.length > 0) && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => { onProjectIdsChange([]); onBranchIdsChange([]); }}
-                className="h-7 text-[10px] hover:text-destructive"
-              >
-                Сбросить
-              </Button>
-            )}
+        <PopoverContent className="w-[600px] p-0 rounded-2xl shadow-xl border-primary/10 overflow-hidden" align="start">
+          <div className="p-3 border-b bg-muted/20 flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-2">Фильтр объектов</h3>
+            <div className="flex gap-2">
+              {(selectedProjectIds.length > 0 || selectedBranchIds.length > 0) && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => { onProjectIdsChange([]); onBranchIdsChange([]); }}
+                  className="h-7 text-[10px] hover:text-destructive"
+                >
+                  Сбросить всё
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="max-h-[400px] overflow-y-auto p-2 space-y-2">
-            {projects.map((p) => (
-              <div key={p.id} className="space-y-1">
-                <label className="flex items-center space-x-2 p-1.5 hover:bg-primary/5 rounded-md cursor-pointer group">
-                  <Checkbox
-                    checked={selectedProjectIds.includes(p.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        onProjectIdsChange([...selectedProjectIds, p.id]);
-                      } else {
-                        onProjectIdsChange(selectedProjectIds.filter(id => id !== p.id));
-                        // Also unselect all branches of this project if project is unselected? 
-                        // Usually better to keep them if they were individually selected, but nested UI implies dependence.
-                        const pBranches = (p.branches || []).map(b => b.id);
-                        onBranchIdsChange(selectedBranchIds.filter(id => !pBranches.includes(id)));
-                      }
-                    }}
-                    className="data-[state=checked]:bg-primary"
-                  />
-                  <span className="text-sm font-bold truncate group-hover:text-primary transition-colors">{p.name}</span>
-                </label>
-                
-                {p.branches && p.branches.length > 0 && (
-                  <div className="pl-6 space-y-1 border-l ml-3.5 border-primary/20 animate-in slide-in-from-left-1">
-                    {p.branches.map((b) => (
-                      <label key={b.id} className="flex items-center space-x-2 p-1 hover:bg-muted rounded-md cursor-pointer group">
-                        <Checkbox
-                          checked={selectedBranchIds.includes(b.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              onBranchIdsChange([...selectedBranchIds, b.id]);
-                            } else {
-                              onBranchIdsChange(selectedBranchIds.filter(id => id !== b.id));
-                            }
-                          }}
-                        />
-                        <span className="text-xs truncate group-hover:text-foreground transition-colors">{b.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
+          
+          <div className="flex h-[400px]">
+            {/* Projects Column */}
+            <div className="w-1/2 border-r flex flex-col bg-background">
+              <div className="p-2 border-b bg-muted/5 flex items-center justify-between">
+                <span className="text-[9px] font-bold uppercase text-muted-foreground/60 px-2 tracking-widest">Проекты</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 px-2 text-[9px]"
+                  onClick={() => {
+                    if (selectedProjectIds.length === projects.length) {
+                      onProjectIdsChange([]);
+                      onBranchIdsChange([]);
+                    } else {
+                      onProjectIdsChange(projects.map(p => p.id));
+                    }
+                  }}
+                >
+                  {selectedProjectIds.length === projects.length ? "Снять все" : "Выбрать все"}
+                </Button>
               </div>
-            ))}
-            {projects.length === 0 && <div className="p-4 text-xs text-muted-foreground text-center italic">Нет доступных проектов</div>}
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {projects.map((p) => (
+                  <div 
+                    key={p.id} 
+                    className={`flex items-center space-x-3 p-2 rounded-lg cursor-pointer transition-all ${selectedProjectIds.includes(p.id) ? 'bg-primary/5 ring-1 ring-primary/10' : 'hover:bg-muted'}`}
+                    onClick={() => {
+                        const isSelected = selectedProjectIds.includes(p.id);
+                        if (isSelected) {
+                          onProjectIdsChange(selectedProjectIds.filter(id => id !== p.id));
+                          const pBranches = (p.branches || []).map(b => b.id);
+                          onBranchIdsChange(selectedBranchIds.filter(id => !pBranches.includes(id)));
+                        } else {
+                          onProjectIdsChange([...selectedProjectIds, p.id]);
+                        }
+                    }}
+                  >
+                    <Checkbox
+                      checked={selectedProjectIds.includes(p.id)}
+                      onCheckedChange={() => {}} 
+                      className="pointer-events-none"
+                    />
+                    <span className={`text-sm font-semibold truncate ${selectedProjectIds.includes(p.id) ? 'text-primary' : ''}`}>{p.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Branches Column */}
+            <div className="w-1/2 flex flex-col bg-muted/5">
+              <div className="p-2 border-b bg-muted/5 flex items-center justify-between">
+                <span className="text-[9px] font-bold uppercase text-muted-foreground/60 px-2 tracking-widest">Филиалы</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 px-2 text-[9px]"
+                  disabled={availableBranches.length === 0}
+                  onClick={() => {
+                    const availableIds = availableBranches.map(b => b.id);
+                    const allSelected = availableIds.every(id => selectedBranchIds.includes(id));
+                    if (allSelected) {
+                      onBranchIdsChange(selectedBranchIds.filter(id => !availableIds.includes(id)));
+                    } else {
+                      onBranchIdsChange([...new Set([...selectedBranchIds, ...availableIds])]);
+                    }
+                  }}
+                >
+                  {availableBranches.every(b => selectedBranchIds.includes(b.id)) && availableBranches.length > 0 ? "Снять все" : "Выбрать все"}
+                </Button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {selectedProjectIds.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center p-6 text-center opacity-40">
+                    <Building2 className="w-8 h-8 mb-2" />
+                    <p className="text-[10px]">Выберите проект</p>
+                  </div>
+                ) : projects.filter(p => selectedProjectIds.includes(p.id)).map(p => (
+                   <div key={p.id} className="space-y-1 pt-2 first:pt-0">
+                      <div className="px-2 pb-0.5">
+                        <span className="text-[9px] font-black text-primary/40 uppercase tracking-tighter">{p.name}</span>
+                      </div>
+                      {p.branches?.map((b) => (
+                        <div 
+                          key={b.id} 
+                          className={`flex items-center space-x-3 p-1.5 rounded-md cursor-pointer transition-all ${selectedBranchIds.includes(b.id) ? 'bg-primary/5' : 'hover:bg-muted'}`}
+                          onClick={() => {
+                              if (selectedBranchIds.includes(b.id)) {
+                                onBranchIdsChange(selectedBranchIds.filter(id => id !== b.id));
+                              } else {
+                                onBranchIdsChange([...selectedBranchIds, b.id]);
+                              }
+                          }}
+                        >
+                          <Checkbox
+                            checked={selectedBranchIds.includes(b.id)}
+                            onCheckedChange={() => {}}
+                            className="w-3.5 h-3.5 pointer-events-none"
+                          />
+                          <span className="text-xs truncate">{b.name}</span>
+                        </div>
+                      ))}
+                      {(!p.branches || p.branches.length === 0) && (
+                        <p className="px-2 text-[10px] text-muted-foreground italic">Нет филиалов</p>
+                      )}
+                   </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="p-2 border-t bg-muted/20 flex justify-end">
+             <PopoverTrigger asChild>
+                <Button size="sm" className="h-8 text-[10px] font-bold px-4">Готово</Button>
+             </PopoverTrigger>
           </div>
         </PopoverContent>
       </Popover>

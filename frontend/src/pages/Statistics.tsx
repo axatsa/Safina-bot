@@ -148,10 +148,10 @@ const Statistics = () => {
                                 </span>
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[320px] p-0 rounded-2xl shadow-xl border-primary/10 overflow-hidden" align="end">
-                            <div className="p-4 border-b bg-muted/20">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="font-semibold text-sm">Проекты и филиалы</h3>
+                        <PopoverContent className="w-[600px] p-0 rounded-2-xl shadow-2xl border-primary/10 overflow-hidden" align="end">
+                            <div className="p-4 border-b bg-muted/20 flex items-center justify-between">
+                                <h3 className="font-bold text-sm uppercase tracking-tight">Фильтр объектов</h3>
+                                <div className="flex gap-2">
                                     {(selectedProjectIds.length > 0 || selectedBranchNames.length > 0) && (
                                         <Button 
                                             variant="ghost" 
@@ -159,47 +159,98 @@ const Statistics = () => {
                                             onClick={() => { setSelectedProjectIds([]); setSelectedBranchNames([]); }}
                                             className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                                         >
-                                            Сбросить
+                                            Сбросить всё
                                         </Button>
                                     )}
                                 </div>
                             </div>
-                            <div className="max-h-[400px] overflow-y-auto p-2 space-y-2">
-                                {projects.map((project) => (
-                                    <div key={project.id} className="space-y-1">
-                                        <div 
-                                            className="flex items-center space-x-3 p-2 rounded-xl hover:bg-primary/5 cursor-pointer transition-colors group"
+                            
+                            <div className="flex h-[450px]">
+                                {/* Projects Column */}
+                                <div className="w-1/2 border-r flex flex-col">
+                                    <div className="p-3 bg-muted/10 border-b flex items-center justify-between">
+                                        <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Проекты</span>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            className="h-6 px-2 text-[10px]"
                                             onClick={() => {
-                                                const isSelected = selectedProjectIds.includes(project.id);
-                                                setSelectedProjectIds(prev => 
-                                                    isSelected ? prev.filter(id => id !== project.id) : [...prev, project.id]
-                                                );
-                                                // If unchecking project, also uncheck its branches
-                                                if (isSelected && project.branches) {
-                                                    const pBranchNames = project.branches.map((b: any) => b.name);
-                                                    setSelectedBranchNames(prev => prev.filter(name => !pBranchNames.includes(name)));
+                                                if (selectedProjectIds.length === projects.length) {
+                                                    setSelectedProjectIds([]);
+                                                    setSelectedBranchNames([]);
+                                                } else {
+                                                    setSelectedProjectIds(projects.map((p: any) => p.id));
                                                 }
                                             }}
                                         >
-                                            <Checkbox 
-                                                id={`project-${project.id}`}
-                                                checked={selectedProjectIds.includes(project.id)}
-                                                onCheckedChange={() => {}} 
-                                                className="data-[state=checked]:bg-primary"
-                                            />
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{project.name}</p>
+                                            {selectedProjectIds.length === projects.length ? "Снять все" : "Выбрать все"}
+                                        </Button>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                                        {projects.map((project: any) => (
+                                            <div 
+                                                key={project.id}
+                                                className={`flex items-center space-x-3 p-2.5 rounded-xl cursor-pointer transition-all group ${selectedProjectIds.includes(project.id) ? 'bg-primary/5 ring-1 ring-primary/10' : 'hover:bg-muted'}`}
+                                                onClick={() => {
+                                                    const isSelected = selectedProjectIds.includes(project.id);
+                                                    setSelectedProjectIds(prev => 
+                                                        isSelected ? prev.filter(id => id !== project.id) : [...prev, project.id]
+                                                    );
+                                                    if (isSelected && project.branches) {
+                                                        const pBranchNames = project.branches.map((b: any) => b.name);
+                                                        setSelectedBranchNames(prev => prev.filter(name => !pBranchNames.includes(name)));
+                                                    }
+                                                }}
+                                            >
+                                                <Checkbox 
+                                                    checked={selectedProjectIds.includes(project.id)}
+                                                    onCheckedChange={() => {}} 
+                                                    className="pointer-events-none"
+                                                />
+                                                <span className={`text-sm font-semibold truncate ${selectedProjectIds.includes(project.id) ? 'text-primary' : ''}`}>
+                                                    {project.name}
+                                                </span>
                                             </div>
-                                        </div>
-                                        
-                                        {project.branches && project.branches.length > 0 && (
-                                            <div className="pl-6 space-y-1 border-l ml-4 border-primary/20">
-                                                {project.branches.map((branch: any) => (
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Branches Column */}
+                                <div className="w-1/2 flex flex-col bg-muted/5">
+                                    <div className="p-3 bg-muted/10 border-b flex items-center justify-between">
+                                        <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Филиалы</span>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            className="h-6 px-2 text-[10px]"
+                                            disabled={availableBranches.length === 0}
+                                            onClick={() => {
+                                                if (selectedBranchNames.length === availableBranches.length) {
+                                                    setSelectedBranchNames([]);
+                                                } else {
+                                                    setSelectedBranchNames(availableBranches);
+                                                }
+                                            }}
+                                        >
+                                            {selectedBranchNames.length === availableBranches.length ? "Снять все" : "Выбрать все"}
+                                        </Button>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                                        {selectedProjectIds.length === 0 ? (
+                                            <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+                                                <Building2 className="w-8 h-8 text-muted-foreground/30 mb-2" />
+                                                <p className="text-[11px] text-muted-foreground">Выберите проект, чтобы увидеть филиалы</p>
+                                            </div>
+                                        ) : projects.filter((p: any) => selectedProjectIds.includes(p.id)).map((project: any) => (
+                                            <div key={project.id} className="space-y-1 pt-2 first:pt-0">
+                                                <div className="px-2 pb-1">
+                                                    <span className="text-[9px] font-bold text-primary/60 uppercase">{project.name}</span>
+                                                </div>
+                                                {project.branches?.map((branch: any) => (
                                                     <div 
-                                                        key={branch.id} 
-                                                        className="flex items-center space-x-3 p-1.5 rounded-lg hover:bg-muted cursor-pointer transition-colors group/branch"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
+                                                        key={branch.id}
+                                                        className={`flex items-center space-x-3 p-2 rounded-lg cursor-pointer transition-all ${selectedBranchNames.includes(branch.name) ? 'bg-primary/10' : 'hover:bg-muted'}`}
+                                                        onClick={() => {
                                                             setSelectedBranchNames(prev => 
                                                                 prev.includes(branch.name) 
                                                                 ? prev.filter(b => b !== branch.name) 
@@ -210,15 +261,23 @@ const Statistics = () => {
                                                         <Checkbox 
                                                             checked={selectedBranchNames.includes(branch.name)}
                                                             onCheckedChange={() => {}} 
-                                                            className="w-3.5 h-3.5"
+                                                            className="w-3.5 h-3.5 pointer-events-none"
                                                         />
-                                                        <span className="text-xs truncate group-hover/branch:text-foreground">{branch.name}</span>
+                                                        <span className="text-xs truncate">{branch.name}</span>
                                                     </div>
                                                 ))}
+                                                {(!project.branches || project.branches.length === 0) && (
+                                                    <p className="px-2 text-[10px] text-muted-foreground italic">Нет филиалов</p>
+                                                )}
                                             </div>
-                                        )}
+                                        ))}
                                     </div>
-                                ))}
+                                </div>
+                            </div>
+                            <div className="p-3 border-t bg-muted/20 flex justify-end">
+                                <PopoverTrigger asChild>
+                                    <Button size="sm" className="h-8 text-xs font-bold rounded-lg px-4">Готово</Button>
+                                </PopoverTrigger>
                             </div>
                         </PopoverContent>
                     </Popover>

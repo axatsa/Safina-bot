@@ -653,9 +653,15 @@ def forward_to_ceo(
     )
 
     logger.info(f"Forwarding expense {expense.request_id} (status: {expense.status}) to CEO")
+    
+    # Определяем путь согласования
+    source_path = "Safina ➜ CEO"
+    if current_user.position == "senior_financier":
+         source_path = "Safina ➜ CFO ➜ CEO"
+         
     ceo_chat_id = get_ceo_chat_id()
     if ceo_chat_id:
-        background_tasks.add_task(send_ceo_notification, expense_service.get_expense_dict(expense), ceo_chat_id)
+        background_tasks.add_task(send_ceo_notification, expense_service.get_expense_dict(expense), ceo_chat_id, source_path)
     else:
         logger.warning("CEO has not linked their Telegram account yet.")
 

@@ -88,7 +88,7 @@ def get_analytics(
         elif expense.status in ["confirmed", "approved_ceo"]:
             status_summary["Confirmed"] += 1
             
-        if expense.status not in ["confirmed", "approved_senior", "approved_ceo", "pending_ceo"]:
+        if expense.status in ["request", "review", "revision"]:
             continue
             
         amount = Decimal(str(expense.total_amount)) if expense.total_amount else Decimal("0")

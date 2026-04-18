@@ -4,6 +4,37 @@ echo '🚀 Начинаем деплой Safina-bot (GitHub version)'
 # 1. Переходим в папку с основным кодом
 cd /home/finance/Safina-bot
 
+# --- БЭКАП БАЗЫ ДАННЫХ ПЕРЕД ДЕПЛОЕМ ---
+echo '💾 Создание резервной копии базы данных...'
+mkdir -p ./backups
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+
+if docker ps | grep -q 'finance-db'; then
+    # Пробуем подтянуть переменные из .env для корректного pg_dump
+    if [ -f .env ]; then
+        DB_USER_BACKUP=$(grep '^DB_USER=' .env | cut -d '=' -f2 | tr -d '\r')
+        DB_NAME_BACKUP=$(grep '^DB_NAME=' .env | cut -d '=' -f2 | tr -d '\r')
+    fi
+    
+    DB_USER_BACKUP=${DB_USER_BACKUP:-postgres}
+    DB_NAME_BACKUP=${DB_NAME_BACKUP:-safina_db}
+
+    echo "📦 Дамп БД $DB_NAME_BACKUP (пользователь $DB_USER_BACKUP)..."
+    docker exec finance-db pg_dump -U $DB_USER_BACKUP $DB_NAME_BACKUP > ./backups/backup_${TIMESTAMP}.sql
+    
+    if [ ${PIPESTATUS[0]} -eq 0 ] && [ -s ./backups/backup_${TIMESTAMP}.sql ]; then
+        echo "✅ Бэкап успешно создан: ./backups/backup_${TIMESTAMP}.sql"
+        # Ротация: удаляем файлы старше 7 дней
+        find ./backups -name "backup_*.sql" -mtime +7 -delete
+    else
+        echo "❌ Ошибка при создании бэкапа! Файл пуст или команда завершилась с ошибкой."
+        # Если это критично, можно добавить exit 1 здесь, но обычно деплой важнее
+    fi
+else
+    echo "⚠️ Контейнер finance-db не запущен, бэкап невозможен. Продолжаем без бэкапа..."
+fi
+# ---------------------------------------
+
 # 2. Убеждаемся, что работаем с GitHub репозиторием
 echo '📦 Проверка источника кода...'
 git remote set-url origin https://github.com/axatsa/Safina-bot.git

@@ -4,7 +4,7 @@ import { TeamMember, Project } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2, KeyRound, Pencil, Lock, PlusCircle, Building2 } from "lucide-react";
+import { Plus, Users, ShieldCheck, ShieldAlert, Loader2, Trash2, KeyRound, Pencil, Lock, PlusCircle, Building2, ChevronDown, ChevronRight, FolderKanban } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -41,6 +41,51 @@ interface EditFormState {
   projectIds: string[];
   templates: string[];
 }
+
+const MemberObjects = ({ member }: { member: TeamMember }) => {
+    const [expanded, setExpanded] = useState(false);
+    const hasProjects = (member.projects || []).length > 0;
+    const hasBranches = (member.branches || []).length > 0;
+
+    if (!hasProjects && !hasBranches) {
+        return <span className="text-xs text-muted-foreground">—</span>;
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="flex flex-wrap gap-1">
+                {(member.projects || []).map(p => (
+                    <span key={p.id} className="text-[9px] bg-primary/5 text-primary px-1.5 py-0.5 rounded border border-primary/10 font-bold uppercase tracking-tighter">
+                        {p.name}
+                    </span>
+                ))}
+            </div>
+            
+            {hasBranches && (
+                <div className="space-y-1">
+                    <button 
+                        onClick={() => setExpanded(!expanded)}
+                        className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors uppercase tracking-widest"
+                    >
+                        {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                        {expanded ? "Свернуть" : `Филиалы (${member.branches?.length})`}
+                    </button>
+                    
+                    {expanded && (
+                        <div className="flex flex-wrap gap-1 animate-in fade-in slide-in-from-top-1">
+                            {member.branches?.map(b => (
+                                <span key={b.id} className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 flex items-center gap-0.5 font-medium">
+                                    <Building2 className="w-2.5 h-2.5 opacity-50" />
+                                    {b.name}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const Team = () => {
   const queryClient = useQueryClient();
@@ -347,20 +392,7 @@ const Team = () => {
                             </td>
                             <td className="px-6 py-4 text-sm text-muted-foreground">{member.position || "—"}</td>
                             <td className="px-6 py-4">
-                                <div className="flex flex-wrap gap-1">
-                                    {(member.projects || []).map(p => (
-                                        <span key={p.id} className="text-[9px] bg-primary/5 text-primary px-1.5 py-0.5 rounded border border-primary/10">
-                                            {p.name}
-                                        </span>
-                                    ))}
-                                    {(member.branches || []).map(b => (
-                                        <span key={b.id} className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 flex items-center gap-0.5">
-                                            <Building2 className="w-2.5 h-2.5" />
-                                            {b.name}
-                                        </span>
-                                    ))}
-                                    {(!member.projects?.length && !member.branches?.length) && <span className="text-xs text-muted-foreground">—</span>}
-                                </div>
+                                <MemberObjects member={member} />
                             </td>
                             <td className="px-6 py-4">
                                 <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{member.login}</code>
