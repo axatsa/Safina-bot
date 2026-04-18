@@ -134,7 +134,6 @@ const Statistics = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                <div className="flex flex-wrap items-center gap-3">
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="outline" className="h-10 border-primary/20 bg-background px-4 rounded-xl shadow-sm ring-1 ring-primary/5 hover:ring-primary/20 transition-all min-w-[240px] justify-between">
@@ -275,9 +274,9 @@ const Statistics = () => {
                                 </div>
                             </div>
                             <div className="p-3 border-t bg-muted/20 flex justify-end">
-                                <PopoverTrigger asChild>
-                                    <Button size="sm" className="h-8 text-xs font-bold rounded-lg px-4">Готово</Button>
-                                </PopoverTrigger>
+                                <Button size="sm" className="h-8 text-xs font-bold rounded-lg px-4" onClick={() => {
+                                    // Manually close if needed or just let it close on Blur
+                                }}>Готово</Button>
                             </div>
                         </PopoverContent>
                     </Popover>
@@ -294,7 +293,6 @@ const Statistics = () => {
                         </SelectContent>
                     </Select>
                 </div>
-            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card className="relative overflow-hidden border-0 shadow-lg rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white">

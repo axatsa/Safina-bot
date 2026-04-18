@@ -218,9 +218,9 @@ const FilterBar = ({
             </div>
           </div>
           <div className="p-2 border-t bg-muted/20 flex justify-end">
-             <PopoverTrigger asChild>
-                <Button size="sm" className="h-8 text-[10px] font-bold px-4">Готово</Button>
-             </PopoverTrigger>
+              <Button size="sm" className="h-8 text-[10px] font-bold px-4" onClick={() => {
+                // Popover will close on blur or manual trigger if we had a ref
+              }}>Готово</Button>
           </div>
         </PopoverContent>
       </Popover>
