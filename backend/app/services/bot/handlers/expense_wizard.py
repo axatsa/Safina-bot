@@ -1,17 +1,19 @@
 import os
 import datetime
+import asyncio
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
+from sqlalchemy.orm import joinedload
 
 from app.core import database
 from app.db import models, schemas
 from app.services.core.expense_service import expense_service
 from ..states import ExpenseWizard
 from ..keyboards import get_confirm_kb, get_date_kb, get_currency_kb, get_projects_kb, get_main_kb, get_back_kb, get_branches_kb
-from ..utils import tashkent_now, _BACK
+from ..utils import tashkent_now, _BACK, run_sync
 from decimal import Decimal
 from app.services.currency.service import currency_service
 from ..notifications import send_admin_notification, get_admin_chat_id
@@ -20,19 +22,16 @@ router = Router()
 
 @router.message(F.text == "Создать инвестицию (в боте)")
 async def start_wizard_selection(message: types.Message, state: FSMContext):
-    user_not_found = False
-    no_projects = False
-    projects = []
-    user_id = None
-    
-    with database.database_session() as db:
-        user = db.query(models.User).options(
-            joinedload(models.User.projects).joinedload(models.Project.branches),
-            joinedload(models.User.branches)
-        ).filter(models.User.telegram_chat_id == message.from_user.id).first()
-        if not user:
-            user_not_found = True
-        else:
+    def get_user_projects_data(chat_id):
+        with database.database_session() as db:
+            user = db.query(models.User).options(
+                joinedload(models.User.projects).joinedload(models.Project.branches),
+                joinedload(models.User.branches)
+            ).filter(models.User.telegram_chat_id == chat_id).first()
+            if not user:
+                return None, None
+            
+            p_data_list = []
             user_id = user.id
             user_branch_ids = {b.id for b in user.branches}
             user_is_privileged = user.role in ["admin", "ceo", "senior_financier"]
@@ -46,22 +45,22 @@ async def start_wizard_selection(message: types.Message, state: FSMContext):
                 else:
                     filtered_branches = []
 
-                projects_data.append({
+                p_data_list.append({
                     "id": p.id,
                     "name": p.name,
                     "code": p.code,
                     "category": p.category,
                     "branches_data": [{"id": b.id, "name": b.name} for b in filtered_branches]
                 })
-            
-            if not projects_data:
-                no_projects = True
+            return user_id, p_data_list
 
-    if user_not_found:
+    user_id, projects_data = await run_sync(get_user_projects_data, message.from_user.id)
+    
+    if user_id is None:
         await message.answer("Сначала авторизуйтесь: /start")
         return
     
-    if no_projects:
+    if not projects_data:
         await message.answer("Проекты не привязаны.")
         return
 
@@ -89,20 +88,20 @@ async def process_project_selection(message: types.Message, state: FSMContext):
         await message.answer("Отменено.", reply_markup=get_main_kb())
         return
         
-    user_id = None
-    project_obj = None
-    projects_data = []
-
-    with database.database_session() as db:
-        user = db.query(models.User).options(
-            joinedload(models.User.projects).joinedload(models.Project.branches),
-            joinedload(models.User.branches)
-        ).filter(models.User.telegram_chat_id == message.from_user.id).first()
-        
-        if user:
-            user_id = user.id
+    def get_selection_data(chat_id, selected_text):
+        with database.database_session() as db:
+            user = db.query(models.User).options(
+                joinedload(models.User.projects).joinedload(models.Project.branches),
+                joinedload(models.User.branches)
+            ).filter(models.User.telegram_chat_id == chat_id).first()
+            
+            if not user:
+                return None, None
+            
+            projects_data = []
+            project_obj = None
             user_branch_ids = {b.id for b in user.branches}
-            user_is_privileged = user.role in ["admin", "ceo", "senior"]
+            user_is_privileged = user.role in ["admin", "ceo", "senior_financier"]
             
             for p in user.projects:
                 p_branches = p.branches
@@ -121,13 +120,15 @@ async def process_project_selection(message: types.Message, state: FSMContext):
                     "branches_data": [{"id": b.id, "name": b.name} for b in filtered_branches]
                 }
                 projects_data.append(p_data)
-                if f"{p.name} ({p.code})" == message.text:
+                if f"{p.name} ({p.code})" == selected_text:
                     project_obj = p_data
+            return projects_data, project_obj
+
+    projects_data, project_obj = await run_sync(get_selection_data, message.from_user.id, message.text)
 
     if project_obj:
         await state.update_data(project_id=project_obj["id"], projects_data=projects_data)
         
-        # Check for branches
         if project_obj["category"] == "corporate" and project_obj["branches_data"]:
             await message.answer("Выберите филиал:", reply_markup=get_branches_kb(project_obj["branches_data"]))
             await state.set_state(ExpenseWizard.branch_selection)
@@ -143,21 +144,26 @@ async def process_branch_selection(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         data = await state.get_data()
         user_id = data.get("user_id")
-        with database.database_session() as db:
-            user = db.query(models.User).get(user_id)
-            if user and len(user.projects) > 1:
-                await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
-                await state.set_state(ExpenseWizard.project_selection)
-            else:
-                await state.clear()
-                await message.answer("Отменено.", reply_markup=get_main_kb())
+        
+        def get_user_projects(uid):
+            with database.database_session() as db:
+                user = db.query(models.User).get(uid)
+                return [p.name for p in user.projects] if user else []
+
+        projects = await run_sync(get_user_projects, user_id)
+        if len(projects) > 1:
+            # Note: simplified for brevity, ideally we'd pass projects_data again
+            data = await state.get_data()
+            await message.answer("Выберите проект:", reply_markup=get_projects_kb(data.get("projects_data", [])))
+            await state.set_state(ExpenseWizard.project_selection)
+        else:
+            await state.clear()
+            await message.answer("Отменено.", reply_markup=get_main_kb())
         return
 
     data = await state.get_data()
-    project_id = data.get("project_id")
-    data = await state.get_data()
-    project_id = data.get("project_id")
     projects_data = data.get("projects_data", [])
+    project_id = data.get("project_id")
     project_obj = next((p for p in projects_data if p["id"] == project_id), None)
     
     if project_obj:
@@ -178,14 +184,19 @@ async def process_date(message: types.Message, state: FSMContext):
     if message.text == _BACK:
         data = await state.get_data()
         user_id = data.get("user_id")
-        with database.database_session() as db:
-            user = db.query(models.User).filter(models.User.id == user_id).first()
-            if user and len(user.projects) > 1:
-                await message.answer("Выберите проект:", reply_markup=get_projects_kb(user.projects))
-                await state.set_state(ExpenseWizard.project_selection)
-            else:
-                await state.clear()
-                await message.answer("Отменено.", reply_markup=get_main_kb())
+        
+        def check_user_projects(uid):
+            with database.database_session() as db:
+                user = db.query(models.User).filter(models.User.id == uid).first()
+                return user and len(user.projects) > 1
+        
+        has_many = await run_sync(check_user_projects, user_id)
+        if has_many:
+            await message.answer("Выберите проект:", reply_markup=get_projects_kb(data.get("projects_data", [])))
+            await state.set_state(ExpenseWizard.project_selection)
+        else:
+            await state.clear()
+            await message.answer("Отменено.", reply_markup=get_main_kb())
         return
 
     val = message.text.lower()
@@ -314,29 +325,28 @@ async def process_finish(message: types.Message, state: FSMContext):
     currency = items[0]["currency"]
     usd_rate = await currency_service.get_usd_rate() if currency == "USD" else None
     
-    expense_req_id = None
-    request_id = None
-
-    try:
+    def create_expense_task(data_in, items_in, usd_rate_in):
         with database.database_session() as db:
-            total = sum(Decimal(str(i["amount"])) * Decimal(str(i["quantity"])) for i in items)
+            total = sum(Decimal(str(i["amount"])) * Decimal(str(i["quantity"])) for i in items_in)
             expense_create = schemas.ExpenseRequestCreate(
-                purpose=data.get("purpose"),
-                items=[schemas.ExpenseItemSchema(**i) for i in items],
+                purpose=data_in.get("purpose"),
+                items=[schemas.ExpenseItemSchema(**i) for i in items_in],
                 total_amount=total,
-                currency=currency,
-                project_id=data.get("project_id"),
-                branch_id=data.get("branch_id"),
-                date=datetime.datetime.fromisoformat(data.get("date")),
+                currency=data_in.get("items")[0]["currency"],
+                project_id=data_in.get("project_id"),
+                branch_id=data_in.get("branch_id"),
+                date=datetime.datetime.fromisoformat(data_in.get("date")),
             )
-            db_expense = expense_service.create_expense_request(db, expense_create, user_id=data.get("user_id"), usd_rate=usd_rate)
-            expense_req_id = db_expense.id
-            request_id = db_expense.request_id
+            db_expense = expense_service.create_expense_request(db, expense_create, user_id=data_in.get("user_id"), usd_rate=usd_rate_in)
             # Prepare dict while session is open
             expense_dict = expense_service.get_expense_dict(db_expense)
+            return db_expense.request_id, expense_dict
+
+    try:
+        request_id, expense_dict = await run_sync(create_expense_task, data, items, usd_rate)
         
         # Notify Safina
-        admin_chat_id = get_admin_chat_id()
+        admin_chat_id = await run_sync(get_admin_chat_id)
         if admin_chat_id:
             await send_admin_notification(expense_dict, admin_chat_id)
             

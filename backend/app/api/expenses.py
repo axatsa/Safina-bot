@@ -638,6 +638,7 @@ def forward_to_ceo(
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
 
+    old_status = expense.status
 
     update = schemas.ExpenseStatusUpdate(
         status="pending_ceo",
@@ -656,7 +657,7 @@ def forward_to_ceo(
     
     # Определяем путь согласования
     source_path = "Safina ➜ CEO"
-    if current_user.position == "senior_financier":
+    if old_status in ["approved_senior", "pending_senior"] or current_user.position == "senior_financier":
          source_path = "Safina ➜ CFO ➜ CEO"
          
     ceo_chat_id = get_ceo_chat_id()

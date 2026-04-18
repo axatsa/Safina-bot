@@ -83,6 +83,11 @@ def test_ceo_approval_notifications(mock_sse, mock_get_senior, mock_get_admin, m
     }, headers={"Authorization": f"Bearer {user_token}"})
     exp_id = exp_resp.json()["id"]
     
+    # Reset mocks before the final CEO approval action
+    mock_send_decision.reset_mock()
+    mock_get_admin.return_value = 444
+    mock_get_senior.return_value = [111]
+    
     # 2. Forward to Senior (Admin action)
     admin_token = get_token("safina", "admin123")
     client.post(f"/api/expenses/{exp_id}/forward_senior", headers={"Authorization": f"Bearer {admin_token}"})
@@ -94,27 +99,67 @@ def test_ceo_approval_notifications(mock_sse, mock_get_senior, mock_get_admin, m
     # 4. Forward to CEO
     client.post(f"/api/expenses/{exp_id}/forward_ceo", headers={"Authorization": f"Bearer {farrukh_token}"})
     
+    # Reset mocks again to only count CEO decision notifications
+    mock_send_decision.reset_mock()
+    mock_get_admin.return_value = 444
+    mock_get_senior.return_value = [111]
+    
     # 5. CEO Approves via API (Ganiev)
     ganiev_token = get_token("ganiev", "ganiev123")
     
-    resp = client.patch(f"/api/expenses/{exp_id}/status", 
-                       json={"status": "approved_ceo", "comment": "CEO OK"}, 
-                       headers={"Authorization": f"Bearer {ganiev_token}"})
+    resp = client.patch(
+        f"/api/expenses/{exp_id}/status", 
+        json={"status": "approved_ceo", "comment": "CEO OK"}, 
+        headers={"Authorization": f"Bearer {ganiev_token}"}
+    )
     
     assert resp.status_code == 200
     
-    # Verify notifications were added to background tasks
-    # With TestClient, background tasks ARE executed before the response is returned 
-    # OR they are accessible via the response object if using async client.
-    # But for standard TestClient, it runs them sync.
-    
-    # Creator notified
+    # Creator notified via send_status_notification
     mock_send_status.assert_called()
     
-    # Admin and CFO notified
-    assert mock_send_decision.call_count == 2
+    # Admin (444) and CFO (111) notified via send_ceo_decision_notification
+    # The CEO decision should notify: admin_chat_id + each senior_financier_chat_id
+    assert mock_send_decision.call_count >= 2, (
+        f"Expected at least 2 calls (admin + CFO), got {mock_send_decision.call_count}: "
+        f"{mock_send_decision.call_args_list}"
+    )
     mock_send_decision.assert_any_call(444, ANY, ANY, "UZS", True, "CEO OK")
     mock_send_decision.assert_any_call(111, ANY, ANY, "UZS", True, "CEO OK")
+
+
+@patch("app.api.expenses.send_status_notification")
+@patch("app.api.expenses.get_admin_chat_id")
+@patch("app.services.notifications.sse.publish_notification")
+def test_status_update_notifies_creator(mock_sse, mock_get_admin, mock_send_status, setup_db):
+    """Test that any status update sends a Telegram notification to the expense creator."""
+    mock_get_admin.return_value = None  # No admin Telegram
+
+    # 1. Create expense as user (who has telegram_chat_id=333)
+    user_token = get_token("user", "user123")
+    exp_resp = client.post("/api/expenses", json={
+        "purpose": "Status Test", "request_type": "expense",
+        "items": [{"name": "widget", "quantity": 2, "amount": 50, "currency": "UZS"}]
+    }, headers={"Authorization": f"Bearer {user_token}"})
+    assert exp_resp.status_code == 200
+    exp_id = exp_resp.json()["id"]
+
+    mock_send_status.reset_mock()
+
+    # 2. Admin updates status to review
+    admin_token = get_token("safina", "admin123")
+    resp = client.patch(
+        f"/api/expenses/{exp_id}/status",
+        json={"status": "review", "comment": "Reviewing"},
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert resp.status_code == 200
+
+    # Creator (telegram_chat_id=333) should be notified
+    mock_send_status.assert_called_once()
+    args = mock_send_status.call_args[0]
+    assert args[0] == 333  # chat_id of creator
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

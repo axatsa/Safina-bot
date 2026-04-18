@@ -42,3 +42,14 @@ def prepare_items_data(raw_items) -> list[dict]:
                 except (ValueError, TypeError, Exception):
                     continue
     return result
+
+import asyncio
+from typing import Callable, TypeVar, Any
+from functools import partial
+
+T = TypeVar("T")
+
+async def run_sync(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+    """Run a synchronous function in a separate thread to avoid blocking the event loop."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, partial(func, *args, **kwargs))
