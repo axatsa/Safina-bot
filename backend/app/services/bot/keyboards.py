@@ -71,6 +71,7 @@ def get_branches_kb(branches):
         else:
             name = getattr(br, "name", str(br))
         b.button(text=name)
+    b.button(text="Нет филиала")
     b.button(text=_BACK)
     b.adjust(1)
     return b.as_markup(resize_keyboard=True)

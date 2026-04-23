@@ -11,19 +11,19 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { 
-    Plus, 
-    Trash2, 
-    Send, 
-    Loader2, 
-    ArrowLeft, 
-    FilePlus, 
-    RotateCcw, 
-    FileText, 
-    Landmark, 
-    GraduationCap, 
+import {
+    Plus,
+    Trash2,
+    Send,
+    Loader2,
+    ArrowLeft,
+    FilePlus,
+    RotateCcw,
+    FileText,
+    Landmark,
+    GraduationCap,
     Building2,
-    ArrowRight 
+    ArrowRight
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -47,57 +47,57 @@ const emptyItem = (currency: "UZS" | "USD" = "UZS"): ExpenseItem & { displayAmou
 type ItemWithDisplay = ExpenseItem & { displayAmount: string };
 
 const APPLICATION_TYPES = [
-    { 
-        id: "expense", 
-        title: "Инвестиция", 
-        desc: "Стандартный запрос на расход / закупку ТМЦ", 
-        icon: FilePlus, 
-        color: "text-blue-600", 
+    {
+        id: "expense",
+        title: "Инвестиция",
+        desc: "Стандартный запрос на расход / закупку ТМЦ",
+        icon: FilePlus,
+        color: "text-blue-600",
         bg: "bg-blue-50",
         path: "/submit?type=expense"
     },
-    { 
-        id: "refund", 
-        title: "Заявление на возврат", 
-        desc: "Форма заявления на возврат денег клиенту", 
-        icon: RotateCcw, 
-        color: "text-rose-600", 
+    {
+        id: "refund",
+        title: "Заявление на возврат",
+        desc: "Форма заявления на возврат денег клиенту",
+        icon: RotateCcw,
+        color: "text-rose-600",
         bg: "bg-rose-50",
         path: "/blank?template=refund"
     },
-    { 
-        id: "ls", 
-        title: "Служебная записка", 
-        desc: "Общий бланк служебной записки (LS)", 
-        icon: FileText, 
-        color: "text-amber-600", 
+    {
+        id: "ls",
+        title: "Служебная записка",
+        desc: "Общий бланк служебной записки (LS)",
+        icon: FileText,
+        color: "text-amber-600",
         bg: "bg-amber-50",
         path: "/blank?template=ls"
     },
-    { 
-        id: "land", 
-        title: "Бланк LAND", 
-        desc: "Форма для проекта LAND", 
-        icon: Building2, 
-        color: "text-emerald-600", 
+    {
+        id: "land",
+        title: "Бланк LAND",
+        desc: "Форма для проекта LAND",
+        icon: Building2,
+        color: "text-emerald-600",
         bg: "bg-emerald-50",
         path: "/blank?template=land"
     },
-    { 
-        id: "drujba", 
-        title: "Бланк DRUJBA", 
-        desc: "Форма для проекта DRUJBA", 
-        icon: Landmark, 
-        color: "text-indigo-600", 
+    {
+        id: "drujba",
+        title: "Бланк DRUJBA",
+        desc: "Форма для проекта DRUJBA",
+        icon: Landmark,
+        color: "text-indigo-600",
         bg: "bg-indigo-50",
         path: "/blank?template=drujba"
     },
-    { 
-        id: "school", 
-        title: "Бланк SCHOOL", 
-        desc: "Форма для общеобразовательной школы", 
-        icon: GraduationCap, 
-        color: "text-violet-600", 
+    {
+        id: "school",
+        title: "Бланк SCHOOL",
+        desc: "Форма для общеобразовательной школы",
+        icon: GraduationCap,
+        color: "text-violet-600",
         bg: "bg-violet-50",
         path: "/blank?template=school"
     },
@@ -105,7 +105,7 @@ const APPLICATION_TYPES = [
 
 const SelectionScreen = ({ chatId }: { chatId: string | null }) => {
     const navigate = useNavigate();
-    
+
     return (
         <div className="min-h-screen bg-background p-6 md:p-12 animate-fade-in pb-20">
             <div className="max-w-4xl mx-auto space-y-10">
@@ -118,7 +118,7 @@ const SelectionScreen = ({ chatId }: { chatId: string | null }) => {
                         <ArrowLeft className="w-4 h-4" /> В дашборд
                     </Button>
                 )}
-                
+
                 <div className="text-center space-y-3">
                     <h1 className="text-4xl font-display font-black text-foreground tracking-tight">Тип новой заявки</h1>
                     <p className="text-muted-foreground text-lg">Выберите, какой документ вы хотите оформить сегодня</p>
@@ -126,8 +126,8 @@ const SelectionScreen = ({ chatId }: { chatId: string | null }) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {APPLICATION_TYPES.map((type) => (
-                        <Card 
-                            key={type.id} 
+                        <Card
+                            key={type.id}
                             className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-border hover:ring-primary/50 overflow-hidden relative"
                             onClick={() => {
                                 const fullPath = chatId ? `${type.path}&chat_id=${chatId}` : type.path;
@@ -204,7 +204,7 @@ const SubmitExpense = () => {
             const apiItems: ExpenseItem[] = items.map(({ displayAmount: _d, ...rest }) => rest);
             const data = {
                 project_id: projectId,
-                branch_id: isCorporate ? branchId : undefined,
+                branch_id: isCorporate ? (branchId === "no_branch" ? null : branchId) : undefined,
                 purpose,
                 items: apiItems,
             };
@@ -257,13 +257,13 @@ const SubmitExpense = () => {
         }
         setItems(newItems);
         if (errors.items?.includes(index)) {
-             const item = newItems[index];
-             if (item.name && item.amount > 0) {
-                 setErrors({
-                     ...errors,
-                     items: errors.items.filter(i => i !== index)
-                 });
-             }
+            const item = newItems[index];
+            if (item.name && item.amount > 0) {
+                setErrors({
+                    ...errors,
+                    items: errors.items.filter(i => i !== index)
+                });
+            }
         }
     };
 
@@ -286,20 +286,20 @@ const SubmitExpense = () => {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const newErrors: typeof errors = {};
-        
+
         if (!projectId) {
             newErrors.project = true;
             toast.error("Выберите проект");
         }
         if (isCorporate && !branchId) {
             newErrors.branch = true;
-            toast.error("Выберите филиал");
+            toast.error("Выберите филиал (или «Нет филиала»)");
         }
         if (!purpose.trim()) {
             newErrors.purpose = true;
             toast.error("Введите цель расхода");
         }
-        
+
         const invalidItems = items.reduce((acc, item, idx) => {
             if (!item.name || item.amount <= 0) acc.push(idx);
             return acc;
@@ -354,7 +354,7 @@ const SubmitExpense = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2 animate-fade-in">
                             <Label className={errors.project ? "text-destructive" : ""}>Проект</Label>
-                            <Select value={projectId} onValueChange={(val) => { setProjectId(val); setErrors({...errors, project: false}); setBranchId(""); }}>
+                            <Select value={projectId} onValueChange={(val) => { setProjectId(val); setErrors({ ...errors, project: false }); setBranchId(""); }}>
                                 <SelectTrigger className={`rounded-xl ${errors.project ? "border-destructive ring-1 ring-destructive" : ""}`}>
                                     <SelectValue placeholder="Выберите проект" />
                                 </SelectTrigger>
@@ -371,7 +371,7 @@ const SubmitExpense = () => {
                         {isCorporate && (
                             <div className="space-y-2 animate-slide-in">
                                 <Label className={errors.branch ? "text-destructive" : ""}>Филиал</Label>
-                                <Select value={branchId} onValueChange={(val) => { setBranchId(val); setErrors({...errors, branch: false}) }}>
+                                <Select value={branchId} onValueChange={(val) => { setBranchId(val); setErrors({ ...errors, branch: false }) }}>
                                     <SelectTrigger className={`rounded-xl ${errors.branch ? "border-destructive ring-1 ring-destructive" : ""}`}>
                                         <SelectValue placeholder="Выберите филиал" />
                                     </SelectTrigger>
@@ -381,8 +381,11 @@ const SubmitExpense = () => {
                                                 {b.name}
                                             </SelectItem>
                                         ))}
+                                        <SelectItem value="no_branch" className="text-muted-foreground font-medium italic">
+                                            Нет филиала
+                                        </SelectItem>
                                         {branches.length === 0 && (
-                                            <div className="p-2 text-xs text-center text-muted-foreground">Нет филиалов</div>
+                                            <div className="p-2 text-[10px] text-center text-muted-foreground opacity-50">Блок филиалов пуст</div>
                                         )}
                                     </SelectContent>
                                 </Select>
@@ -395,7 +398,7 @@ const SubmitExpense = () => {
                         <Input
                             id="purpose"
                             value={purpose}
-                            onChange={(e) => { setPurpose(e.target.value); if(e.target.value) setErrors({...errors, purpose: false}) }}
+                            onChange={(e) => { setPurpose(e.target.value); if (e.target.value) setErrors({ ...errors, purpose: false }) }}
                             placeholder="Напр. Закупка канцелярии"
                             className={`rounded-xl ${errors.purpose ? "border-destructive ring-1 ring-destructive placeholder:text-destructive/50" : ""}`}
                         />

@@ -17,10 +17,10 @@ from app.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# Путь к шаблону — ищем сначала от корня проекта
+# Путь к шаблону
 _TEMPLATE_CANDIDATES = [
-    os.path.join(os.path.dirname(__file__), "../../../../Заявление_на_возврат_денег.docx"),
-    "Заявление_на_возврат_денег.docx",
+    os.path.join(os.path.dirname(__file__), "../docx/templates/возврат шаблон лс.docx"),
+    "возврат шаблон лс.docx",
 ]
 
 
@@ -30,8 +30,8 @@ def _find_template() -> str:
         if os.path.exists(normalized):
             return normalized
     raise FileNotFoundError(
-        "Шаблон 'Заявление_на_возврат_денег.docx' не найден. "
-        "Убедитесь, что файл лежит в корне проекта."
+        "Шаблон 'возврат шаблон лс.docx' не найден. "
+        "Убедитесь, что файл лежит в app/services/docx/templates/."
     )
 
 
@@ -51,7 +51,7 @@ def generate_application_docx(
     template_path: Optional[str] = None,
 ) -> io.BytesIO:
     """
-    Заполняет шаблон 'Заявление_на_возврат_денег.docx' и возвращает BytesIO.
+    Заполняет шаблон 'возврат шаблон лс.docx' и возвращает BytesIO.
 
     Все переменные шаблона передаются через context-словарь docxtpl.
     Имена переменных должны совпадать с {{ var_name }} в самом .docx.
@@ -65,6 +65,7 @@ def generate_application_docx(
     context = {
         # Данные заявителя
         "sender_name": sender_name,
+        "client_name": sender_name, # In short template it's {{ client_name }}
         "sender_position": sender_position or "Администратор",
         "branch": branch or "",
         "team": team or "",

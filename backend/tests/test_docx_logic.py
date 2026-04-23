@@ -15,7 +15,7 @@ def test_template_path_selection():
     # 1. Test refund template
     exp_refund = models.ExpenseRequest(request_type="refund")
     path = docx_service.get_template_path(exp_refund)
-    assert "Заявление_на_возврат_денег.docx" in path
+    assert "возврат шаблон лс.docx" in path
 
     # 2. Test explicit template key
     exp_land = models.ExpenseRequest(template_key="land")
@@ -74,7 +74,7 @@ def test_refund_data_mapping():
     
     data = docx_service.prepare_docx_data(exp)
     
-    assert data["client"] == "Alice Smith"
+    assert data["client_name"] == "Alice Smith"
     assert data["refund_amount"] == 50000
     assert data["reason_pereezd"] == "☑"
     assert data["reason_grafik"] == "□"

@@ -30,17 +30,13 @@ async def start_refund_wizard(message: types.Message, state: FSMContext):
 
     await state.update_data(user_id=user_id, team=user_team, branches_data=user_branches)
     
-    if len(user_branches) > 1:
+    if len(user_branches) != 1:
         from ..keyboards import get_branches_kb
         await message.answer("Выберите филиал:", reply_markup=get_branches_kb(user_branches))
         await state.set_state(RefundWizard.branch_selection)
-    elif len(user_branches) == 1:
-        await state.update_data(branch=user_branches[0]["name"], branch_id=user_branches[0]["id"])
-        await message.answer("Шаг 1/4 — ID ученика:", reply_markup=types.ReplyKeyboardRemove())
-        await state.set_state(RefundWizard.student_id)
     else:
-        # No branches - maybe just proceed without branch or fail?
-        # For refunds, branch is usually required in create_refund
+        # Exactly one branch - auto-select
+        await state.update_data(branch=user_branches[0]["name"], branch_id=user_branches[0]["id"])
         await message.answer("Шаг 1/4 — ID ученика:", reply_markup=types.ReplyKeyboardRemove())
         await state.set_state(RefundWizard.student_id)
 
@@ -57,6 +53,10 @@ async def process_refund_branch_selection(message: types.Message, state: FSMCont
     if selected:
         await state.update_data(branch=selected["name"], branch_id=selected["id"])
         await message.answer("Шаг 1/4 — ID ученика:", reply_markup=types.ReplyKeyboardRemove())
+        await state.set_state(RefundWizard.student_id)
+    elif message.text == "Нет филиала":
+        await state.update_data(branch=None, branch_id=None)
+        await message.answer("Продолжаем без филиала.\nШаг 1/4 — ID ученика:", reply_markup=types.ReplyKeyboardRemove())
         await state.set_state(RefundWizard.student_id)
     else:
         from ..keyboards import get_branches_kb

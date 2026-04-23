@@ -73,7 +73,7 @@ async def start_wizard_selection(message: types.Message, state: FSMContext):
         proj = projects_data[0]
         await state.update_data(project_id=proj["id"], user_id=user_id, projects_data=projects_data)
         
-        if proj["category"] == "corporate" and proj["branches_data"]:
+        if proj["category"] == "corporate":
             await message.answer("Выберите филиал:", reply_markup=get_branches_kb(proj["branches_data"]))
             await state.set_state(ExpenseWizard.branch_selection)
             return
@@ -129,7 +129,7 @@ async def process_project_selection(message: types.Message, state: FSMContext):
     if project_obj:
         await state.update_data(project_id=project_obj["id"], projects_data=projects_data)
         
-        if project_obj["category"] == "corporate" and project_obj["branches_data"]:
+        if project_obj["category"] == "corporate":
             await message.answer("Выберите филиал:", reply_markup=get_branches_kb(project_obj["branches_data"]))
             await state.set_state(ExpenseWizard.branch_selection)
             return
@@ -172,6 +172,10 @@ async def process_branch_selection(message: types.Message, state: FSMContext):
         if selected:
             await state.update_data(branch_id=selected["id"])
             await message.answer("Филиал выбран. Введите дату:", reply_markup=get_date_kb())
+            await state.set_state(ExpenseWizard.date)
+        elif message.text == "Нет филиала":
+            await state.update_data(branch_id=None)
+            await message.answer("Продолжаем без филиала. Введите дату:", reply_markup=get_date_kb())
             await state.set_state(ExpenseWizard.date)
         else:
             await message.answer("Выберите из списка или отмените.", reply_markup=get_branches_kb(branches))

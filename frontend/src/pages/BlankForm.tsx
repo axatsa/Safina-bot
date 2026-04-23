@@ -58,16 +58,16 @@ const BlankForm = () => {
   const { data: projects = [] } = useQuery({
     queryKey: ["projects", chatId],
     queryFn: async () => {
-        let list = [];
-        if (chatId) {
-            list = await store.getProjectsByChatId(chatId);
-        } else {
-            list = await store.getProjects();
-        }
-        if (list.length === 1 && !projectId) {
-            setProjectId(list[0].id);
-        }
-        return list;
+      let list = [];
+      if (chatId) {
+        list = await store.getProjectsByChatId(chatId);
+      } else {
+        list = await store.getProjects();
+      }
+      if (list.length === 1 && !projectId) {
+        setProjectId(list[0].id);
+      }
+      return list;
     },
   });
 
@@ -115,14 +115,14 @@ const BlankForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!projectId) {
-        toast.error("Выберите проект");
-        return;
+      toast.error("Выберите проект");
+      return;
     }
     if (isCorporate && !branchId) {
-        toast.error("Выберите филиал");
-        return;
+      toast.error("Выберите филиал");
+      return;
     }
 
     setLoading(true);
@@ -148,7 +148,7 @@ const BlankForm = () => {
           ...refundData,
           chat_id: chatId || null,
           project_id: projectId,
-          branch_id: isCorporate ? branchId : undefined,
+          branch_id: isCorporate ? (branchId === "no_branch" ? null : branchId) : undefined,
         };
         await store.submitRefundApplicationFromWeb(payload);
         toast.success("Заявление на возврат отправлено Сафине!");
@@ -159,7 +159,7 @@ const BlankForm = () => {
           items,
           chat_id: chatId || null,
           project_id: projectId,
-          branch_id: isCorporate ? branchId : undefined,
+          branch_id: isCorporate ? (branchId === "no_branch" ? null : branchId) : undefined,
         };
         await store.submitBlankFromWeb(payload);
         toast.success("Заявка успешно отправлена Сафине!");
@@ -220,42 +220,45 @@ const BlankForm = () => {
         <form onSubmit={handleSubmit} className="glass-card p-6 md:p-8 rounded-2xl border space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {!searchParams.get("project_id") && projects.length > 0 && (
-                <div className="space-y-2">
-                    <Label>Проект</Label>
-                    <Select value={projectId} onValueChange={(val) => { setProjectId(val); setBranchId(""); }}>
-                        <SelectTrigger className="rounded-xl">
-                            <SelectValue placeholder="Выберите проект" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {projects.map((p: any) => (
-                                <SelectItem key={p.id} value={p.id}>
-                                    {p.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+              <div className="space-y-2">
+                <Label>Проект</Label>
+                <Select value={projectId} onValueChange={(val) => { setProjectId(val); setBranchId(""); }}>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Выберите проект" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((p: any) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
-            
+
             {isCorporate && (
-                <div className="space-y-2 animate-slide-in">
-                    <Label>Филиал</Label>
-                    <Select value={branchId} onValueChange={setBranchId}>
-                        <SelectTrigger className="rounded-xl">
-                            <SelectValue placeholder="Выберите филиал" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {branches.map((b: any) => (
-                                <SelectItem key={b.id} value={b.id}>
-                                    {b.name}
-                                </SelectItem>
-                            ))}
-                            {branches.length === 0 && (
-                                <div className="p-2 text-xs text-center text-muted-foreground">Нет филиалов</div>
-                            )}
-                        </SelectContent>
-                    </Select>
-                </div>
+              <div className="space-y-2 animate-slide-in">
+                <Label>Филиал</Label>
+                <Select value={branchId} onValueChange={setBranchId}>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Выберите филиал" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b: any) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="no_branch" className="text-muted-foreground font-medium italic">
+                      Нет филиала
+                    </SelectItem>
+                    {branches.length === 0 && (
+                      <div className="p-2 text-[10px] text-center text-muted-foreground opacity-50">Блок филиалов пуст</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
 
@@ -348,41 +351,41 @@ const BlankForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>ФИО Клиента</Label>
-                  <Input value={refundData.client_name} onChange={(e) => setRefundData({...refundData, client_name: e.target.value})} />
+                  <Input value={refundData.client_name} onChange={(e) => setRefundData({ ...refundData, client_name: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Телефон</Label>
-                  <Input inputMode="tel" value={refundData.phone} onChange={(e) => setRefundData({...refundData, phone: e.target.value})} placeholder="+998 xx xxx xx xx" />
+                  <Input inputMode="tel" value={refundData.phone} onChange={(e) => setRefundData({ ...refundData, phone: e.target.value })} placeholder="+998 xx xxx xx xx" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-2">
                     <Label>Серия паспорта</Label>
-                    <Input value={refundData.passport_series} onChange={(e) => setRefundData({...refundData, passport_series: e.target.value})} />
+                    <Input value={refundData.passport_series} onChange={(e) => setRefundData({ ...refundData, passport_series: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Номер паспорта</Label>
-                    <Input value={refundData.passport_number} onChange={(e) => setRefundData({...refundData, passport_number: e.target.value})} />
+                    <Input value={refundData.passport_number} onChange={(e) => setRefundData({ ...refundData, passport_number: e.target.value })} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Кем выдан паспорт</Label>
-                  <Input value={refundData.passport_issued_by} onChange={(e) => setRefundData({...refundData, passport_issued_by: e.target.value})} />
+                  <Input value={refundData.passport_issued_by} onChange={(e) => setRefundData({ ...refundData, passport_issued_by: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Дата выдачи паспорта</Label>
-                  <Input type="date" value={refundData.passport_date} onChange={(e) => setRefundData({...refundData, passport_date: e.target.value})} />
+                  <Input type="date" value={refundData.passport_date} onChange={(e) => setRefundData({ ...refundData, passport_date: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Номер оферты/договора</Label>
-                  <Input value={refundData.contract_number} onChange={(e) => setRefundData({...refundData, contract_number: e.target.value})} />
+                  <Input value={refundData.contract_number} onChange={(e) => setRefundData({ ...refundData, contract_number: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Дата оферты/договора</Label>
-                  <Input type="date" value={refundData.contract_date} onChange={(e) => setRefundData({...refundData, contract_date: e.target.value})} />
+                  <Input type="date" value={refundData.contract_date} onChange={(e) => setRefundData({ ...refundData, contract_date: e.target.value })} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Причина</Label>
-                  <Select value={refundData.reason} onValueChange={(val) => setRefundData({...refundData, reason: val})}>
+                  <Select value={refundData.reason} onValueChange={(val) => setRefundData({ ...refundData, reason: val })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Переезд">Переезд</SelectItem>
@@ -396,9 +399,9 @@ const BlankForm = () => {
                 {refundData.reason === "Другое" && (
                   <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-1">
                     <Label className="text-sm font-medium">Укажите причину <span className="text-destructive">*</span></Label>
-                    <Input 
-                      value={refundData.reason_other} 
-                      onChange={(e) => setRefundData({...refundData, reason_other: e.target.value})} 
+                    <Input
+                      value={refundData.reason_other}
+                      onChange={(e) => setRefundData({ ...refundData, reason_other: e.target.value })}
                       placeholder="Опишите причину возврата..."
                       required
                     />
@@ -406,33 +409,33 @@ const BlankForm = () => {
                 )}
                 <div className="space-y-2">
                   <Label>Сумма цифрами</Label>
-                  <Input 
+                  <Input
                     type="text"
-                    inputMode="numeric" 
-                    value={refundData.amount === 0 ? "" : refundData.amount.toLocaleString("ru-RU")} 
-                    onChange={(e) => handleRefundAmountChange(e.target.value)} 
-                    placeholder="1 000 000" 
+                    inputMode="numeric"
+                    value={refundData.amount === 0 ? "" : refundData.amount.toLocaleString("ru-RU")}
+                    onChange={(e) => handleRefundAmountChange(e.target.value)}
+                    placeholder="1 000 000"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Сумма прописью</Label>
-                  <Input value={refundData.amount_words} onChange={(e) => setRefundData({...refundData, amount_words: e.target.value})} />
+                  <Input value={refundData.amount_words} onChange={(e) => setRefundData({ ...refundData, amount_words: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>ФИО владельца карты</Label>
-                  <Input value={refundData.card_holder} onChange={(e) => setRefundData({...refundData, card_holder: e.target.value})} />
+                  <Input value={refundData.card_holder} onChange={(e) => setRefundData({ ...refundData, card_holder: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Номер карты</Label>
-                  <Input inputMode="numeric" maxLength={19} value={refundData.card_number} onChange={(e) => setRefundData({...refundData, card_number: e.target.value})} placeholder="8600 0000 0000 0000" />
+                  <Input inputMode="numeric" maxLength={19} value={refundData.card_number} onChange={(e) => setRefundData({ ...refundData, card_number: e.target.value })} placeholder="8600 0000 0000 0000" />
                 </div>
                 <div className="space-y-2">
                   <Label>Транзитный счет банка (если есть)</Label>
-                  <Input value={refundData.transit_account} onChange={(e) => setRefundData({...refundData, transit_account: e.target.value})} />
+                  <Input value={refundData.transit_account} onChange={(e) => setRefundData({ ...refundData, transit_account: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Название банка и филиал</Label>
-                  <Input value={refundData.bank_name} onChange={(e) => setRefundData({...refundData, bank_name: e.target.value})} />
+                  <Input value={refundData.bank_name} onChange={(e) => setRefundData({ ...refundData, bank_name: e.target.value })} />
                 </div>
 
                 {/* Удержание */}
@@ -445,7 +448,7 @@ const BlankForm = () => {
                     <Switch
                       id="retention-blank"
                       checked={refundData.retention}
-                      onCheckedChange={(val) => setRefundData({...refundData, retention: val})}
+                      onCheckedChange={(val) => setRefundData({ ...refundData, retention: val })}
                     />
                     <span className={`text-xs font-bold w-16 ${refundData.retention ? "text-amber-700" : "text-muted-foreground"}`}>
                       {refundData.retention ? "ДА (ЕСТЬ)" : "НЕТ (БЕЗ)"}

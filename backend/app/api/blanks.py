@@ -64,7 +64,7 @@ async def generate_blank(
         "ls": "School.docx", # LS uses School template per common practice in this bot, or we can use a dedicated one if it exists
         "management": "Management.docx",
         "school": "School.docx",
-        "refund": "Заявление_на_возврат_денег.docx"
+        "refund": "возврат шаблон лс.docx"
     }
     
     if request.template not in template_name_map:

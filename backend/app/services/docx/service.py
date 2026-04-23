@@ -8,7 +8,7 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
 class DocxService:
     DEFAULT_TEMPLATE = "Management.docx"
-    REFUND_TEMPLATE = "Заявление_на_возврат_денег.docx"
+    REFUND_TEMPLATE = "возврат шаблон лс.docx"
     
     BRANCH_MAPPING = {
         "school": "School.docx",
@@ -142,14 +142,22 @@ class DocxService:
                     data[field] = BLANK_UNDERSCORE
 
             # Ensure some common keys are also available as top-level if needed by templates
-            if "client_name" in rd:
-                data["client"] = rd["client_name"]
+            # Специальные поля для нового шаблона ЛС
+            data["student_id"] = rd.get("student_id", "")
+            data["retention"] = "Да" if rd.get("retention") in [True, "true", "yes", "Да", 1] else "Нет"
+            data["car_number"] = rd.get("card_number", "") # Поддержка опечатки {{ car_number }} со скриншота
+            
             if "amount" in rd:
+                data["amount"] = rd["amount"]
                 data["refund_amount"] = rd["amount"]
-                try:
-                    data["total_amount"] = Decimal(str(rd["amount"]))
-                except Exception:
-                    data["total_amount"] = Decimal("0")
+                
+            # Formatting for the new template
+            data["date_now"] = data.get("date")
+            data["amount_formatted"] = f"{float(rd.get('amount', 0)):,.0f}".replace(",", " ") if rd.get("amount") else "0"
+            try:
+                data["total_amount"] = Decimal(str(rd.get("amount", 0)))
+            except Exception:
+                data["total_amount"] = Decimal("0")
             
         return data
 
