@@ -496,19 +496,11 @@ const ExpenseDetail = () => {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
                 {[
-                  { label: "ФИО Клиента", value: expense.refundData.client_name },
-                  { label: "Паспорт", value: [expense.refundData.passport_series, expense.refundData.passport_number].filter(Boolean).join(" ") || null },
-                  { label: "Кем выдан", value: expense.refundData.passport_issued_by },
-                  { label: "Дата выдачи", value: expense.refundData.passport_date },
-                  { label: "Телефон", value: expense.refundData.phone },
-                  { label: "Договор/Оферта", value: [expense.refundData.contract_number && `№${expense.refundData.contract_number}`, expense.refundData.contract_date && `от ${expense.refundData.contract_date}`].filter(Boolean).join(" ") || null },
+                  { label: "ID Ученика", value: expense.refundData.student_id },
                   { label: "Причина", value: expense.refundData.reason === "Другое" && expense.refundData.reason_other ? `Другое (${expense.refundData.reason_other})` : expense.refundData.reason },
                   { label: "Сумма возврата", value: formatCurrency(Number(expense.refundData.amount || 0), "UZS") },
-                  { label: "Сумма прописью", value: expense.refundData.amount_words },
-                  { label: "Владелец карты", value: expense.refundData.card_holder },
                   { label: "Номер карты", value: expense.refundData.card_number },
-                  { label: "Транзит. счет", value: expense.refundData.transit_account },
-                  { label: "Банк", value: expense.refundData.bank_name },
+                  { label: "Удержание", value: expense.refundData.retention ? "Да ✅" : "Нет ❌" },
                 ].map((row, i) => (
                   <div key={i} className="flex flex-col">
                     <span className="text-[10px] text-muted-foreground uppercase font-semibold">{row.label}</span>
@@ -705,8 +697,8 @@ const ExpenseDetail = () => {
                     key={member.id}
                     onClick={() => toggleRecipient(member.id)}
                     className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${selectedRecipients.includes(member.id)
-                        ? "bg-primary/5 border-primary/30"
-                        : "hover:bg-muted/50 border-transparent"
+                      ? "bg-primary/5 border-primary/30"
+                      : "hover:bg-muted/50 border-transparent"
                       }`}
                   >
                     <div className="flex flex-col">
