@@ -31,7 +31,7 @@ class BranchRepository(BaseRepository[Branch, BranchCreate, BranchBase]):
         existing_counter = db.query(ProjectCounter).filter(ProjectCounter.project_code == code).first()
         
         if existing_branch or existing_counter:
-            code = f"{code}-{uuid.uuid4().hex[:4].upper()}"
+            raise ValueError(f"Код филиала '{code}' уже занят. Пожалуйста, используйте другое название или свяжитесь с администратором.")
 
         db_obj = Branch(
             name=name,

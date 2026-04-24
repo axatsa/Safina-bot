@@ -13,14 +13,18 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 
 const kanbanColors: Record<string, string> = {
-  request:        "kanban-request",
-  review:         "kanban-review",
-  confirmed:      "kanban-confirmed",
-  declined:       "kanban-declined",
-  revision:       "kanban-revision",
+  request: "kanban-request",
+  review: "kanban-review",
+  confirmed: "kanban-confirmed",
+  declined: "kanban-declined",
+  revision: "kanban-revision",
   pending_senior: "kanban-review",
-  pending_ceo:    "kanban-review",
-  archived:       "kanban-archived",
+  approved_senior: "kanban-confirmed",
+  pending_ceo: "kanban-review",
+  approved_ceo: "kanban-confirmed",
+  rejected_senior: "kanban-declined",
+  rejected_ceo: "kanban-declined",
+  archived: "kanban-archived",
 };
 
 const Applications = () => {
@@ -39,17 +43,17 @@ const Applications = () => {
 
   // Fecthing expenses via React Query
   const { data: expensesPage, isLoading, isFetching } = useQuery({
-    queryKey: ["expenses", { 
-      skip, 
+    queryKey: ["expenses", {
+      skip,
       projectIds: selectedProjectIds,
       branchIds: selectedBranchIds,
-      user: selectedUser, 
-      search: searchQuery, 
+      user: selectedUser,
+      search: searchQuery,
       from: dateRange.from?.toISOString(),
       to: dateRange.to?.toISOString()
     }],
-    queryFn: () => store.getExpenses({ 
-      skip, 
+    queryFn: () => store.getExpenses({
+      skip,
       limit: LIMIT,
       projectIds: selectedProjectIds,
       branchIds: selectedBranchIds,
@@ -176,9 +180,9 @@ const Applications = () => {
   const isFarrukh = store.isFarrukh();
 
   const activeStatuses = isFarrukh
-    ? (["pending_senior", "approved_senior", "rejected_senior", "confirmed", "declined"] as ExpenseStatus[])
+    ? (["pending_senior", "approved_senior", "pending_ceo", "approved_ceo", "confirmed", "declined"] as ExpenseStatus[])
     // Admin sees ALL actionable statuses including new «request» submissions
-    : (["request", "review", "confirmed", "declined", "revision"] as ExpenseStatus[]);
+    : (["request", "review", "pending_senior", "approved_senior", "pending_ceo", "approved_ceo", "confirmed", "declined", "revision"] as ExpenseStatus[]);
 
   // ── JSX: standard kanban for admin / user ─────────────────────────────────
   return (
@@ -248,8 +252,8 @@ const Applications = () => {
                 const isCollapsed = !!collapsedColumns[statusKey];
 
                 return (
-                  <div 
-                    key={statusKey} 
+                  <div
+                    key={statusKey}
                     className={`rounded-xl border bg-card overflow-hidden shrink-0 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-14' : 'w-[280px] lg:w-auto lg:flex-1 lg:min-w-[250px]'}`}
                   >
                     <button
@@ -272,9 +276,8 @@ const Applications = () => {
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          className={`p-2 space-y-2 min-h-[120px] transition-colors ${
-                            snapshot.isDraggingOver ? "bg-accent/30" : ""
-                          }`}
+                          className={`p-2 space-y-2 min-h-[120px] transition-colors ${snapshot.isDraggingOver ? "bg-accent/30" : ""
+                            }`}
                         >
                           {items.map((expense, index) => (
                             <Draggable key={expense.id} draggableId={expense.id} index={index}>
@@ -317,7 +320,7 @@ const Applications = () => {
         <p className="text-sm text-muted-foreground">
           Показано {allExpenses.length} из {expensesPage?.total ?? 0} инвестиций
         </p>
-        
+
         {expensesPage?.has_more && (
           <button
             onClick={() => setSkip(prev => prev + LIMIT)}

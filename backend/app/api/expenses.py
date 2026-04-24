@@ -155,7 +155,7 @@ async def web_submit_expense(
     if user is None:
         raise HTTPException(
             status_code=401,
-            detail="Не удалось определить пользователя. Войдите в систему или откройте через Telegram."
+            detail="Не удалось определить пользователя. Пожалуйста, закройте это окно и переоткройте форму из Telegram-бота или войдите в панель управления."
         )
 
     items = []
@@ -223,7 +223,7 @@ async def web_submit_refund(
             pass
 
     if user is None:
-        raise HTTPException(status_code=401, detail="Не удалось определить пользователя. Войдите в систему или откройте через Telegram.")
+        raise HTTPException(status_code=401, detail="Не удалось определить пользователя. Пожалуйста, закройте это окно и переоткройте форму из Telegram-бота или войдите в панель управления.")
 
     retention_bool = retention.lower() == "true"
 
@@ -278,7 +278,7 @@ async def web_submit_blank(
             pass
 
     if user is None:
-        raise HTTPException(status_code=401, detail="Не удалось определить пользователя. Войдите в систему или откройте через Telegram.")
+        raise HTTPException(status_code=401, detail="Не удалось определить пользователя. Пожалуйста, закройте это окно и переоткройте форму из Telegram-бота или войдите в панель управления.")
     current_user = user
     # Validation
     tpl = data.get("template")
@@ -349,7 +349,7 @@ async def web_submit_refund_application(
             pass
 
     if user is None:
-        raise HTTPException(status_code=401, detail="Не удалось определить пользователя. Войдите в систему или откройте через Telegram.")
+        raise HTTPException(status_code=401, detail="Не удалось определить пользователя. Пожалуйста, закройте это окно и переоткройте форму из Telegram-бота или войдите в панель управления.")
     current_user = user
 
     purpose = f"Возврат: {data.get('client_name')} ({data.get('contract_number', 'б/н')})"
@@ -778,8 +778,6 @@ def export_expenses(
             amount_uzs = item_amount_native
             if item_currency == "USD" and usd_rate:
                 amount_uzs = item_amount_native * usd_rate
-            elif item_currency == "RUB" and usd_rate: # Assuming RUB to UZS conversion via USD rate if available
-                amount_uzs = item_amount_native / Decimal("100") * usd_rate # Example conversion, adjust as needed
 
             writer.writerow([
                 e.request_id,

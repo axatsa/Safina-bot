@@ -4,9 +4,9 @@ import { store } from "@/lib/store";
 import { ExpenseRequest, ExpenseStatus, STATUS_LABELS } from "@/lib/types";
 import CompactExpenseCard from "@/components/CompactExpenseCard";
 import ExpenseCard from "@/components/ExpenseCard";
-import { 
-  Loader2, RefreshCw, Download, 
-  ClipboardList, ChevronDown, ChevronRight 
+import {
+  Loader2, RefreshCw, Download,
+  ClipboardList, ChevronDown, ChevronRight
 } from "lucide-react";
 import FilterBar from "@/components/FilterBar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -50,7 +50,7 @@ const Refunds = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [collapsedColumns, setCollapsedColumns] = useState<Record<string, boolean>>({});
-  
+
   // Filters
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
@@ -59,7 +59,7 @@ const Refunds = () => {
 
   const { data: expensesPage, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["expenses-refunds"],
-    queryFn: () => store.getExpenses({ 
+    queryFn: () => store.getExpenses({
       limit: 1000, // Fetch all for kanban
     }),
     refetchInterval: 30000,
@@ -87,37 +87,37 @@ const Refunds = () => {
 
     // Project & Branch Filter
     if (selectedProjectIds.length > 0) {
-        items = items.filter(e => e.projectId && selectedProjectIds.includes(e.projectId));
+      items = items.filter(e => e.projectId && selectedProjectIds.includes(e.projectId));
     }
     if (selectedBranchIds.length > 0) {
-        items = items.filter(e => e.branchId && selectedBranchIds.includes(e.branchId));
+      items = items.filter(e => e.branchId && selectedBranchIds.includes(e.branchId));
     }
 
     // User Filter
     if (selectedUser !== "all") {
-        items = items.filter(e => e.createdById === selectedUser);
+      items = items.filter(e => e.createdById === selectedUser);
     }
 
     // Date Range Filter
     if (dateRange.from) {
-        const start = new Date(dateRange.from);
-        start.setHours(0, 0, 0, 0);
-        items = items.filter(e => new Date(e.date) >= start);
+      const start = new Date(dateRange.from);
+      start.setHours(0, 0, 0, 0);
+      items = items.filter(e => new Date(e.date) >= start);
     }
     if (dateRange.to) {
-        const end = new Date(dateRange.to);
-        end.setHours(23, 59, 59, 999);
-        items = items.filter(e => new Date(e.date) <= end);
+      const end = new Date(dateRange.to);
+      end.setHours(23, 59, 59, 999);
+      items = items.filter(e => new Date(e.date) <= end);
     }
 
     // Search Filter
     if (search) {
-        const q = search.toLowerCase();
-        items = items.filter((e) =>
-          e.requestId?.toLowerCase().includes(q) ||
-          e.createdBy?.toLowerCase().includes(q) ||
-          e.purpose?.toLowerCase().includes(q)
-        );
+      const q = search.toLowerCase();
+      items = items.filter((e) =>
+        e.requestId?.toLowerCase().includes(q) ||
+        e.createdBy?.toLowerCase().includes(q) ||
+        e.purpose?.toLowerCase().includes(q)
+      );
     }
 
     return items;
@@ -149,14 +149,14 @@ const Refunds = () => {
     // Use the first status of the column as the target, 
     // but only if the item isn't already in one of the column's statuses
     if (!column.statuses.includes(item.status)) {
-        const newStatus = column.statuses[0];
-        
-        if (newStatus === "declined" || newStatus === "revision") {
-            toast.info("Для этого статуса требуется комментарий. Откройте детали заявления.");
-            return;
-        }
-        
-        mutation.mutate({ id: draggableId, status: newStatus });
+      const newStatus = column.statuses[0];
+
+      if (newStatus === "declined" || newStatus === "revision") {
+        toast.info("Для этого статуса требуется комментарий. Откройте детали заявления.");
+        return;
+      }
+
+      mutation.mutate({ id: draggableId, status: newStatus });
     }
   };
 
@@ -180,14 +180,14 @@ const Refunds = () => {
           <p className="text-sm text-muted-foreground mt-1">Канбан-доска заявлений на возврат</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => store.exportXLSX({ 
-              projectIds: selectedProjectIds,
-              branchIds: selectedBranchIds,
-              user: selectedUser,
-              search: search,
-              from: dateRange.from?.toISOString(),
-              to: dateRange.to?.toISOString(),
-              request_type: "refund,blank_refund" 
+          <Button variant="outline" size="sm" onClick={() => store.exportXLSX({
+            projectIds: selectedProjectIds,
+            branchIds: selectedBranchIds,
+            user: selectedUser,
+            search: search,
+            from: dateRange.from?.toISOString(),
+            to: dateRange.to?.toISOString(),
+            request_type: "refund,blank_refund"
           })}>
             <Download className="w-4 h-4 mr-2" />
             Экспорт
@@ -210,7 +210,7 @@ const Refunds = () => {
         onUserChange={setSelectedUser}
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
-        onExport={() => {}} // Not used in this context but required by prop types
+        onExport={() => { }} // Not used in this context but required by prop types
         searchQuery={search}
         onSearchChange={setSearch}
         hideExport // We have our own Export button in the header
@@ -223,60 +223,60 @@ const Refunds = () => {
             const isCollapsed = !!collapsedColumns[column.id];
 
             return (
-              <div 
-                key={column.id} 
+              <div
+                key={column.id}
                 className={`flex flex-col rounded-xl border bg-muted/30 shrink-0 transition-all duration-300 ${isCollapsed ? 'w-12 basis-12' : 'w-80 lg:w-auto lg:flex-1 lg:min-w-[280px]'}`}
               >
-                <div 
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-t-xl border-b font-display font-bold text-xs uppercase tracking-wider ${column.headerClass} ${isCollapsed ? 'flex-col py-4' : ''}`}
-                    onClick={() => toggleColumn(column.id)}
-                    role="button"
+                <div
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-t-xl border-b font-display font-bold text-xs uppercase tracking-wider ${column.headerClass} ${isCollapsed ? 'flex-col py-4' : ''}`}
+                  onClick={() => toggleColumn(column.id)}
+                  role="button"
                 >
-                    {isCollapsed ? (
-                        <ChevronRight className="w-4 h-4" />
-                    ) : (
-                        <ChevronDown className="w-4 h-4" />
-                    )}
-                    <span className={isCollapsed ? 'vertical-text mt-4' : ''}>{column.label}</span>
-                    {!isCollapsed && (
-                        <span className="ml-auto bg-white/20 px-2 py-0.5 rounded-full text-[10px]">
-                            {items.length}
-                        </span>
-                    )}
+                  {isCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                  <span className={isCollapsed ? 'vertical-text mt-4' : ''}>{column.label}</span>
+                  {!isCollapsed && (
+                    <span className="ml-auto bg-white/20 px-2 py-0.5 rounded-full text-[10px]">
+                      {items.length}
+                    </span>
+                  )}
                 </div>
 
                 {!isCollapsed && (
-                    <Droppable droppableId={column.id}>
-                        {(provided, snapshot) => (
-                            <div
-                                ref={provided.innerRef}
-                                {...provided.droppableProps}
-                                className={`flex-1 p-2 space-y-3 transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
-                            >
-                                {items.map((refund, index) => (
-                                    <Draggable key={refund.id} draggableId={refund.id} index={index}>
-                                        {(dragProvided, dragSnapshot) => (
-                                            <div
-                                                ref={dragProvided.innerRef}
-                                                {...dragProvided.draggableProps}
-                                                {...dragProvided.dragHandleProps}
-                                                className={dragSnapshot.isDragging ? "opacity-80 rotate-1 scale-105" : ""}
-                                            >
-                                                <ExpenseCard expense={refund} />
-                                            </div>
-                                        )}
-                                    </Draggable>
-                                ))}
-                                {provided.placeholder}
-                                {items.length === 0 && (
-                                    <div className="flex flex-col items-center justify-center py-12 text-center opacity-30 select-none">
-                                        <ClipboardList className="w-10 h-10 mb-2" />
-                                        <p className="text-xs font-medium">Пусто</p>
-                                    </div>
-                                )}
-                            </div>
+                  <Droppable droppableId={column.id}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`flex-1 p-2 space-y-3 transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
+                      >
+                        {items.map((refund, index) => (
+                          <Draggable key={refund.id} draggableId={refund.id} index={index}>
+                            {(dragProvided, dragSnapshot) => (
+                              <div
+                                ref={dragProvided.innerRef}
+                                {...dragProvided.draggableProps}
+                                {...dragProvided.dragHandleProps}
+                                className={dragSnapshot.isDragging ? "opacity-80 rotate-1 scale-105" : ""}
+                              >
+                                <ExpenseCard expense={refund} />
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                        {items.length === 0 && (
+                          <div className="flex flex-col items-center justify-center py-12 text-center opacity-30 select-none">
+                            <ClipboardList className="w-10 h-10 mb-2" />
+                            <p className="text-xs font-medium">Пусто</p>
+                          </div>
                         )}
-                    </Droppable>
+                      </div>
+                    )}
+                  </Droppable>
                 )}
               </div>
             );
