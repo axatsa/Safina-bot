@@ -35,21 +35,11 @@ const BlankForm = () => {
   // Refund application fields
   const [refundData, setRefundData] = useState({
     client_name: "",
-    passport_series: "",
-    passport_number: "",
-    passport_issued_by: "",
-    passport_date: "",
-    phone: "",
-    contract_number: "",
-    contract_date: "",
+    student_id: "",
     reason: "",
     reason_other: "",
     amount: 0,
-    amount_words: "",
-    card_holder: "",
     card_number: "",
-    transit_account: "",
-    bank_name: "",
     retention: false,
   });
 
@@ -347,46 +337,19 @@ const BlankForm = () => {
             </>
           ) : (
             <>
-              {/* Refund Application Form - Multi-column/compact */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>ФИО Клиента</Label>
-                  <Input value={refundData.client_name} onChange={(e) => setRefundData({ ...refundData, client_name: e.target.value })} />
+                  <Input value={refundData.client_name} onChange={(e) => setRefundData({ ...refundData, client_name: e.target.value })} placeholder="Иванов Иван" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Телефон</Label>
-                  <Input inputMode="tel" value={refundData.phone} onChange={(e) => setRefundData({ ...refundData, phone: e.target.value })} placeholder="+998 xx xxx xx xx" />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-2">
-                    <Label>Серия паспорта</Label>
-                    <Input value={refundData.passport_series} onChange={(e) => setRefundData({ ...refundData, passport_series: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Номер паспорта</Label>
-                    <Input value={refundData.passport_number} onChange={(e) => setRefundData({ ...refundData, passport_number: e.target.value })} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Кем выдан паспорт</Label>
-                  <Input value={refundData.passport_issued_by} onChange={(e) => setRefundData({ ...refundData, passport_issued_by: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Дата выдачи паспорта</Label>
-                  <Input type="date" value={refundData.passport_date} onChange={(e) => setRefundData({ ...refundData, passport_date: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Номер оферты/договора</Label>
-                  <Input value={refundData.contract_number} onChange={(e) => setRefundData({ ...refundData, contract_number: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Дата оферты/договора</Label>
-                  <Input type="date" value={refundData.contract_date} onChange={(e) => setRefundData({ ...refundData, contract_date: e.target.value })} />
+                  <Label>ID Ученика</Label>
+                  <Input value={refundData.student_id} onChange={(e) => setRefundData({ ...refundData, student_id: e.target.value })} placeholder="Напр. 12345" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Причина</Label>
                   <Select value={refundData.reason} onValueChange={(val) => setRefundData({ ...refundData, reason: val })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Выберите одну из причин" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Переезд">Переезд</SelectItem>
                       <SelectItem value="Изменение графика">Изменение графика</SelectItem>
@@ -418,24 +381,8 @@ const BlankForm = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Сумма прописью</Label>
-                  <Input value={refundData.amount_words} onChange={(e) => setRefundData({ ...refundData, amount_words: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>ФИО владельца карты</Label>
-                  <Input value={refundData.card_holder} onChange={(e) => setRefundData({ ...refundData, card_holder: e.target.value })} />
-                </div>
-                <div className="space-y-2">
                   <Label>Номер карты</Label>
                   <Input inputMode="numeric" maxLength={19} value={refundData.card_number} onChange={(e) => setRefundData({ ...refundData, card_number: e.target.value })} placeholder="8600 0000 0000 0000" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Транзитный счет банка (если есть)</Label>
-                  <Input value={refundData.transit_account} onChange={(e) => setRefundData({ ...refundData, transit_account: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Название банка и филиал</Label>
-                  <Input value={refundData.bank_name} onChange={(e) => setRefundData({ ...refundData, bank_name: e.target.value })} />
                 </div>
 
                 {/* Удержание */}
