@@ -1,20 +1,19 @@
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
-from aiogram.types import WebAppInfo
 from sqlalchemy.orm import joinedload
-from app.core import database, auth
+from app.core import database
 from app.db import models, schemas
 from app.services.core.expense_service import expense_service
 from ..states import RefundBlankWizard
 from ..keyboards import (
-    get_main_kb, get_fill_method_kb, get_back_kb, 
-    get_skip_back_kb, get_refund_reasons_kb, get_retention_kb,
+    get_main_kb, get_back_kb, 
+    get_refund_reasons_kb, get_retention_kb,
     get_projects_kb, get_branches_kb
 )
 from ..utils import _BACK
 import os
-import datetime
+import re
 from decimal import Decimal
 
 router = Router()
@@ -58,7 +57,7 @@ async def start_direct_refund_bot(message: types.Message, state: FSMContext):
                 "branches_data": [{"id": b.id, "name": b.name} for b in filtered_branches]
             })
 
-    await state.update_data(user_id=user_id)
+    await state.update_data(user_id=user_id, projects_data=projects_data)
     
     if not projects_data:
         await message.answer("У вас нет привязанных проектов. Обратитесь к Сафине.")
@@ -66,23 +65,23 @@ async def start_direct_refund_bot(message: types.Message, state: FSMContext):
 
     if len(projects_data) > 1:
         await state.set_state(RefundBlankWizard.project_selection)
-        await state.update_data(projects_data=projects_data)
         await message.answer("Для какого проекта возврат?", reply_markup=get_projects_kb(projects_data))
-    elif projects_data:
-        # 1 проект
-        proj = projects_data[0]
-        await state.update_data(project_id=proj["id"], projects_data=projects_data)
-        
-        # Check for branches BEFORE client name if it's corporate
-        if proj["category"] == "corporate" and proj["branches_data"]:
-            await message.answer("Выберите филиал:", reply_markup=get_branches_kb(proj["branches_data"]))
-            await state.set_state(RefundBlankWizard.branch_selection)
-            return
-
-        await state.set_state(RefundBlankWizard.client_name)
-        await message.answer("ФИО клиента (родителя):", reply_markup=get_back_kb())
     else:
-        await message.answer("У вас нет привязанных проектов. Обратитесь к Сафине.")
+        proj = projects_data[0]
+        await state.update_data(project_id=proj["id"])
+        
+        if proj["branches_data"]:
+            if len(proj["branches_data"]) > 1:
+                await message.answer("Выберите филиал:", reply_markup=get_branches_kb(proj["branches_data"]))
+                await state.set_state(RefundBlankWizard.branch_selection)
+            else:
+                br = proj["branches_data"][0]
+                await state.update_data(branch_id=br["id"], branch_name=br["name"])
+                await message.answer("Шаг 1/5 — ID ученика:", reply_markup=get_back_kb())
+                await state.set_state(RefundBlankWizard.student_id)
+        else:
+            await message.answer("Шаг 1/5 — ID ученика:", reply_markup=get_back_kb())
+            await state.set_state(RefundBlankWizard.student_id)
 
 @router.message(RefundBlankWizard.project_selection)
 async def handle_refund_project_selection(message: types.Message, state: FSMContext):
@@ -91,62 +90,33 @@ async def handle_refund_project_selection(message: types.Message, state: FSMCont
         await message.answer("Главное меню", reply_markup=get_main_kb())
         return
 
-    selected_proj_obj = None
-    projects_data = []
-    with database.database_session() as db:
-        user = db.query(models.User).options(
-            joinedload(models.User.projects).joinedload(models.Project.branches),
-            joinedload(models.User.branches)
-        ).filter(models.User.telegram_chat_id == message.from_user.id).first()
-        
-        if user:
-            user_branch_ids = {b.id for b in user.branches}
-            user_is_privileged = user.role in ["admin", "ceo", "senior_financier"]
-            
-            for p in user.projects:
-                p_branches = p.branches
-                if user_branch_ids:
-                    filtered_branches = [b for b in p_branches if b.id in user_branch_ids]
-                elif user_is_privileged:
-                    filtered_branches = list(p_branches)
-                else:
-                    filtered_branches = []
-
-                p_data = {
-                    "id": p.id,
-                    "name": p.name,
-                    "code": p.code,
-                    "category": p.category,
-                    "branches_data": [{"id": b.id, "name": b.name} for b in filtered_branches]
-                }
-                projects_data.append(p_data)
-                if f"{p.name} ({p.code})" == message.text:
-                    selected_proj_obj = p_data
-        
-    if selected_proj_obj:
-        await state.update_data(project_id=selected_proj_obj["id"], projects_data=projects_data)
-        
-        # Check for branches
-        if selected_proj_obj["category"] == "corporate" and selected_proj_obj["branches_data"]:
-            await message.answer("Выберите филиал:", reply_markup=get_branches_kb(selected_proj_obj["branches_data"]))
-            await state.set_state(RefundBlankWizard.branch_selection)
-            return
-
-        await state.set_state(RefundBlankWizard.client_name)
-        await message.answer("ФИО клиента (родителя):", reply_markup=get_back_kb())
+    data = await state.get_data()
+    projects_data = data.get("projects_data", [])
+    selected = next((p for p in projects_data if f"{p['name']} ({p['code']})" == message.text or p['name'] == message.text), None)
+    
+    if selected:
+        await state.update_data(project_id=selected["id"])
+        if selected["branches_data"]:
+            if len(selected["branches_data"]) > 1:
+                await message.answer("Выберите филиал:", reply_markup=get_branches_kb(selected["branches_data"]))
+                await state.set_state(RefundBlankWizard.branch_selection)
+            else:
+                br = selected["branches_data"][0]
+                await state.update_data(branch_id=br["id"], branch_name=br["name"])
+                await message.answer("Шаг 1/5 — ID ученика:", reply_markup=get_back_kb())
+                await state.set_state(RefundBlankWizard.student_id)
+        else:
+            await state.update_data(branch_id=None, branch_name=None)
+            await message.answer("Шаг 1/5 — ID ученика:", reply_markup=get_back_kb())
+            await state.set_state(RefundBlankWizard.student_id)
     else:
         await message.answer("Выберите проект из списка кнопок.")
 
 @router.message(RefundBlankWizard.branch_selection)
 async def handle_refund_branch_selection(message: types.Message, state: FSMContext):
     if message.text == _BACK:
-        # Go back to project selection
-        projects_data = []
-        with database.database_session() as db:
-            user = db.query(models.User).filter(models.User.telegram_chat_id == message.from_user.id).first()
-            if user:
-                projects_data = [{"id": p.id, "name": p.name, "code": p.code} for p in user.projects]
-        
+        data = await state.get_data()
+        projects_data = data.get("projects_data", [])
         if len(projects_data) > 1:
             await state.set_state(RefundBlankWizard.project_selection)
             await message.answer("Для какого проекта возврат?", reply_markup=get_projects_kb(projects_data))
@@ -164,377 +134,146 @@ async def handle_refund_branch_selection(message: types.Message, state: FSMConte
         branches = project_obj.get("branches_data", [])
         selected = next((b for b in branches if b["name"] == message.text), None)
         if selected:
-            await state.update_data(branch_id=selected["id"])
-            await state.set_state(RefundBlankWizard.client_name)
-            await message.answer("Филиал выбран.\nФИО клиента (родителя):", reply_markup=get_back_kb())
+            await state.update_data(branch_id=selected["id"], branch_name=selected["name"])
+            await message.answer("Шаг 1/5 — ID ученика:", reply_markup=get_back_kb())
+            await state.set_state(RefundBlankWizard.student_id)
         else:
             await message.answer("Выберите филиал из списка кнопок.", reply_markup=get_branches_kb(branches))
     else:
         await message.answer("Ошибка сессии. Начните заново.", reply_markup=get_main_kb())
         await state.clear()
 
-@router.message(F.text == "Заявление на возврат (Web-App)")
-async def open_direct_refund_webapp(message: types.Message):
-    base_url = os.getenv("WEB_APP_URL", "https://finance.thompson.uz")
-    url = f"{base_url}/blank?template=refund&chat_id={message.from_user.id}"
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="💸 Открыть форму возврата", web_app=WebAppInfo(url=url))
-    builder.button(text="◀️ Назад")
-    builder.adjust(1)
-    await message.answer(
-        "Нажмите кнопку ниже, чтобы открыть форму возврата:",
-        reply_markup=builder.as_markup(resize_keyboard=True)
-    )
-@router.message(RefundBlankWizard.filling_method)
-async def handle_filling_method(message: types.Message, state: FSMContext):
+@router.message(RefundBlankWizard.student_id)
+async def handle_student_id(message: types.Message, state: FSMContext):
     if message.text == _BACK:
-        await state.clear()
-        await message.answer("Главное меню", reply_markup=get_main_kb())
+        await start_direct_refund_bot(message, state)
         return
-
-    if message.text == "🌐 Открыть Web форму":
-        base_url = os.getenv("WEB_APP_URL", "https://finance.thompson.uz")
-        url = f"{base_url}/blank?template=refund&chat_id={message.from_user.id}"
-        builder = ReplyKeyboardBuilder()
-        builder.button(text="Открыть форму", web_app=types.WebAppInfo(url=url))
-        builder.button(text=_BACK)
-        builder.adjust(1)
-        await message.answer("Откройте форму для заполнения заявления на возврат:", reply_markup=builder.as_markup(resize_keyboard=True))
-        return
-
-    if message.text == "📱 Заполнить в боте":
-        await state.set_state(RefundBlankWizard.client_name)
-        await message.answer("ФИО клиента (родителя):", reply_markup=get_back_kb())
-
-@router.message(RefundBlankWizard.client_name)
-async def handle_client_name(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.filling_method)
-        await message.answer("Как хотите заполнить заявление?", reply_markup=get_fill_method_kb())
-        return
-    await state.update_data(client_name=message.text)
-    await state.set_state(RefundBlankWizard.passport_series)
-    await message.answer("Серия паспорта:", reply_markup=get_back_kb())
-
-@router.message(RefundBlankWizard.passport_series)
-async def handle_passport_series(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.client_name)
-        await message.answer("ФИО клиента (родителя):", reply_markup=get_back_kb())
-        return
-    await state.update_data(passport_series=message.text)
-    await state.set_state(RefundBlankWizard.passport_number)
-    await message.answer("Номер паспорта:", reply_markup=get_back_kb())
-
-@router.message(RefundBlankWizard.passport_number)
-async def handle_passport_number(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.passport_series)
-        await message.answer("Серия паспорта:", reply_markup=get_back_kb())
-        return
-    await state.update_data(passport_number=message.text)
-    await state.set_state(RefundBlankWizard.passport_issued_by)
-    await message.answer("Кем выдан паспорт:", reply_markup=get_back_kb())
-
-@router.message(RefundBlankWizard.passport_issued_by)
-async def handle_passport_issued_by(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.passport_number)
-        await message.answer("Номер паспорта:", reply_markup=get_back_kb())
-        return
-    await state.update_data(passport_issued_by=message.text)
-    await state.set_state(RefundBlankWizard.passport_date)
-    await message.answer("Дата выдачи паспорта:", reply_markup=get_back_kb())
-
-@router.message(RefundBlankWizard.passport_date)
-async def handle_passport_date(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.passport_issued_by)
-        await message.answer("Кем выдан паспорт:", reply_markup=get_back_kb())
-        return
-    await state.update_data(passport_date=message.text)
-    await state.set_state(RefundBlankWizard.phone)
-    await message.answer("Номер телефона:", reply_markup=get_back_kb())
-
-@router.message(RefundBlankWizard.phone)
-async def handle_phone(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.passport_date)
-        await message.answer("Дата выдачи паспорта:", reply_markup=get_back_kb())
-        return
-    await state.update_data(phone=message.text)
-    await state.set_state(RefundBlankWizard.contract_number)
-    await message.answer("Номер оферты/договора:", reply_markup=get_back_kb())
-
-@router.message(RefundBlankWizard.contract_number)
-async def handle_contract_number(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.phone)
-        await message.answer("Номер телефона:", reply_markup=get_back_kb())
-        return
-    await state.update_data(contract_number=message.text)
-    await state.set_state(RefundBlankWizard.contract_date)
-    await message.answer("Дата оферты/договора:", reply_markup=get_back_kb())
-
-@router.message(RefundBlankWizard.contract_date)
-async def handle_contract_date(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.contract_number)
-        await message.answer("Номер оферты/договора:", reply_markup=get_back_kb())
-        return
-    await state.update_data(contract_date=message.text)
+    await state.update_data(student_id=message.text)
+    await message.answer("Шаг 2/5 — Причина возврата:", reply_markup=get_refund_reasons_kb())
     await state.set_state(RefundBlankWizard.reason)
-    await message.answer("Причина возврата:", reply_markup=get_refund_reasons_kb())
 
 @router.message(RefundBlankWizard.reason)
 async def handle_reason(message: types.Message, state: FSMContext):
     if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.contract_date)
-        await message.answer("Дата оферты/договора:", reply_markup=get_back_kb())
+        await message.answer("Шаг 1/5 — ID ученика:", reply_markup=get_back_kb())
+        await state.set_state(RefundBlankWizard.student_id)
         return
     await state.update_data(reason=message.text)
     if message.text == "Другое":
+        await message.answer("Укажите причину подробно:", reply_markup=get_back_kb())
         await state.set_state(RefundBlankWizard.reason_other)
-        await message.answer("Укажите причину:", reply_markup=get_back_kb())
     else:
-        await state.update_data(reason_other="")
+        await message.answer("Шаг 3/5 — Сумма (только число):", reply_markup=get_back_kb())
         await state.set_state(RefundBlankWizard.amount)
-        await message.answer("Сумма возврата (числом):", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.reason_other)
 async def handle_reason_other(message: types.Message, state: FSMContext):
     if message.text == _BACK:
+        await message.answer("Шаг 2/5 — Причина возврата:", reply_markup=get_refund_reasons_kb())
         await state.set_state(RefundBlankWizard.reason)
-        reasons = ["Переезд", "Изменение графика", "Несоответствие", "Материальные трудности", "По личным причинам", "Другое"]
-        kb = ReplyKeyboardBuilder()
-        for r in reasons:
-            kb.button(text=r)
-        kb.button(text=_BACK)
-        kb.adjust(2)
-        await message.answer("Причина возврата:", reply_markup=kb.as_markup(resize_keyboard=True))
         return
     await state.update_data(reason_other=message.text)
+    await message.answer("Шаг 3/5 — Сумма (только число):", reply_markup=get_back_kb())
     await state.set_state(RefundBlankWizard.amount)
-    await message.answer("Сумма возврата (числом):", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.amount)
 async def handle_amount(message: types.Message, state: FSMContext):
     if message.text == _BACK:
-        data = await state.get_data()
-        if data.get("reason") == "Другое":
-            await state.set_state(RefundBlankWizard.reason_other)
-            await message.answer("Укажите причину:", reply_markup=get_back_kb())
-        else:
-            await state.set_state(RefundBlankWizard.reason)
-            reasons = ["Переезд", "Изменение графика", "Несоответствие", "Материальные трудности", "По личным причинам", "Другое"]
-            kb = ReplyKeyboardBuilder()
-            for r in reasons:
-                kb.button(text=r)
-            kb.button(text=_BACK)
-            kb.adjust(2)
-            await message.answer("Причина возврата:", reply_markup=kb.as_markup(resize_keyboard=True))
+        await message.answer("Шаг 2/5 — Причина возврата:", reply_markup=get_refund_reasons_kb())
+        await state.set_state(RefundBlankWizard.reason)
         return
     try:
-        val_str = message.text.replace(",", ".").replace(" ", "")
-        val = float(val_str)
-        if val <= 0:
-            await message.answer("⚠️ Сумма должна быть больше нуля. Введите сумму ещё раз:")
-            return
+        val = float(message.text.replace(",", ".").replace(" ", ""))
         await state.update_data(amount=val)
-        await state.set_state(RefundBlankWizard.amount_words)
-        await message.answer("Сумма прописью:", reply_markup=get_skip_back_kb())
+        await message.answer("Шаг 4/5 — Номер карты (16 цифр):", reply_markup=get_back_kb())
+        await state.set_state(RefundBlankWizard.card_number)
     except ValueError:
         await message.answer("Введите число.")
-
-@router.message(RefundBlankWizard.amount_words)
-async def handle_amount_words(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.amount)
-        await message.answer("Сумма возврата (числом):", reply_markup=get_back_kb())
-        return
-    await state.update_data(amount_words=message.text)
-    await state.set_state(RefundBlankWizard.card_holder)
-    await message.answer("ФИО владельца карты:", reply_markup=get_back_kb())
-
-@router.message(RefundBlankWizard.card_holder)
-async def handle_card_holder(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.amount_words)
-        await message.answer("Сумма прописью:", reply_markup=get_back_kb())
-        return
-    await state.update_data(card_holder=message.text)
-    await state.set_state(RefundBlankWizard.card_number)
-    await message.answer("Номер карты:", reply_markup=get_back_kb())
 
 @router.message(RefundBlankWizard.card_number)
 async def handle_card_number(message: types.Message, state: FSMContext):
     if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.card_holder)
-        await message.answer("ФИО владельца карты:", reply_markup=get_back_kb())
+        await message.answer("Шаг 3/5 — Сумма (только число):", reply_markup=get_back_kb())
+        await state.set_state(RefundBlankWizard.amount)
         return
-    await state.update_data(card_number=message.text)
-    await state.set_state(RefundBlankWizard.transit_account)
-    await message.answer("Транзитный счет банка (если есть):", reply_markup=get_back_kb())
-
-@router.message(RefundBlankWizard.transit_account)
-async def handle_transit(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.card_number)
-        await message.answer("Номер карты:", reply_markup=get_back_kb())
+    digits = re.sub(r"\D", "", message.text)
+    if len(digits) != 16:
+        await message.answer(f"Нужно 16 цифр (введено {len(digits)}).")
         return
-    value = "" if message.text in ("⏭ Пропустить", "Пропустить") else message.text
-    await state.update_data(transit_account=value)
-    await state.set_state(RefundBlankWizard.bank_iin)
-    await message.answer("ИИН банка:", reply_markup=get_skip_back_kb())
-
-@router.message(RefundBlankWizard.bank_iin)
-async def handle_bank_iin(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.transit_account)
-        await message.answer("Транзитный счет банка (если есть):", reply_markup=get_skip_back_kb())
-        return
-    
-    value = "" if message.text in ("⏭ Пропустить", "Пропустить") else message.text
-    await state.update_data(bank_iin=value)
-    await state.set_state(RefundBlankWizard.bank_mfo)
-    await message.answer("МФО банка:", reply_markup=get_skip_back_kb())
-
-@router.message(RefundBlankWizard.bank_mfo)
-async def handle_bank_mfo(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.bank_iin)
-        await message.answer("ИИН банка:", reply_markup=get_skip_back_kb())
-        return
-    
-    value = "" if message.text in ("⏭ Пропустить", "Пропустить") else message.text
-    await state.update_data(bank_mfo=value)
-    await state.set_state(RefundBlankWizard.bank_name)
-    await message.answer("Название банка и филиал:", reply_markup=get_back_kb())
-
-@router.message(RefundBlankWizard.bank_name)
-async def handle_bank(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.bank_mfo)
-        await message.answer("МФО банка:", reply_markup=get_skip_back_kb())
-        return
-    await state.update_data(bank_name=message.text)
+    await state.update_data(card_number=digits)
+    await message.answer("Шаг 5/5 — Есть ли удержание?", reply_markup=get_retention_kb())
     await state.set_state(RefundBlankWizard.retention)
-    await message.answer("Есть ли удержание при возврате?", reply_markup=get_retention_kb())
 
 @router.message(RefundBlankWizard.retention)
 async def handle_retention(message: types.Message, state: FSMContext):
     if message.text == _BACK:
-        await state.set_state(RefundBlankWizard.bank_name)
-        await message.answer("Название банка и филиал:", reply_markup=get_back_kb())
+        await message.answer("Шаг 4/5 — Номер карты (16 цифр):", reply_markup=get_back_kb())
+        await state.set_state(RefundBlankWizard.card_number)
         return
     is_yes = message.text in ("Да", "Есть", "ДА", "yes", "+")
     await state.update_data(retention=is_yes)
-    await show_refund_summary(message, state)
-
-async def show_refund_summary(message: types.Message, state: FSMContext):
+    
     data = await state.get_data()
+    reason_display = data['reason']
+    if data['reason'] == 'Другое' and data.get('reason_other'):
+        reason_display = f"Другое: {data['reason_other']}"
     
-    summary = (
-        "🧾 *Заявление на возврат — проверьте данные:*\n\n"
-        f"👤 Клиент: {data.get('client_name', '—')}\n"
-        f"📄 Паспорт: {data.get('passport_series', '')} {data.get('passport_number', '')}\n"
-        f"   Выдан: {data.get('passport_issued_by', '—')}, {data.get('passport_date', '—')}\n"
-        f"📞 Тел: {data.get('phone', '—')}\n"
-        f"📋 Договор: № {data.get('contract_number', '—')} от {data.get('contract_date', '—')}\n"
-        f"📝 Причина: {data.get('reason', '—')}"
+    text = (
+        "🔍 *Проверьте данные заявления:*\n\n"
+        f"👤 ID Ученика: `{data['student_id']}`\n"
+        f"📝 Причина: {reason_display}\n"
+        f"💰 Сумма: {data['amount']:,.0f} UZS\n"
+        f"💳 Карта: `{data['card_number']}`\n"
+        f"🔁 Удержание: {'ДА ✅' if is_yes else 'НЕТ ❌'}\n"
     )
-    if data.get('reason') == 'Другое':
-        summary += f" ({data.get('reason_other', '')})"
     
-    summary += (
-        f"\n💰 Сумма: {data.get('amount', 0):,} UZS\n"
-        f"   Прописью: {data.get('amount_words', '—')}\n"
-        f"💳 Карта: {data.get('card_number', '—')}\n"
-        f"   Владелец: {data.get('card_holder', '—')}\n"
-        f"🏦 Банк: {data.get('bank_name', '—')}\n"
-    )
-    if data.get('transit_account'):
-        summary += f"   Транзит: {data.get('transit_account')}\n"
-    if data.get('bank_iin'):
-        summary += f"   ИИН: {data.get('bank_iin')}\n"
-    if data.get('bank_mfo'):
-        summary += f"   МФО: {data.get('bank_mfo')}\n"
+    builder = ReplyKeyboardBuilder()
+    builder.button(text="✅ Отправить Сафине")
+    builder.button(text=_BACK)
+    builder.adjust(1)
     
+    await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup(resize_keyboard=True))
     await state.set_state(RefundBlankWizard.confirm)
-    
-    kb = ReplyKeyboardBuilder()
-    kb.button(text="✅ Отправить Сафине")
-    kb.button(text=_BACK)
-    kb.adjust(1)
-    await message.answer(summary, parse_mode="Markdown", reply_markup=kb.as_markup(resize_keyboard=True))
-
-from app.core import database, auth
-from app.db import models, schemas
-from ..notifications import send_admin_notification, get_admin_chat_id
-from ...currency.service import currency_service
 
 @router.message(F.text == "✅ Отправить Сафине", RefundBlankWizard.confirm)
 async def handle_refund_final_submit(message: types.Message, state: FSMContext):
+    from app.services.refund.service import create_refund
+    from ..notifications import send_admin_notification, get_admin_chat_id
+    
     data = await state.get_data()
-    usd_rate = await currency_service.get_usd_rate()
-    expense_req_id = None
-    request_id = None
-
-    with database.database_session() as db:
-        user = db.query(models.User).filter(models.User.telegram_chat_id == message.from_user.id).first()
-        if not user:
-            await message.answer("Ошибка: пользователь не найден.")
-            return
-
-        expense_create = schemas.ExpenseRequestCreate(
-            project_id=data.get("project_id"),
-            branch_id=data.get("branch_id"),
-            purpose=f"Возврат: {data['client_name']}",
-            items=[],
-            currency="UZS",
-            request_type="blank_refund",
-            template_key="refund",
-            total_amount=Decimal(str(data.get("amount", 0))),
-            refund_data=schemas.RefundDataSchema(
-                client_name=data.get("client_name"),
-                passport_series=data.get("passport_series"),
-                passport_number=data.get("passport_number"),
-                passport_issued_by=data.get("passport_issued_by"),
-                passport_date=data.get("passport_date"),
-                phone=data.get("phone"),
-                contract_number=data.get("contract_number"),
-                contract_date=data.get("contract_date"),
-                reason=data.get("reason"),
-                reason_other=data.get("reason_other"),
-                amount=float(data.get("amount", 0)),
-                amount_words=data.get("amount_words", ""),
-                card_holder=data.get("card_holder"),
-                card_number=data.get("card_number"),
-                transit_account=data.get("transit_account", ""),
-                bank_iin=data.get("bank_iin", ""),
-                bank_mfo=data.get("bank_mfo", ""),
-                bank_name=data.get("bank_name"),
+    
+    try:
+        with database.database_session() as db:
+            reason = data["reason"]
+            if reason == "Другое" and data.get("reason_other"):
+                reason = f"Другое: {data['reason_other']}"
+                
+            expense_req = await create_refund(
+                db,
+                student_id=data["student_id"],
+                reason=reason,
+                amount=Decimal(str(data["amount"])),
+                card_number=data["card_number"],
                 retention=data.get("retention", False),
+                user_id=data["user_id"],
+                branch=data.get("branch_name"),
+                project_id=data.get("project_id")
             )
+            expense_dict = expense_service.get_expense_dict(expense_req)
+            req_id = expense_req.request_id
+
+        # Notify
+        admin_chat_id = get_admin_chat_id()
+        if admin_chat_id:
+            await send_admin_notification(expense_dict, admin_chat_id)
+
+        await message.answer(
+            f"✅ Заявление {req_id} отправлено Сафине!",
+            reply_markup=get_main_kb()
         )
-
-
-        expense_req = expense_service.create_expense_request(db=db, expense_in=expense_create, user_id=user.id, usd_rate=usd_rate)
-        expense_req_id = expense_req.id
-        request_id = expense_req.request_id
-        # Prepare dict while session is open
-        expense_dict = expense_service.get_expense_dict(expense_req)
-
-    # 2. Уведомляем админа (вне сессии)
-    admin_chat_id = get_admin_chat_id()
-    if admin_chat_id:
-        await send_admin_notification(expense_dict, admin_chat_id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Refund final submit error: {e}")
+        await message.answer(f"❌ Ошибка при отправке: {e}", reply_markup=get_main_kb())
 
     await state.clear()
-    await message.answer(
-        f"✅ Заявление на возврат ({request_id}) отправлено Сафине.\n\n"
-        f"Когда бланк будет утвержден, вы получите уведомление.",
-        reply_markup=get_main_kb()
-    )
-
-# Manual download removed from bot flow, handled via Safina export

@@ -86,6 +86,7 @@ async def create_refund(
     user_id: Optional[str] = None,
     branch: Optional[str] = None,
     team: Optional[str] = None,
+    project_id: Optional[str] = None,
 ) -> models.ExpenseRequest:
     """
     Создаёт заявку типа 'refund' в БД.
@@ -120,7 +121,7 @@ async def create_refund(
         items=items,
         total_amount=amount,
         currency=schemas.CurrencyEnum.UZS,
-        project_id=None,
+        project_id=project_id,
         request_type="refund",
         receipt_photo_file_id=receipt_photo_ref,
         refund_data=refund_data,
