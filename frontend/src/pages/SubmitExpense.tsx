@@ -36,15 +36,17 @@ const formatAmount = (value: number): string => {
     return value.toLocaleString("ru-RU");
 };
 
-const emptyItem = (currency: "UZS" | "USD" = "UZS"): ExpenseItem & { displayAmount: string } => ({
+type ItemWithDisplay = ExpenseItem & { displayAmount: string; displayQuantity: string };
+
+const emptyItem = (currency: "UZS" | "USD" = "UZS"): ItemWithDisplay => ({
     name: "",
     quantity: 1,
+    unit: "кг",
     amount: 0,
     currency,
     displayAmount: "",
+    displayQuantity: "1",
 });
-
-type ItemWithDisplay = ExpenseItem & { displayAmount: string };
 
 const APPLICATION_TYPES = [
     {
@@ -164,6 +166,7 @@ const SubmitExpense = () => {
     const navigate = useNavigate();
     const [projectId, setProjectId] = useState("");
     const [branchId, setBranchId] = useState("");
+    const [supplier, setSupplier] = useState<string>("Продукты");
     const [purpose, setPurpose] = useState("");
     const [items, setItems] = useState<ItemWithDisplay[]>([emptyItem()]);
     const [submitted, setSubmitted] = useState(false);
@@ -201,10 +204,11 @@ const SubmitExpense = () => {
 
     const mutation = useMutation({
         mutationFn: () => {
-            const apiItems: ExpenseItem[] = items.map(({ displayAmount: _d, ...rest }) => rest);
+            const apiItems: ExpenseItem[] = items.map(({ displayAmount: _d, displayQuantity: _q, ...rest }) => rest);
             const data = {
                 project_id: projectId,
                 branch_id: isCorporate ? (branchId === "no_branch" ? null : branchId) : undefined,
+                supplier,
                 purpose,
                 items: apiItems,
             };
@@ -252,6 +256,12 @@ const SubmitExpense = () => {
     const updateItem = (index: number, field: keyof ItemWithDisplay, value: any) => {
         const newItems = [...items];
         (newItems[index] as any)[field] = value;
+        
+        // Auto-change unit for "зелень"
+        if (field === "name" && value.toLowerCase().includes("зелень")) {
+            newItems[index].unit = "пучки";
+        }
+
         if (field === "currency") {
             newItems.forEach(item => (item.currency = value));
         }
@@ -281,6 +291,23 @@ const SubmitExpense = () => {
                 items: errors.items.filter(i => i !== index)
             });
         }
+    };
+
+    const handleQuantityChange = (index: number, raw: string) => {
+        // Allow digits, one dot or comma
+        let sanitized = raw.replace(/,/g, ".");
+        sanitized = sanitized.replace(/[^\d.]/g, "");
+        
+        // Ensure only one dot
+        const parts = sanitized.split(".");
+        if (parts.length > 2) {
+            sanitized = parts[0] + "." + parts.slice(1).join("");
+        }
+
+        const num = sanitized === "" || sanitized === "." ? 0 : parseFloat(sanitized);
+        const newItems = [...items];
+        newItems[index] = { ...newItems[index], quantity: num, displayQuantity: raw };
+        setItems(newItems);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -393,6 +420,21 @@ const SubmitExpense = () => {
                         )}
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label>Поставщик / Категория</Label>
+                            <Select value={supplier} onValueChange={setSupplier}>
+                                <SelectTrigger className="rounded-xl">
+                                    <SelectValue placeholder="Выберите поставщика" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Продукты">Продукты (Стандарт)</SelectItem>
+                                    <SelectItem value="Мясо">Мясо (Chef)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
                         <Label htmlFor="purpose" className={errors.purpose ? "text-destructive" : ""}>Цель расхода</Label>
                         <Input
@@ -429,12 +471,27 @@ const SubmitExpense = () => {
                                             <div className="w-24 space-y-1">
                                                 <Label className="text-[10px] text-muted-foreground">Кол-во</Label>
                                                 <Input
-                                                    type="number"
-                                                    value={item.quantity}
-                                                    min={1}
-                                                    onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={item.displayQuantity}
+                                                    onChange={(e) => handleQuantityChange(index, e.target.value)}
                                                     className="rounded-lg h-10 text-sm"
                                                 />
+                                            </div>
+                                            <div className="w-24 space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground">Ед. изм.</Label>
+                                                <Select value={item.unit} onValueChange={(val) => updateItem(index, "unit", val)}>
+                                                    <SelectTrigger className="rounded-lg h-10 text-xs">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="кг">кг</SelectItem>
+                                                        <SelectItem value="пучки">пучки</SelectItem>
+                                                        <SelectItem value="шт">шт</SelectItem>
+                                                        <SelectItem value="литры">литры</SelectItem>
+                                                        <SelectItem value="ед.">ед.</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                         </div>
 

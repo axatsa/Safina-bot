@@ -43,6 +43,7 @@ export interface TeamMember {
 export interface ExpenseItem {
   name: string;
   quantity: number;
+  unit: string;
   amount: number;
   currency: "UZS" | "USD";
 }

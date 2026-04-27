@@ -4,6 +4,7 @@ class ExpenseWizard(StatesGroup):
     waiting_for_auth = State()
     project_selection = State()
     branch_selection = State()
+    supplier = State()
     
     # Creation flow
     date = State()
@@ -12,6 +13,7 @@ class ExpenseWizard(StatesGroup):
     # Item loop
     item_name = State()
     item_qty = State()
+    item_unit = State()
     item_amount = State()
     item_currency = State()
     

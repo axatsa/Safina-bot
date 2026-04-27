@@ -38,6 +38,8 @@ def generate_expenses_xlsx(expenses: list[models.ExpenseRequest]) -> io.BytesIO:
                 "Дата": e.date.strftime("%d.%m.%Y %H:%M"),
                 "Проект": f"{e.project_name} ({e.project_code})" if e.project_name else "Без проекта",
                 "Цель расхода": item.get("name") if len(items) > 1 else e.purpose,
+                "Кол-во": float(item.get("quantity", 0)),
+                "Ед. изм.": item.get("unit", "ед."),
                 "Сумма": float(item_amount_native),
                 "Валюта": item_currency,
                 "Курс USD": float(usd_rate) if usd_rate else None,

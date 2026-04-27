@@ -216,5 +216,11 @@ export const expensesService = {
     await apiFetch(`/expenses/${expenseId}`, {
       method: "DELETE",
     });
+  },
+  updateExpenseItems: async (expenseId: string, items: any[]): Promise<void> => {
+    await apiFetch(`/expenses/${expenseId}/items`, {
+      method: "PATCH",
+      body: JSON.stringify({ items }),
+    });
   }
 };

@@ -135,6 +135,24 @@ def get_skip_back_kb():
     b.adjust(2)
     return b.as_markup(resize_keyboard=True)
 
+def get_supplier_kb():
+    b = ReplyKeyboardBuilder()
+    b.button(text="Продукты")
+    b.button(text="Мясо")
+    b.button(text=_BACK)
+    b.adjust(2, 1)
+    return b.as_markup(resize_keyboard=True)
+
+def get_unit_kb():
+    b = ReplyKeyboardBuilder()
+    b.button(text="кг")
+    b.button(text="пучки")
+    b.button(text="шт")
+    b.button(text="литры")
+    b.button(text=_BACK)
+    b.adjust(2, 2, 1)
+    return b.as_markup(resize_keyboard=True)
+
 
 def get_refund_confirm_markup(expense_id: str) -> InlineKeyboardMarkup:
     """Inline-кнопки редактирования полей на экране подтверждения."""

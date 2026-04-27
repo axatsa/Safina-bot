@@ -14,8 +14,13 @@ import {
 import { Plus, Trash2, Download, Loader2, ArrowLeft } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { generateBlank, BlankItem } from "@/lib/services/blanks";
+import { generateBlank, BlankItem as BaseBlankItem } from "@/lib/services/blanks";
 import { store } from "@/lib/store";
+
+interface BlankItem extends BaseBlankItem {
+  displayQty: string;
+  unit: string;
+}
 
 const BlankForm = () => {
   const [searchParams] = useSearchParams();
@@ -29,7 +34,7 @@ const BlankForm = () => {
   // Common fields (Service Notes)
   const [purpose, setPurpose] = useState("");
   const [items, setItems] = useState<BlankItem[]>([
-    { name: "", qty: 1, amount: 0, currency: "UZS" },
+    { name: "", qty: 1, amount: 0, currency: "UZS", displayQty: "1", unit: "кг" },
   ]);
 
   // Refund application fields
@@ -76,7 +81,7 @@ const BlankForm = () => {
   });
 
   const addItem = () => {
-    setItems([...items, { name: "", qty: 1, amount: 0, currency: "UZS" }]);
+    setItems([...items, { name: "", qty: 1, amount: 0, currency: "UZS", displayQty: "1", unit: "кг" }]);
   };
 
   const removeItem = (index: number) => {
@@ -88,6 +93,11 @@ const BlankForm = () => {
   const updateItem = (index: number, field: keyof BlankItem, value: any) => {
     const newItems = [...items];
     (newItems[index] as any)[field] = value;
+    
+    if (field === "name" && typeof value === "string" && value.toLowerCase().includes("зелень")) {
+      newItems[index].unit = "пучки";
+    }
+
     setItems(newItems);
   };
 
@@ -95,6 +105,21 @@ const BlankForm = () => {
     const digits = val.replace(/\D/g, "");
     const num = digits === "" ? 0 : parseInt(digits, 10);
     updateItem(index, "amount", num);
+  };
+
+  const handleQtyChange = (index: number, val: string) => {
+    let sanitized = val.replace(/,/g, ".");
+    sanitized = sanitized.replace(/[^\d.]/g, "");
+    
+    const parts = sanitized.split(".");
+    if (parts.length > 2) {
+      sanitized = parts[0] + "." + parts.slice(1).join("");
+    }
+
+    const num = sanitized === "" || sanitized === "." ? 0 : parseFloat(sanitized);
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], qty: num, displayQty: val };
+    setItems(newItems);
   };
 
   const handleRefundAmountChange = (val: string) => {
@@ -146,7 +171,7 @@ const BlankForm = () => {
         const payload = {
           template,
           purpose,
-          items,
+          items: items.map(({ displayQty: _q, ...rest }) => rest),
           chat_id: chatId || null,
           project_id: projectId,
           branch_id: isCorporate ? (branchId === "no_branch" ? null : branchId) : undefined,
@@ -290,10 +315,26 @@ const BlankForm = () => {
                           <div className="space-y-1">
                             <Label className="text-xs">Кол-во</Label>
                             <Input
-                              type="number"
-                              value={item.qty}
-                              onChange={(e) => updateItem(index, "qty", Number(e.target.value))}
+                              type="text"
+                              inputMode="decimal"
+                              value={item.displayQty}
+                              onChange={(e) => handleQtyChange(index, e.target.value)}
                             />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Ед. изм.</Label>
+                            <Select value={item.unit} onValueChange={(val) => updateItem(index, "unit", val)}>
+                              <SelectTrigger className="h-10 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="кг">кг</SelectItem>
+                                <SelectItem value="пучки">пучки</SelectItem>
+                                <SelectItem value="шт">шт</SelectItem>
+                                <SelectItem value="литры">литры</SelectItem>
+                                <SelectItem value="ед.">ед.</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2">

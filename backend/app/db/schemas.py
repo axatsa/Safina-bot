@@ -28,6 +28,7 @@ class CurrencyEnum(str, Enum):
 class ExpenseItemSchema(BaseModel):
     name: str = Field(..., min_length=1, max_length=200, description="Наименование товара или услуги")
     quantity: Decimal = Field(..., gt=0, description="Количество, должно быть больше нуля")
+    unit: str = Field("ед.", description="Единица измерения (кг, шт, пучки и т.д.)")
     amount: Decimal = Field(..., gt=0, description="Цена за единицу, должна быть больше нуля")
     @validator("currency", pre=True)
     def validate_currency(cls, v):
@@ -153,6 +154,7 @@ class ExpenseRequestCreate(BaseModel):
     date: Optional[datetime] = None
     request_type: str = "expense"
     template_key: Optional[str] = None
+    supplier: Optional[str] = None
     receipt_photo_file_id: Optional[str] = None
     refund_data: Optional[RefundDataSchema] = None
 

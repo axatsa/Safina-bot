@@ -753,7 +753,7 @@ def export_expenses(
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Request ID", "Date", "Project Code", "Project Name", "Responsible", "Status", "Item Name", "Qty", "Amount", "Currency", "USD Rate", "Amount in UZS"])
+    writer.writerow(["Request ID", "Date", "Project Code", "Project Name", "Responsible", "Status", "Item Name", "Qty", "Unit", "Amount", "Currency", "USD Rate", "Amount in UZS"])
     
     status_map = {
         "request": "Запрос",
@@ -788,6 +788,7 @@ def export_expenses(
                 status_map.get(e.status, e.status),
                 item.get("name", ""),
                 item.get("quantity", 0),
+                item.get("unit", "ед."),
                 item.get("amount", 0),
                 item_currency,
                 float(usd_rate) if usd_rate else "",
@@ -959,4 +960,28 @@ def delete_expense(expense_id: str, db: Session = Depends(database.get_db), curr
         
     db.delete(expense)
     db.commit()
+    return {"status": "success"}
+
+@router.patch("/{expense_id}/items")
+def update_expense_items(
+    expense_id: str, 
+    data: dict, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Allows financiers and admins to update item details (like units)."""
+    if not auth.is_admin(current_user) and current_user.position != "senior_financier":
+        raise HTTPException(status_code=403, detail="Only financiers can update items")
+        
+    expense = db.query(models.ExpenseRequest).filter(models.ExpenseRequest.id == expense_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+        
+    items = data.get("items")
+    if items is not None:
+        # We store items as JSON in the DB
+        expense.items = items
+        db.commit()
+        db.refresh(expense)
+        
     return {"status": "success"}
