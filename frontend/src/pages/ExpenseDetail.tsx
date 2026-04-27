@@ -241,6 +241,18 @@ const ExpenseDetail = () => {
     }
   };
 
+  const getImageUrl = (path?: string) => {
+    if (!path) return "";
+    // If it's a local path from the container, convert to web path
+    if (path.startsWith("/app/uploads")) {
+      const apiBase = import.meta.env.VITE_APP_API_URL || "";
+      // In dev, the proxy handles /uploads. In prod, we might need the full URL or just /uploads
+      const webPath = path.replace("/app/uploads", "/uploads");
+      return apiBase.startsWith("http") ? `${apiBase}${webPath}` : webPath;
+    }
+    return path;
+  };
+
   const toggleRecipient = (id: string) => {
     setSelectedRecipients(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
@@ -511,8 +523,8 @@ const ExpenseDetail = () => {
             </div>
           )}
 
-          {/* Safina: Confirm refund with receipt */}
-          {expense.requestType === "refund" && expense.status !== "confirmed" && isAdmin && (
+          {/* Safina: Confirm refund with receipt (persisted even after confirmation) */}
+          {(expense.requestType === "refund" || expense.requestType === "blank_refund") && isAdmin && (
             <div className="glass-card rounded-lg p-5 space-y-4 border-amber-200 bg-amber-50/40 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-amber-800 flex items-center gap-2 uppercase tracking-wider">
@@ -579,7 +591,7 @@ const ExpenseDetail = () => {
               >
                 {isConfirming ? (
                   <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Обработка...</>
-                ) : "ПОДТВЕРДИТЬ И ЗАВЕРШИТЬ ВОЗВРАТ"}
+                ) : expense.status === "confirmed" ? "ОБНОВИТЬ ПОДТВЕРЖДЕНИЕ" : "ПОДТВЕРДИТЬ И ЗАВЕРШИТЬ ВОЗВРАТ"}
               </Button>
             </div>
           )}
@@ -641,6 +653,37 @@ const ExpenseDetail = () => {
         </div>
 
         <div className="space-y-6">
+          {/* Receipt Display Section */}
+          {(expense.receiptPhotoFileId || receiptPhoto) && (
+            <div className="glass-card rounded-lg p-5 space-y-4 border-emerald-100 bg-emerald-50/20 shadow-sm animate-in fade-in zoom-in duration-500">
+              <h3 className="text-sm font-bold text-emerald-800 flex items-center gap-2 uppercase tracking-wider">
+                <Camera className="w-4 h-4 text-emerald-600" /> Подтверждающий чек
+              </h3>
+              <div className="rounded-lg overflow-hidden border border-emerald-100 bg-white shadow-inner aspect-[3/4] flex items-center justify-center relative group">
+                <img
+                  src={receiptPhoto ? URL.createObjectURL(receiptPhoto) : getImageUrl(expense.receiptPhotoFileId)}
+                  alt="Чек"
+                  className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02]"
+                />
+                <a
+                  href={receiptPhoto ? URL.createObjectURL(receiptPhoto) : getImageUrl(expense.receiptPhotoFileId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-all duration-300 opacity-0 group-hover:opacity-100"
+                >
+                  <Button variant="secondary" size="sm" className="pointer-events-none">
+                    <Download className="w-4 h-4 mr-2" /> Открыть в полный экран
+                  </Button>
+                </a>
+              </div>
+              {expense.status === "confirmed" && (
+                <div className="flex items-center gap-2 text-[10px] text-emerald-600 font-bold uppercase">
+                  <Check className="w-3 h-3" /> Платеж подтвержден
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="glass-card rounded-lg p-5">
             <HistoryTimeline history={history} />
           </div>

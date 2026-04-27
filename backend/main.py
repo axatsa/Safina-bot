@@ -103,6 +103,8 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+from fastapi.staticfiles import StaticFiles
+
 # Include Routers
 app.include_router(auth.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
@@ -111,6 +113,13 @@ app.include_router(team.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 app.include_router(blanks.router, prefix="/api")
+
+# Mount uploads directory
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads")
+if not os.path.exists(UPLOAD_DIR):
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 @app.get("/ping")
 async def ping():

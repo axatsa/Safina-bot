@@ -92,6 +92,7 @@ export interface ExpenseRequest {
   statusComment?: string;
   templateKey?: string;
   refundData?: any;
+  receiptPhotoFileId?: string;
   createdAt: Date;
 }
 
