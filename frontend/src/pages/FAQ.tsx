@@ -1,5 +1,5 @@
 import React from "react";
-import { ExternalLink, CheckSquare, Settings, FileText, Download, Activity, Key, Users } from "lucide-react";
+import { ExternalLink, CheckSquare, Settings, FileText, Download, Activity, Key, Users, FolderKanban, Building2, ShieldCheck, Plus, Info } from "lucide-react";
 
 const FAQ = () => {
   return (
@@ -37,8 +37,11 @@ const FAQ = () => {
           <a href="#developers" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight">
             9. Технический раздел
           </a>
+          <a href="#team-access" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight font-semibold text-primary">
+            10. Управление командой
+          </a>
           <a href="#faq-users" className="hover:text-foreground hover:bg-muted/50 px-3 py-2 rounded-md transition-colors leading-tight font-semibold">
-            10. Частые вопросы (FAQ)
+            11. Частые вопросы (FAQ)
           </a>
         </nav>
       </aside>
@@ -258,9 +261,147 @@ const FAQ = () => {
           </section>
 
           {/* Section 10 */}
+          <section id="team-access" className="scroll-mt-32 space-y-6">
+            <h2 className="text-2xl font-bold text-foreground border-b pb-2">
+              10. Управление командой и доступами
+            </h2>
+            <p className="text-foreground/80 leading-relaxed">
+              Этот раздел объясняет, как правильно настроить доступы для сотрудника через страницу «Команда». Здесь нет ничего сложного — просто следуйте шагам.
+            </p>
+
+            {/* Step-by-step */}
+            <div className="space-y-4">
+              <h3 className="font-bold text-lg">Как открыть настройки сотрудника</h3>
+              <div className="border-l-2 border-primary/30 pl-6 space-y-6">
+                <div className="relative">
+                  <div className="absolute -left-[29px] top-1 w-4 h-4 rounded-full bg-primary border-4 border-background shadow-sm" />
+                  <h4 className="font-bold text-foreground text-sm">1. Перейдите в раздел «Команда»</h4>
+                  <p className="text-sm text-muted-foreground mt-1">Нажмите на пункт «Команда» в левом меню. Вы увидите таблицу со всеми сотрудниками.</p>
+                </div>
+                <div className="relative">
+                  <div className="absolute -left-[29px] top-1 w-4 h-4 rounded-full bg-muted border-4 border-background shadow-sm" />
+                  <h4 className="font-bold text-foreground text-sm">2. Нажмите иконку карандаша</h4>
+                  <p className="text-sm text-muted-foreground mt-1">Найдите нужного сотрудника и нажмите на иконку <strong>✏️</strong> справа в его строке. Откроется окно редактирования.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 4 blocks explanation */}
+            <div className="space-y-4 mt-6">
+              <h3 className="font-bold text-lg">Что означает каждый блок в окне редактирования</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border rounded-xl p-5 space-y-2">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-primary" />
+                    </div>
+                    <p className="font-bold text-sm">Блок 1: Личные данные</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Фамилия, имя и должность сотрудника. Эти данные отображаются в таблице команды и в заявках.</p>
+                </div>
+
+                <div className="border rounded-xl p-5 space-y-2">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <FolderKanban className="w-4 h-4 text-primary" />
+                    </div>
+                    <p className="font-bold text-sm">Блок 2: Проекты и филиалы</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Выберите, к каким <strong>проектам</strong> привязан сотрудник. Если проект корпоративный (например, Thompson School), под ним появятся <strong>филиалы</strong> — выберите конкретные школы/офисы, где работает человек.
+                  </p>
+                  <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 mt-2">
+                    <p className="text-xs text-amber-700">
+                      <strong>Важно:</strong> Сотрудник сможет подавать заявки <em>только</em> по тем проектам и филиалам, которые вы здесь выберете.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border rounded-xl p-5 space-y-2">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-primary" />
+                    </div>
+                    <p className="font-bold text-sm">Блок 3: Доступ к формам</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Показывает, какие типы заявок (формы) доступны сотруднику в боте.
+                  </p>
+                  <div className="space-y-2 mt-2">
+                    <div className="flex items-start gap-2">
+                      <div className="w-4 h-4 rounded bg-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
+                        <ShieldCheck className="w-2.5 h-2.5 text-white" />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        <strong className="text-foreground">Зелёные формы</strong> — добавляются <em>автоматически</em> из выбранных проектов. Их не нужно включать вручную.
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Plus className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground">
+                        <strong className="text-foreground">Дополнительные формы</strong> — если сотруднику нужна форма, которая не входит ни в один его проект, включите её здесь вручную.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-xl p-5 space-y-2">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Key className="w-4 h-4 text-primary" />
+                    </div>
+                    <p className="font-bold text-sm">Блок 4: Данные для входа</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Логин и пароль для входа в систему. Если хотите сменить пароль — введите новый. Если менять не нужно — оставьте поле пустым, старый пароль сохранится.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Typical scenarios */}
+            <div className="space-y-3 mt-4">
+              <h3 className="font-bold text-lg">Типичные ситуации</h3>
+              <div className="space-y-3">
+                <div className="flex gap-3 p-4 border rounded-xl">
+                  <div className="w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center shrink-0">?</div>
+                  <div>
+                    <p className="font-semibold text-sm">Сотрудник пишет, что не видит нужный филиал в боте</p>
+                    <p className="text-sm text-muted-foreground mt-1">Откройте его карточку → Блок «Проекты и филиалы» → раскройте нужный проект → поставьте галочку на нужном филиале → нажмите «Сохранить изменения».</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 p-4 border rounded-xl">
+                  <div className="w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center shrink-0">?</div>
+                  <div>
+                    <p className="font-semibold text-sm">Нужно дать доступ к «Заявлению на возврат», но проект не настроен</p>
+                    <p className="text-sm text-muted-foreground mt-1">Откройте карточку → Блок «Доступ к формам» → в разделе «Добавить отдельно» поставьте галочку «Заявление на возврат» → сохраните.</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 p-4 border rounded-xl">
+                  <div className="w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center shrink-0">?</div>
+                  <div>
+                    <p className="font-semibold text-sm">Сотрудник говорит, что обновлённые доступы не работают в боте</p>
+                    <p className="text-sm text-muted-foreground mt-1">Попросите его отправить команду <code className="bg-muted px-1 rounded">/start</code> в Telegram-боте. Это перезагружает его профиль с новыми правами.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+              <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-blue-700 leading-relaxed">
+                <strong>Совет:</strong> Всегда нажимайте «Сохранить изменения» после каждого редактирования. Пока кнопка не нажата — ничего не сохранится, даже если вы закроете окно.
+              </p>
+            </div>
+          </section>
+
+          {/* Section 11 */}
           <section id="faq-users" className="scroll-mt-32 space-y-6">
             <h2 className="text-2xl font-bold text-foreground border-b pb-2">
-              10. Частые вопросы (FAQ)
+              11. Частые вопросы (FAQ)
             </h2>
             <div className="space-y-4">
               <div className="border rounded-xl p-6 space-y-4">
