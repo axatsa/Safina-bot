@@ -38,7 +38,7 @@ const formatAmount = (value: number): string => {
 
 type ItemWithDisplay = ExpenseItem & { displayAmount: string; displayQuantity: string };
 
-const emptyItem = (currency: "UZS" | "USD" | "RUB" = "UZS"): ItemWithDisplay => ({
+const emptyItem = (currency: "UZS" | "USD" = "UZS"): ItemWithDisplay => ({
     name: "",
     quantity: 1,
     unit: "кг",
@@ -516,7 +516,6 @@ const SubmitExpense = () => {
                                                     <SelectContent>
                                                         <SelectItem value="UZS">UZS</SelectItem>
                                                         <SelectItem value="USD">USD</SelectItem>
-                                                        <SelectItem value="RUB">RUB</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>

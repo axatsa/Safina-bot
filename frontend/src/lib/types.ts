@@ -45,7 +45,7 @@ export interface ExpenseItem {
   quantity: number;
   unit: string;
   amount: number;
-  currency: "UZS" | "USD" | "RUB";
+  currency: "UZS" | "USD";
 }
 
 export type ExpenseStatus =

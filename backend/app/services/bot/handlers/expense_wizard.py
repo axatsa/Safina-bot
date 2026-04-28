@@ -314,8 +314,8 @@ async def process_item_currency(message: types.Message, state: FSMContext):
         return
         
     currency = message.text.upper()
-    if currency not in ("UZS", "USD", "RUB"):
-        await message.answer("UZS, USD или RUB:", reply_markup=get_currency_kb())
+    if currency not in ("UZS", "USD"):
+        await message.answer("UZS или USD:", reply_markup=get_currency_kb())
         return
     data = await state.get_data()
     items = data.get("items", [])
