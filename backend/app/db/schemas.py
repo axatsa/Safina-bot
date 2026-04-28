@@ -24,6 +24,7 @@ class ExpenseStatusEnum(str, Enum):
 class CurrencyEnum(str, Enum):
     UZS = "UZS"
     USD = "USD"
+    RUB = "RUB"
 
 class ExpenseItemSchema(BaseModel):
     name: str = Field(..., min_length=1, max_length=200, description="Наименование товара или услуги")
@@ -35,9 +36,11 @@ class ExpenseItemSchema(BaseModel):
         if isinstance(v, str):
             if "CurrencyEnum.USD" in v: return "USD"
             if "CurrencyEnum.UZS" in v: return "UZS"
+            if "CurrencyEnum.RUB" in v: return "RUB"
             # Handle cases where it might be just string but in different format
             if v.upper() == "USD": return "USD"
             if v.upper() == "UZS": return "UZS"
+            if v.upper() == "RUB": return "RUB"
         return v
 
     currency: CurrencyEnum

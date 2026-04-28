@@ -23,8 +23,9 @@ def get_currency_kb():
     b = ReplyKeyboardBuilder()
     b.button(text="UZS")
     b.button(text="USD")
+    b.button(text="RUB")
     b.button(text=_BACK)
-    b.adjust(2, 1)
+    b.adjust(2, 2)
     return b.as_markup(resize_keyboard=True)
 
 def get_main_kb(is_ceo: bool = False, is_senior: bool = False):

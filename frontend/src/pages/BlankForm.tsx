@@ -357,6 +357,7 @@ const BlankForm = () => {
                               <SelectContent>
                                 <SelectItem value="UZS">UZS</SelectItem>
                                 <SelectItem value="USD">USD</SelectItem>
+                                <SelectItem value="RUB">RUB</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
