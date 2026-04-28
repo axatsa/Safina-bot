@@ -112,15 +112,10 @@ const ExpenseDetail = () => {
   const [team, setTeam] = useState<any[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [recipientDialogOpen, setRecipientDialogOpen] = useState(false);
-  const [isEditingUnits, setIsEditingUnits] = useState(false);
-  const [editableItems, setEditableItems] = useState<any[]>([]);
 
   useEffect(() => {
     if (expense?.internalComment) {
       setInternalComment(expense.internalComment);
-    }
-    if (expense?.items) {
-      setEditableItems(expense.items);
     }
     // Pre-select creator if expense loaded
     if (expense?.createdById && selectedRecipients.length === 0) {
@@ -151,16 +146,6 @@ const ExpenseDetail = () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.info("Комментарий сохранен");
     },
-  });
-
-  const updateItemsMutation = useMutation({
-    mutationFn: (newItems: any[]) => store.updateExpenseItems(id, newItems),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expense", id] });
-      toast.success("Позиции обновлены");
-      setIsEditingUnits(false);
-    },
-    onError: (e: any) => toast.error(e.message || "Ошибка при обновлении"),
   });
 
   const forwardSeniorMutation = useMutation({
@@ -361,25 +346,6 @@ const ExpenseDetail = () => {
               Docx
             </Button>
           )}
-
-          {(store.isAdmin() || store.isSeniorFinancier()) && (
-            <Button 
-              variant={isEditingUnits ? "default" : "outline"} 
-              size="sm" 
-              className="gap-2" 
-              onClick={() => {
-                if (isEditingUnits) {
-                  updateItemsMutation.mutate(editableItems);
-                } else {
-                  setIsEditingUnits(true);
-                }
-              }}
-              disabled={updateItemsMutation.isPending}
-            >
-              {updateItemsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-              {isEditingUnits ? "Сохранить ед. изм." : "Изм. ед. изм."}
-            </Button>
-          )}
         </div>
       </div>
 
@@ -392,7 +358,6 @@ const ExpenseDetail = () => {
               { label: "Ответственный", value: expense.createdBy },
               { label: "Дата/время", value: format(new Date(expense.date), "yyyy-MM-dd HH:mm", { locale: ru }) },
               { label: "Сумма", value: formatCurrency(Number(expense.totalAmount || 0), expense.currency) },
-              { label: "Поставщик", value: expense.supplier || "Продукты" },
             ].map((item) => (
               <div key={item.label} className="glass-card rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">{item.label}</p>
@@ -641,31 +606,10 @@ const ExpenseDetail = () => {
                 </tr>
               </thead>
               <tbody>
-                {editableItems.map((item, i) => (
+                {expense.items.map((item, i) => (
                   <tr key={i} className="border-b">
                     <td className="py-3 px-4">{item.name}</td>
-                    <td className="py-3 px-4 text-right">
-                      {item.quantity} 
-                      {isEditingUnits ? (
-                        <select 
-                          className="ml-2 border rounded p-1 text-xs"
-                          value={item.unit}
-                          onChange={(e) => {
-                            const newItems = [...editableItems];
-                            newItems[i].unit = e.target.value;
-                            setEditableItems(newItems);
-                          }}
-                        >
-                          <option value="кг">кг</option>
-                          <option value="пучки">пучки</option>
-                          <option value="шт">шт</option>
-                          <option value="литры">литры</option>
-                          <option value="ед.">ед.</option>
-                        </select>
-                      ) : (
-                        ` ${item.unit}`
-                      )}
-                    </td>
+                    <td className="py-3 px-4 text-right">{item.quantity}</td>
                     <td className="py-3 px-4 text-right">{formatCurrency(item.amount, item.currency)}</td>
                   </tr>
                 ))}

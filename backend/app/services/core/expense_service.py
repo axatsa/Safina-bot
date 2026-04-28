@@ -52,7 +52,6 @@ class ExpenseService:
             purpose=expense_in.purpose,
             items=[{
                 "name": i.name, "quantity": float(i.quantity), 
-                "unit": i.unit,
                 "amount": float(i.amount), "currency": str(i.currency)
             } for i in expense_in.items],
             total_amount=float(expense_in.total_amount or sum(i.amount * i.quantity for i in expense_in.items)),
@@ -69,7 +68,6 @@ class ExpenseService:
             branch_code=branch.code if branch else None,
             request_type=expense_in.request_type,
             template_key=expense_in.template_key,
-            supplier=expense_in.supplier,
             receipt_photo_file_id=expense_in.receipt_photo_file_id,
             refund_data=expense_in.refund_data.dict() if expense_in.refund_data else None
         )
@@ -115,7 +113,6 @@ class ExpenseService:
             'currency': getattr(expense, 'currency', 'UZS'),
             'usd_rate': getattr(expense, 'usd_rate', None),
             'request_type': getattr(expense, 'request_type', 'expense'),
-            'supplier': getattr(expense, 'supplier', None),
         }
 
 expense_service = ExpenseService()

@@ -12,10 +12,7 @@ from app.core import database
 from app.db import models, schemas
 from app.services.core.expense_service import expense_service
 from ..states import ExpenseWizard
-from ..keyboards import (
-    get_confirm_kb, get_date_kb, get_currency_kb, get_projects_kb, 
-    get_main_kb, get_back_kb, get_branches_kb, get_supplier_kb, get_unit_kb
-)
+from ..keyboards import get_confirm_kb, get_date_kb, get_currency_kb, get_projects_kb, get_main_kb, get_back_kb, get_branches_kb
 from ..utils import tashkent_now, _BACK, run_sync
 from decimal import Decimal
 from app.services.currency.service import currency_service
@@ -81,8 +78,8 @@ async def start_wizard_selection(message: types.Message, state: FSMContext):
             await state.set_state(ExpenseWizard.branch_selection)
             return
 
-        await message.answer("Выберите поставщика:", reply_markup=get_supplier_kb())
-        await state.set_state(ExpenseWizard.supplier)
+        await message.answer("Введите дату или «Сейчас»:", reply_markup=get_date_kb())
+        await state.set_state(ExpenseWizard.date)
 
 @router.message(ExpenseWizard.project_selection)
 async def process_project_selection(message: types.Message, state: FSMContext):
@@ -137,8 +134,8 @@ async def process_project_selection(message: types.Message, state: FSMContext):
             await state.set_state(ExpenseWizard.branch_selection)
             return
 
-        await message.answer(f"Проект выбран. Выберите поставщика:", reply_markup=get_supplier_kb())
-        await state.set_state(ExpenseWizard.supplier)
+        await message.answer(f"Проект выбран. Введите дату:", reply_markup=get_date_kb())
+        await state.set_state(ExpenseWizard.date)
     else:
         await message.answer("Выберите из списка или отмените.", reply_markup=get_projects_kb(projects_data))
 
@@ -174,46 +171,36 @@ async def process_branch_selection(message: types.Message, state: FSMContext):
         selected = next((b for b in branches if b["name"] == message.text), None)
         if selected:
             await state.update_data(branch_id=selected["id"])
-            await message.answer("Филиал выбран. Выберите поставщика:", reply_markup=get_supplier_kb())
-            await state.set_state(ExpenseWizard.supplier)
+            await message.answer("Филиал выбран. Введите дату:", reply_markup=get_date_kb())
+            await state.set_state(ExpenseWizard.date)
         elif message.text == "Нет филиала":
             await state.update_data(branch_id=None)
-            await message.answer("Продолжаем без филиала. Выберите поставщика:", reply_markup=get_supplier_kb())
-            await state.set_state(ExpenseWizard.supplier)
+            await message.answer("Продолжаем без филиала. Введите дату:", reply_markup=get_date_kb())
+            await state.set_state(ExpenseWizard.date)
         else:
             await message.answer("Выберите из списка или отмените.", reply_markup=get_branches_kb(branches))
     else:
         await message.answer("Ошибка сессии. Начните заново.", reply_markup=get_main_kb())
         await state.clear()
 
-@router.message(ExpenseWizard.supplier)
-async def process_supplier(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        data = await state.get_data()
-        projects_data = data.get("projects_data", [])
-        project_id = data.get("project_id")
-        project_obj = next((p for p in projects_data if p["id"] == project_id), None)
-        if project_obj and project_obj["category"] == "corporate":
-            await message.answer("Выберите филиал:", reply_markup=get_branches_kb(project_obj["branches_data"]))
-            await state.set_state(ExpenseWizard.branch_selection)
-        else:
-            await message.answer("Выберите проект:", reply_markup=get_projects_kb(projects_data))
-            await state.set_state(ExpenseWizard.project_selection)
-        return
-
-    if message.text not in ["Продукты", "Мясо"]:
-        await message.answer("Выберите из списка.", reply_markup=get_supplier_kb())
-        return
-
-    await state.update_data(supplier=message.text)
-    await message.answer("Введите дату или «Сейчас»:", reply_markup=get_date_kb())
-    await state.set_state(ExpenseWizard.date)
-
 @router.message(ExpenseWizard.date)
 async def process_date(message: types.Message, state: FSMContext):
     if message.text == _BACK:
-        await message.answer("Выберите поставщика:", reply_markup=get_supplier_kb())
-        await state.set_state(ExpenseWizard.supplier)
+        data = await state.get_data()
+        user_id = data.get("user_id")
+        
+        def check_user_projects(uid):
+            with database.database_session() as db:
+                user = db.query(models.User).filter(models.User.id == uid).first()
+                return user and len(user.projects) > 1
+        
+        has_many = await run_sync(check_user_projects, user_id)
+        if has_many:
+            await message.answer("Выберите проект:", reply_markup=get_projects_kb(data.get("projects_data", [])))
+            await state.set_state(ExpenseWizard.project_selection)
+        else:
+            await state.clear()
+            await message.answer("Отменено.", reply_markup=get_main_kb())
         return
 
     val = message.text.lower()
@@ -267,29 +254,10 @@ async def process_item_qty(message: types.Message, state: FSMContext):
     try:
         qty = Decimal(message.text.replace(",", "."))
         await state.update_data(current_item_qty=str(qty))
-        
-        data = await state.get_data()
-        item_name = data.get("current_item_name", "").lower()
-        if "зелень" in item_name:
-            await state.update_data(current_item_unit="пучки")
-            await message.answer("Зелень — ед. изм. пучки. Сумма за 1 пучок:", reply_markup=get_back_kb())
-            await state.set_state(ExpenseWizard.item_amount)
-        else:
-            await message.answer("Ед. изм. (кг, шт, литры...):", reply_markup=get_unit_kb())
-            await state.set_state(ExpenseWizard.item_unit)
+        await message.answer("Сумма за 1 ед:", reply_markup=get_back_kb())
+        await state.set_state(ExpenseWizard.item_amount)
     except Exception:
         await message.answer("Введите число.")
-
-@router.message(ExpenseWizard.item_unit)
-async def process_item_unit(message: types.Message, state: FSMContext):
-    if message.text == _BACK:
-        await message.answer("Количество:", reply_markup=get_back_kb())
-        await state.set_state(ExpenseWizard.item_qty)
-        return
-        
-    await state.update_data(current_item_unit=message.text)
-    await message.answer(f"Сумма за 1 {message.text}:", reply_markup=get_back_kb())
-    await state.set_state(ExpenseWizard.item_amount)
 
 @router.message(ExpenseWizard.item_amount)
 async def process_item_amount(message: types.Message, state: FSMContext):
@@ -326,7 +294,6 @@ async def process_item_currency(message: types.Message, state: FSMContext):
     items.append({
         "name": data.get("current_item_name"),
         "quantity": data.get("current_item_qty"),
-        "unit": data.get("current_item_unit", "кг"),
         "amount": data.get("current_item_amount"),
         "currency": currency
     })
@@ -369,10 +336,9 @@ async def process_finish(message: types.Message, state: FSMContext):
                 purpose=data_in.get("purpose"),
                 items=[schemas.ExpenseItemSchema(**i) for i in items_in],
                 total_amount=total,
-                currency=currency,
+                currency=data_in.get("items")[0]["currency"],
                 project_id=data_in.get("project_id"),
                 branch_id=data_in.get("branch_id"),
-                supplier=data_in.get("supplier"),
                 date=datetime.datetime.fromisoformat(data_in.get("date")),
             )
             db_expense = expense_service.create_expense_request(db, expense_create, user_id=data_in.get("user_id"), usd_rate=usd_rate_in)

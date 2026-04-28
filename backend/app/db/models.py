@@ -85,7 +85,6 @@ class ExpenseRequest(Base):
     status = Column(String, default="request", index=True) # request, review, pending_senior, approved_senior, rejected_senior, confirmed, declined, revision, archived
     request_type = Column(String, default="expense", index=True) # expense, refund, blank, blank_refund
     template_key = Column(String, nullable=True) # land, drujba, management, school, refund
-    supplier = Column(String, nullable=True) # e.g. Meat Supplier, Product Supplier
     receipt_photo_file_id = Column(String, nullable=True) # Telegram file_id or local path
     refund_data = Column(JSON, nullable=True) # Additonal Refund specific fields
     
